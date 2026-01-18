@@ -13,15 +13,16 @@ export async function POST(request: NextRequest) {
       return errorResponse('Contraseña requerida', 400)
     }
 
+    const envPassword = process.env.ADMIN_PASSWORD || 'admin123'
+
     // Obtener configuración de admin
     let settings = await prisma.adminSettings.findUnique({
       where: { id: 1 }
     })
 
-    // Si no existe, crear con contraseña por defecto del env
+    // Si no existe, crear con contraseña del env
     if (!settings) {
-      const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123'
-      const hash = await bcrypt.hash(defaultPassword, 10)
+      const hash = await bcrypt.hash(envPassword, 10)
 
       settings = await prisma.adminSettings.create({
         data: {
@@ -31,7 +32,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Verificar contraseña
+    // Verificar contra la contraseña del ENV directamente (permite resetear)
+    if (password === envPassword) {
+      // Actualizar hash si cambió la contraseña en env
+      const newHash = await bcrypt.hash(envPassword, 10)
+      await prisma.adminSettings.update({
+        where: { id: 1 },
+        data: { passwordHash: newHash }
+      })
+
+      const token = Buffer.from(`admin:${Date.now()}`).toString('base64')
+      return successResponse({ authenticated: true, token })
+    }
+
+    // Verificar contra el hash guardado
     const isValid = await bcrypt.compare(password, settings.passwordHash)
 
     if (!isValid) {
