@@ -13,3 +13,20 @@ export async function GET(request: NextRequest) {
     timestamp: new Date().toISOString()
   })
 }
+
+// POST /api/debug - Probar comparación de contraseña
+export async function POST(request: NextRequest) {
+  const body = await request.json()
+  const { password } = body
+  const envPassword = process.env.ADMIN_PASSWORD || 'admin123'
+
+  return successResponse({
+    inputPassword: password,
+    inputLength: password?.length || 0,
+    envLength: envPassword.length,
+    exactMatch: password === envPassword,
+    trimmedMatch: password?.trim() === envPassword.trim(),
+    envFirstChars: envPassword.substring(0, 5) + '***',
+    inputFirstChars: password?.substring(0, 5) + '***'
+  })
+}
