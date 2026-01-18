@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Métricas semanales - Dashboard de 6 métricas
+model WeeklyMetric {
+  id                 Int      @id @default(autoincrement())
+  weekStart          DateTime @unique // Inicio de semana (lunes)
+  mrr                Float    @default(0) // Ingresos recurrentes confirmados
+  pipelineActivo     Int      @default(0) // Oportunidades en conversación (leads calientes)
+  cierresSemana      Float    @default(0) // Ventas cerradas (monto)
+  contenidoPublicado Int      @default(0) // Piezas de contenido creadas
+  leadsEntrantes     Int      @default(0) // Personas nuevas que preguntaron
+  entregasPendientes Int      @default(0) // Proyectos en ejecución sin cerrar
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// Scorecard mensual
+model MonthlyScorecard {
+  id                    Int      @id @default(autoincrement())
+  month                 DateTime @unique // Primer día del mes
+  facturacionTotal      Float    @default(0)
+  mrr                   Float    @default(0)
+  clientesNuevos        Int      @default(0)
+  clientesPerdidos      Int      @default(0)
+  enigmaVendidos        Int      @default(0)
+  serviciosRecurrentes  Int      @default(0)
+  leadsTotales          Int      @default(0)
+  tasaCierre            Float    @default(0) // Porcentaje
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Checks diarios
+model DailyCheck {
+  id               Int      @id @default(autoincrement())
+  date             DateTime @unique
+  publicoContenido Boolean  @default(false)
+  respondioLeads   Boolean  @default(false)
+  notas            String?
+  createdAt        DateTime @default(now())
+}
+
+// Configuración de admin y branding
+model AdminSettings {
+  id           Int     @id @default(1)
+  passwordHash String
+  brandPrimary String  @default("#44e1fc")
+  brandDark    String  @default("#171717")
+  logoUrl      String?
+}
