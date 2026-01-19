@@ -3,24 +3,33 @@ import bcrypt from 'bcryptjs'
 import prisma from '@/lib/db'
 import { errorResponse, successResponse } from '@/lib/api'
 
+// Helper para asegurar que existe el registro de settings
+async function ensureSettingsExist() {
+  let settings = await prisma.adminSettings.findUnique({
+    where: { id: 1 }
+  })
+
+  if (!settings) {
+    const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123'
+    const hash = await bcrypt.hash(defaultPassword, 10)
+
+    settings = await prisma.adminSettings.create({
+      data: {
+        id: 1,
+        passwordHash: hash,
+        brandPrimary: '#44e1fc',
+        brandDark: '#171717'
+      }
+    })
+  }
+
+  return settings
+}
+
 // GET /api/settings - Obtener configuración (sin password)
 export async function GET() {
   try {
-    let settings = await prisma.adminSettings.findUnique({
-      where: { id: 1 }
-    })
-
-    if (!settings) {
-      const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123'
-      const hash = await bcrypt.hash(defaultPassword, 10)
-
-      settings = await prisma.adminSettings.create({
-        data: {
-          id: 1,
-          passwordHash: hash
-        }
-      })
-    }
+    const settings = await ensureSettingsExist()
 
     // No devolver el hash de la contraseña
     const { passwordHash, ...publicSettings } = settings
@@ -37,6 +46,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { brandPrimary, brandDark, logoUrl, newPassword } = body
+
+    // Asegurar que existe el registro antes de actualizar
+    await ensureSettingsExist()
 
     const updateData: Record<string, string> = {}
 

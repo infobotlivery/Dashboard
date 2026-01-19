@@ -11,9 +11,17 @@ export async function GET(request: NextRequest) {
 
     if (current) {
       const weekStart = getWeekStart()
-      const metric = await prisma.weeklyMetric.findUnique({
+      let metric = await prisma.weeklyMetric.findUnique({
         where: { weekStart }
       })
+
+      // Si no existe, crear uno con valores por defecto
+      if (!metric) {
+        metric = await prisma.weeklyMetric.create({
+          data: { weekStart }
+        })
+      }
+
       return successResponse(metric)
     }
 
@@ -46,16 +54,26 @@ export async function POST(request: NextRequest) {
       ? new Date(weekStartStr)
       : getWeekStart()
 
+    // Sanitizar datos numéricos
+    const sanitizedData: Record<string, number> = {}
+    const numericFields = ['mrr', 'pipelineActivo', 'cierresSemana', 'contenidoPublicado', 'leadsEntrantes', 'entregasPendientes']
+
+    for (const field of numericFields) {
+      if (data[field] !== undefined) {
+        sanitizedData[field] = Number(data[field]) || 0
+      }
+    }
+
     // Upsert: crear si no existe, actualizar si existe
     const metric = await prisma.weeklyMetric.upsert({
       where: { weekStart },
       update: {
-        ...data,
+        ...sanitizedData,
         updatedAt: new Date()
       },
       create: {
         weekStart,
-        ...data
+        ...sanitizedData
       }
     })
 

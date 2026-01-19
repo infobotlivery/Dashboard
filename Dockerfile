@@ -57,11 +57,27 @@ COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 # Crear directorio para la base de datos y dar permisos
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data /app/prisma
 
-# Script de inicio
+# Script de inicio mejorado con reintentos
 RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'echo "Initializing database..."' >> /app/start.sh && \
-    echo 'npx prisma db push --skip-generate' >> /app/start.sh && \
-    echo 'echo "Database ready. Starting server..."' >> /app/start.sh && \
+    echo 'set -e' >> /app/start.sh && \
+    echo '' >> /app/start.sh && \
+    echo 'echo "=== Inicializando base de datos ===" ' >> /app/start.sh && \
+    echo '' >> /app/start.sh && \
+    echo '# Crear directorio si no existe' >> /app/start.sh && \
+    echo 'mkdir -p /app/data' >> /app/start.sh && \
+    echo '' >> /app/start.sh && \
+    echo '# Ejecutar migración con reintentos' >> /app/start.sh && \
+    echo 'for i in 1 2 3; do' >> /app/start.sh && \
+    echo '  echo "Intento $i de inicializar DB..."' >> /app/start.sh && \
+    echo '  if npx prisma db push --skip-generate --accept-data-loss 2>&1; then' >> /app/start.sh && \
+    echo '    echo "Base de datos inicializada correctamente"' >> /app/start.sh && \
+    echo '    break' >> /app/start.sh && \
+    echo '  fi' >> /app/start.sh && \
+    echo '  echo "Reintentando en 2 segundos..."' >> /app/start.sh && \
+    echo '  sleep 2' >> /app/start.sh && \
+    echo 'done' >> /app/start.sh && \
+    echo '' >> /app/start.sh && \
+    echo 'echo "=== Iniciando servidor ===" ' >> /app/start.sh && \
     echo 'exec node server.js' >> /app/start.sh && \
     chmod +x /app/start.sh && \
     chown nextjs:nodejs /app/start.sh

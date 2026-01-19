@@ -5,6 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
+import Toggle from '@/components/ui/Toggle'
+import NumberInput from '@/components/ui/NumberInput'
+import DateSelector from '@/components/ui/DateSelector'
 
 type Tab = 'weekly' | 'monthly' | 'daily' | 'settings'
 
@@ -36,6 +39,58 @@ interface Settings {
   brandPrimary: string
   brandDark: string
   logoUrl: string | null
+}
+
+// Iconos para las métricas
+const icons = {
+  mrr: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
+    </svg>
+  ),
+  pipeline: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+    </svg>
+  ),
+  cierres: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+    </svg>
+  ),
+  contenido: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+    </svg>
+  ),
+  leads: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
+      <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
+    </svg>
+  ),
+  entregas: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+      <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+    </svg>
+  ),
+  facturacion: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+    </svg>
+  ),
+  clientes: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+    </svg>
+  ),
+  porcentaje: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+    </svg>
+  )
 }
 
 export default function AdminPage() {
@@ -229,6 +284,11 @@ export default function AdminPage() {
         >
           <Card>
             <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-brand-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-brand-primary" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                </svg>
+              </div>
               <h1 className="text-2xl font-bold">Panel de Administración</h1>
               <p className="text-brand-muted mt-2">Ingresa tu contraseña para continuar</p>
             </div>
@@ -243,7 +303,13 @@ export default function AdminPage() {
               />
 
               {authError && (
-                <p className="text-red-400 text-sm text-center">{authError}</p>
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-red-400 text-sm text-center bg-red-400/10 py-2 px-4 rounded-lg"
+                >
+                  {authError}
+                </motion.p>
               )}
 
               <Button type="submit" className="w-full" loading={authLoading}>
@@ -252,7 +318,7 @@ export default function AdminPage() {
             </form>
 
             <div className="mt-6 text-center">
-              <a href="/" className="text-brand-muted hover:text-brand-primary text-sm">
+              <a href="/" className="text-brand-muted hover:text-brand-primary text-sm transition-colors">
                 ← Volver al Dashboard
               </a>
             </div>
@@ -266,11 +332,11 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-black">
       {/* Header */}
-      <header className="border-b border-brand-border">
-        <div className="max-w-5xl mx-auto px-4 py-6">
+      <header className="border-b border-brand-border bg-brand-dark/50 backdrop-blur-sm sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Panel de Administración</h1>
+              <h1 className="text-xl font-bold">Panel de Administración</h1>
               <p className="text-brand-muted text-sm">Edita tus métricas y configuración</p>
             </div>
             <div className="flex gap-3">
@@ -282,7 +348,7 @@ export default function AdminPage() {
                   localStorage.removeItem('admin_token')
                   setIsAuthenticated(false)
                 }}
-                className="btn-secondary text-sm text-red-400 border-red-400/30 hover:border-red-400"
+                className="btn-secondary text-sm"
               >
                 Cerrar Sesión
               </button>
@@ -292,24 +358,25 @@ export default function AdminPage() {
       </header>
 
       {/* Tabs */}
-      <div className="border-b border-brand-border">
-        <div className="max-w-5xl mx-auto px-4">
+      <div className="border-b border-brand-border bg-black/50">
+        <div className="max-w-6xl mx-auto px-4">
           <nav className="flex gap-1">
             {[
-              { id: 'weekly', label: 'Semanal' },
-              { id: 'monthly', label: 'Mensual' },
-              { id: 'daily', label: 'Diario' },
-              { id: 'settings', label: 'Configuración' }
+              { id: 'weekly', label: 'Semanal', icon: '📊' },
+              { id: 'monthly', label: 'Mensual', icon: '📈' },
+              { id: 'daily', label: 'Diario', icon: '✅' },
+              { id: 'settings', label: 'Configuración', icon: '⚙️' }
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as Tab)}
-                className={`px-4 py-3 text-sm font-medium transition-colors relative ${
+                className={`px-5 py-3 text-sm font-medium transition-all relative flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'text-brand-primary'
                     : 'text-brand-muted hover:text-white'
                 }`}
               >
+                <span>{tab.icon}</span>
                 {tab.label}
                 {activeTab === tab.id && (
                   <motion.div
@@ -324,7 +391,7 @@ export default function AdminPage() {
       </div>
 
       {/* Content */}
-      <main className="max-w-5xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -336,81 +403,66 @@ export default function AdminPage() {
             {/* Weekly Tab */}
             {activeTab === 'weekly' && (
               <div className="space-y-6">
-                <div className="flex items-center gap-4 mb-6">
-                  <Input
-                    type="date"
+                <Card>
+                  <h2 className="text-lg font-semibold mb-4">Métricas de la Semana</h2>
+                  <DateSelector
+                    value={new Date(weeklyMetric.weekStart)}
+                    onChange={(date) => setWeeklyMetric({ ...weeklyMetric, weekStart: date.toISOString().split('T')[0] })}
                     label="Semana del"
-                    value={weeklyMetric.weekStart}
-                    onChange={(e) =>
-                      setWeeklyMetric({ ...weeklyMetric, weekStart: e.target.value })
-                    }
-                    className="max-w-xs"
+                    mode="week"
                   />
-                </div>
+                </Card>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <Input
-                    type="number"
-                    label="MRR ($)"
+                  <NumberInput
+                    label="MRR (Ingresos Recurrentes)"
                     value={weeklyMetric.mrr}
-                    onChange={(e) =>
-                      setWeeklyMetric({ ...weeklyMetric, mrr: parseFloat(e.target.value) || 0 })
-                    }
+                    onChange={(value) => setWeeklyMetric({ ...weeklyMetric, mrr: value })}
+                    icon={icons.mrr}
+                    prefix="$"
+                    step={100}
+                    color="#10b981"
                   />
-                  <Input
-                    type="number"
-                    label="Pipeline Activo (leads)"
+                  <NumberInput
+                    label="Pipeline Activo"
                     value={weeklyMetric.pipelineActivo}
-                    onChange={(e) =>
-                      setWeeklyMetric({
-                        ...weeklyMetric,
-                        pipelineActivo: parseInt(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setWeeklyMetric({ ...weeklyMetric, pipelineActivo: value })}
+                    icon={icons.pipeline}
+                    suffix="leads"
+                    color="#3b82f6"
                   />
-                  <Input
-                    type="number"
-                    label="Cierres de la Semana ($)"
+                  <NumberInput
+                    label="Cierres de la Semana"
                     value={weeklyMetric.cierresSemana}
-                    onChange={(e) =>
-                      setWeeklyMetric({
-                        ...weeklyMetric,
-                        cierresSemana: parseFloat(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setWeeklyMetric({ ...weeklyMetric, cierresSemana: value })}
+                    icon={icons.cierres}
+                    prefix="$"
+                    step={100}
+                    color="#f59e0b"
                   />
-                  <Input
-                    type="number"
+                  <NumberInput
                     label="Contenido Publicado"
                     value={weeklyMetric.contenidoPublicado}
-                    onChange={(e) =>
-                      setWeeklyMetric({
-                        ...weeklyMetric,
-                        contenidoPublicado: parseInt(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setWeeklyMetric({ ...weeklyMetric, contenidoPublicado: value })}
+                    icon={icons.contenido}
+                    suffix="piezas"
+                    color="#8b5cf6"
                   />
-                  <Input
-                    type="number"
+                  <NumberInput
                     label="Leads Entrantes"
                     value={weeklyMetric.leadsEntrantes}
-                    onChange={(e) =>
-                      setWeeklyMetric({
-                        ...weeklyMetric,
-                        leadsEntrantes: parseInt(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setWeeklyMetric({ ...weeklyMetric, leadsEntrantes: value })}
+                    icon={icons.leads}
+                    suffix="nuevos"
+                    color="#ec4899"
                   />
-                  <Input
-                    type="number"
+                  <NumberInput
                     label="Entregas Pendientes"
                     value={weeklyMetric.entregasPendientes}
-                    onChange={(e) =>
-                      setWeeklyMetric({
-                        ...weeklyMetric,
-                        entregasPendientes: parseInt(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setWeeklyMetric({ ...weeklyMetric, entregasPendientes: value })}
+                    icon={icons.entregas}
+                    suffix="proyectos"
+                    color="#ef4444"
                   />
                 </div>
               </div>
@@ -419,104 +471,79 @@ export default function AdminPage() {
             {/* Monthly Tab */}
             {activeTab === 'monthly' && (
               <div className="space-y-6">
-                <Input
-                  type="month"
-                  label="Mes"
-                  value={monthlyScorecard.month.slice(0, 7)}
-                  onChange={(e) =>
-                    setMonthlyScorecard({ ...monthlyScorecard, month: e.target.value + '-01' })
-                  }
-                  className="max-w-xs"
-                />
+                <Card>
+                  <h2 className="text-lg font-semibold mb-4">Scorecard Mensual</h2>
+                  <DateSelector
+                    value={new Date(monthlyScorecard.month)}
+                    onChange={(date) => setMonthlyScorecard({ ...monthlyScorecard, month: date.toISOString().split('T')[0] })}
+                    label="Mes"
+                    mode="month"
+                  />
+                </Card>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Input
-                    type="number"
-                    label="Facturación Total ($)"
+                  <NumberInput
+                    label="Facturación Total"
                     value={monthlyScorecard.facturacionTotal}
-                    onChange={(e) =>
-                      setMonthlyScorecard({
-                        ...monthlyScorecard,
-                        facturacionTotal: parseFloat(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setMonthlyScorecard({ ...monthlyScorecard, facturacionTotal: value })}
+                    icon={icons.facturacion}
+                    prefix="$"
+                    step={500}
+                    color="#10b981"
                   />
-                  <Input
-                    type="number"
-                    label="MRR ($)"
+                  <NumberInput
+                    label="MRR"
                     value={monthlyScorecard.mrr}
-                    onChange={(e) =>
-                      setMonthlyScorecard({
-                        ...monthlyScorecard,
-                        mrr: parseFloat(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setMonthlyScorecard({ ...monthlyScorecard, mrr: value })}
+                    icon={icons.mrr}
+                    prefix="$"
+                    step={100}
+                    color="#3b82f6"
                   />
-                  <Input
-                    type="number"
+                  <NumberInput
                     label="Clientes Nuevos"
                     value={monthlyScorecard.clientesNuevos}
-                    onChange={(e) =>
-                      setMonthlyScorecard({
-                        ...monthlyScorecard,
-                        clientesNuevos: parseInt(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setMonthlyScorecard({ ...monthlyScorecard, clientesNuevos: value })}
+                    icon={icons.clientes}
+                    color="#8b5cf6"
                   />
-                  <Input
-                    type="number"
+                  <NumberInput
                     label="Clientes Perdidos"
                     value={monthlyScorecard.clientesPerdidos}
-                    onChange={(e) =>
-                      setMonthlyScorecard({
-                        ...monthlyScorecard,
-                        clientesPerdidos: parseInt(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setMonthlyScorecard({ ...monthlyScorecard, clientesPerdidos: value })}
+                    icon={icons.clientes}
+                    color="#ef4444"
                   />
-                  <Input
-                    type="number"
+                  <NumberInput
                     label="ENIGMA Vendidos"
                     value={monthlyScorecard.enigmaVendidos}
-                    onChange={(e) =>
-                      setMonthlyScorecard({
-                        ...monthlyScorecard,
-                        enigmaVendidos: parseInt(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setMonthlyScorecard({ ...monthlyScorecard, enigmaVendidos: value })}
+                    icon={icons.cierres}
+                    color="#f59e0b"
                   />
-                  <Input
-                    type="number"
+                  <NumberInput
                     label="Servicios Recurrentes"
                     value={monthlyScorecard.serviciosRecurrentes}
-                    onChange={(e) =>
-                      setMonthlyScorecard({
-                        ...monthlyScorecard,
-                        serviciosRecurrentes: parseInt(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setMonthlyScorecard({ ...monthlyScorecard, serviciosRecurrentes: value })}
+                    icon={icons.mrr}
+                    color="#06b6d4"
                   />
-                  <Input
-                    type="number"
+                  <NumberInput
                     label="Leads Totales"
                     value={monthlyScorecard.leadsTotales}
-                    onChange={(e) =>
-                      setMonthlyScorecard({
-                        ...monthlyScorecard,
-                        leadsTotales: parseInt(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setMonthlyScorecard({ ...monthlyScorecard, leadsTotales: value })}
+                    icon={icons.leads}
+                    color="#ec4899"
                   />
-                  <Input
-                    type="number"
-                    label="Tasa de Cierre (%)"
+                  <NumberInput
+                    label="Tasa de Cierre"
                     value={monthlyScorecard.tasaCierre}
-                    onChange={(e) =>
-                      setMonthlyScorecard({
-                        ...monthlyScorecard,
-                        tasaCierre: parseFloat(e.target.value) || 0
-                      })
-                    }
+                    onChange={(value) => setMonthlyScorecard({ ...monthlyScorecard, tasaCierre: value })}
+                    icon={icons.porcentaje}
+                    suffix="%"
+                    step={0.5}
+                    max={100}
+                    color="#22c55e"
                   />
                 </div>
               </div>
@@ -525,119 +552,129 @@ export default function AdminPage() {
             {/* Daily Tab */}
             {activeTab === 'daily' && (
               <div className="space-y-6">
-                <Input
-                  type="date"
-                  label="Fecha"
-                  value={dailyCheck.date}
-                  onChange={(e) => setDailyCheck({ ...dailyCheck, date: e.target.value })}
-                  className="max-w-xs"
-                />
+                <Card>
+                  <h2 className="text-lg font-semibold mb-4">Check Diario</h2>
+                  <DateSelector
+                    value={new Date(dailyCheck.date)}
+                    onChange={(date) => setDailyCheck({ ...dailyCheck, date: date.toISOString().split('T')[0] })}
+                    label="Fecha"
+                    mode="date"
+                  />
+                </Card>
 
-                <div className="space-y-4">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={dailyCheck.publicoContenido}
-                      onChange={(e) =>
-                        setDailyCheck({ ...dailyCheck, publicoContenido: e.target.checked })
-                      }
-                      className="w-5 h-5 rounded border-brand-border bg-brand-dark text-brand-primary focus:ring-brand-primary"
-                    />
-                    <span>¿Publiqué contenido hoy?</span>
-                  </label>
-
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={dailyCheck.respondioLeads}
-                      onChange={(e) =>
-                        setDailyCheck({ ...dailyCheck, respondioLeads: e.target.checked })
-                      }
-                      className="w-5 h-5 rounded border-brand-border bg-brand-dark text-brand-primary focus:ring-brand-primary"
-                    />
-                    <span>¿Respondí a los leads?</span>
-                  </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Toggle
+                    checked={dailyCheck.publicoContenido}
+                    onChange={(checked) => setDailyCheck({ ...dailyCheck, publicoContenido: checked })}
+                    label="¿Publiqué contenido hoy?"
+                    description="Registra si creaste y publicaste algún contenido"
+                  />
+                  <Toggle
+                    checked={dailyCheck.respondioLeads}
+                    onChange={(checked) => setDailyCheck({ ...dailyCheck, respondioLeads: checked })}
+                    label="¿Respondí a los leads?"
+                    description="Registra si atendiste las consultas de potenciales clientes"
+                  />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-brand-muted mb-2">
+                <Card>
+                  <label className="block text-sm font-medium text-brand-muted mb-3">
                     Notas del día
                   </label>
                   <textarea
                     value={dailyCheck.notas}
                     onChange={(e) => setDailyCheck({ ...dailyCheck, notas: e.target.value })}
-                    rows={4}
-                    className="w-full bg-brand-dark border border-brand-border rounded-button px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-all resize-none"
+                    rows={5}
+                    className="w-full bg-black/30 border border-brand-border rounded-xl px-4 py-3 text-white placeholder-brand-muted focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-all resize-none"
                     placeholder="Observaciones, aprendizajes, pendientes..."
                   />
-                </div>
+                </Card>
               </div>
             )}
 
             {/* Settings Tab */}
             {activeTab === 'settings' && (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Colores de Marca</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-6">
+                <Card>
+                  <h2 className="text-lg font-semibold mb-6">Colores de Marca</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-brand-muted mb-2">
+                      <label className="block text-sm font-medium text-brand-muted mb-3">
                         Color Primario
                       </label>
-                      <div className="flex gap-3">
-                        <input
-                          type="color"
-                          value={settings.brandPrimary}
-                          onChange={(e) =>
-                            setSettings({ ...settings, brandPrimary: e.target.value })
-                          }
-                          className="w-12 h-12 rounded cursor-pointer"
-                        />
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="w-16 h-16 rounded-xl border-2 border-brand-border cursor-pointer overflow-hidden"
+                          style={{ backgroundColor: settings.brandPrimary }}
+                        >
+                          <input
+                            type="color"
+                            value={settings.brandPrimary}
+                            onChange={(e) => setSettings({ ...settings, brandPrimary: e.target.value })}
+                            className="w-full h-full opacity-0 cursor-pointer"
+                          />
+                        </div>
                         <Input
                           value={settings.brandPrimary}
-                          onChange={(e) =>
-                            setSettings({ ...settings, brandPrimary: e.target.value })
-                          }
+                          onChange={(e) => setSettings({ ...settings, brandPrimary: e.target.value })}
                           placeholder="#44e1fc"
+                          className="flex-1"
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-brand-muted mb-2">
+                      <label className="block text-sm font-medium text-brand-muted mb-3">
                         Color Oscuro
                       </label>
-                      <div className="flex gap-3">
-                        <input
-                          type="color"
-                          value={settings.brandDark}
-                          onChange={(e) => setSettings({ ...settings, brandDark: e.target.value })}
-                          className="w-12 h-12 rounded cursor-pointer"
-                        />
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="w-16 h-16 rounded-xl border-2 border-brand-border cursor-pointer overflow-hidden"
+                          style={{ backgroundColor: settings.brandDark }}
+                        >
+                          <input
+                            type="color"
+                            value={settings.brandDark}
+                            onChange={(e) => setSettings({ ...settings, brandDark: e.target.value })}
+                            className="w-full h-full opacity-0 cursor-pointer"
+                          />
+                        </div>
                         <Input
                           value={settings.brandDark}
                           onChange={(e) => setSettings({ ...settings, brandDark: e.target.value })}
                           placeholder="#171717"
+                          className="flex-1"
                         />
                       </div>
                     </div>
                   </div>
-                </div>
+                </Card>
 
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Logo</h3>
+                <Card>
+                  <h2 className="text-lg font-semibold mb-4">Logo</h2>
                   <Input
                     label="URL del Logo"
                     value={settings.logoUrl || ''}
                     onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
                     placeholder="https://tu-sitio.com/logo.png"
                   />
-                  <p className="text-brand-muted text-sm mt-2">
+                  <p className="text-brand-muted text-sm mt-3">
                     Sube tu logo a un servicio de hosting y pega la URL aquí
                   </p>
-                </div>
+                  {settings.logoUrl && (
+                    <div className="mt-4 p-4 bg-black/30 rounded-xl">
+                      <p className="text-sm text-brand-muted mb-2">Vista previa:</p>
+                      <img
+                        src={settings.logoUrl}
+                        alt="Logo preview"
+                        className="max-h-16 object-contain"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                    </div>
+                  )}
+                </Card>
 
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Cambiar Contraseña</h3>
+                <Card>
+                  <h2 className="text-lg font-semibold mb-4">Cambiar Contraseña</h2>
                   <Input
                     type="password"
                     label="Nueva Contraseña"
@@ -645,7 +682,7 @@ export default function AdminPage() {
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Dejar vacío para no cambiar"
                   />
-                </div>
+                </Card>
               </div>
             )}
           </motion.div>
@@ -653,20 +690,36 @@ export default function AdminPage() {
 
         {/* Save Button & Message */}
         <div className="mt-8 flex items-center gap-4">
-          <Button onClick={handleSave} loading={saving}>
+          <Button onClick={handleSave} loading={saving} size="lg">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
             Guardar Cambios
           </Button>
 
           <AnimatePresence>
             {message && (
-              <motion.span
+              <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0 }}
-                className={message.type === 'success' ? 'text-green-400' : 'text-red-400'}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                  message.type === 'success'
+                    ? 'bg-green-400/10 text-green-400'
+                    : 'bg-red-400/10 text-red-400'
+                }`}
               >
+                {message.type === 'success' ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                )}
                 {message.text}
-              </motion.span>
+              </motion.div>
             )}
           </AnimatePresence>
         </div>

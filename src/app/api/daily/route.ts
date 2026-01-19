@@ -13,9 +13,17 @@ export async function GET(request: NextRequest) {
       const date = new Date()
       date.setHours(0, 0, 0, 0)
 
-      const check = await prisma.dailyCheck.findUnique({
+      let check = await prisma.dailyCheck.findUnique({
         where: { date }
       })
+
+      // Si no existe, crear uno con valores por defecto
+      if (!check) {
+        check = await prisma.dailyCheck.create({
+          data: { date }
+        })
+      }
+
       return successResponse(check)
     }
 
@@ -45,18 +53,22 @@ export async function POST(request: NextRequest) {
     const date = dateStr ? new Date(dateStr) : new Date()
     date.setHours(0, 0, 0, 0)
 
+    // Sanitizar datos booleanos
+    const sanitizedPublico = publicoContenido === true || publicoContenido === 'true'
+    const sanitizedRespondio = respondioLeads === true || respondioLeads === 'true'
+
     const check = await prisma.dailyCheck.upsert({
       where: { date },
       update: {
-        publicoContenido: publicoContenido ?? undefined,
-        respondioLeads: respondioLeads ?? undefined,
-        notas: notas ?? undefined
+        publicoContenido: sanitizedPublico,
+        respondioLeads: sanitizedRespondio,
+        notas: notas || null
       },
       create: {
         date,
-        publicoContenido: publicoContenido ?? false,
-        respondioLeads: respondioLeads ?? false,
-        notas
+        publicoContenido: sanitizedPublico,
+        respondioLeads: sanitizedRespondio,
+        notas: notas || null
       }
     })
 

@@ -11,9 +11,17 @@ export async function GET(request: NextRequest) {
 
     if (current) {
       const month = getMonthStart()
-      const scorecard = await prisma.monthlyScorecard.findUnique({
+      let scorecard = await prisma.monthlyScorecard.findUnique({
         where: { month }
       })
+
+      // Si no existe, crear uno con valores por defecto
+      if (!scorecard) {
+        scorecard = await prisma.monthlyScorecard.create({
+          data: { month }
+        })
+      }
+
       return successResponse(scorecard)
     }
 
@@ -44,15 +52,25 @@ export async function POST(request: NextRequest) {
       ? new Date(monthStr)
       : getMonthStart()
 
+    // Sanitizar datos numéricos
+    const sanitizedData: Record<string, number> = {}
+    const numericFields = ['facturacionTotal', 'mrr', 'clientesNuevos', 'clientesPerdidos', 'enigmaVendidos', 'serviciosRecurrentes', 'leadsTotales', 'tasaCierre']
+
+    for (const field of numericFields) {
+      if (data[field] !== undefined) {
+        sanitizedData[field] = Number(data[field]) || 0
+      }
+    }
+
     const scorecard = await prisma.monthlyScorecard.upsert({
       where: { month },
       update: {
-        ...data,
+        ...sanitizedData,
         updatedAt: new Date()
       },
       create: {
         month,
-        ...data
+        ...sanitizedData
       }
     })
 
