@@ -97,13 +97,28 @@ if (serverPath) {
     env: { ...process.env, DATABASE_URL }
   });
 } else {
-  // Modo Nixpacks/normal - usar npx next start
-  console.log('Usando modo next start (Nixpacks)');
-  server = spawn('npx', ['next', 'start', '-p', process.env.PORT || '3000'], {
-    stdio: 'inherit',
-    cwd: '/app',
-    env: { ...process.env, DATABASE_URL }
-  });
+  // Modo Nixpacks/normal - usar next start directamente
+  const port = process.env.PORT || '3000';
+  console.log(`Usando modo next start (Nixpacks) en puerto ${port}`);
+
+  // Buscar el ejecutable de next
+  const nextBin = '/app/node_modules/.bin/next';
+  if (fs.existsSync(nextBin)) {
+    console.log(`Usando next en: ${nextBin}`);
+    server = spawn(nextBin, ['start', '-p', port], {
+      stdio: 'inherit',
+      cwd: '/app',
+      env: { ...process.env, DATABASE_URL, PORT: port }
+    });
+  } else {
+    console.log('Usando npx next start');
+    server = spawn('npx', ['next', 'start', '-p', port], {
+      stdio: 'inherit',
+      cwd: '/app',
+      shell: true,
+      env: { ...process.env, DATABASE_URL, PORT: port }
+    });
+  }
 }
 
 server.on('error', (error) => {
