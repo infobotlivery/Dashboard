@@ -69,8 +69,38 @@ try {
 
 // Iniciar servidor Next.js
 console.log('\n=== Iniciando servidor Next.js ===');
-const server = spawn('node', ['server.js'], {
+
+// Buscar server.js en las ubicaciones posibles
+const possiblePaths = [
+  '/app/server.js',
+  path.join(__dirname, '..', 'server.js'),
+  './server.js'
+];
+
+let serverPath = null;
+for (const p of possiblePaths) {
+  console.log(`Buscando server.js en: ${p}`);
+  if (fs.existsSync(p)) {
+    serverPath = p;
+    console.log(`Encontrado: ${p}`);
+    break;
+  }
+}
+
+if (!serverPath) {
+  console.error('ERROR: No se encontró server.js');
+  console.log('Contenido de /app:');
+  try {
+    fs.readdirSync('/app').forEach(f => console.log(`  ${f}`));
+  } catch (e) {
+    console.log('No se pudo listar /app');
+  }
+  process.exit(1);
+}
+
+const server = spawn('node', [serverPath], {
   stdio: 'inherit',
+  cwd: '/app',
   env: { ...process.env, DATABASE_URL }
 });
 
