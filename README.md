@@ -81,20 +81,24 @@ git push origin main
 ### 2. Configurar en Dokploy
 
 1. Accede a tu panel de Dokploy
-2. Crea una nueva aplicación
-3. Selecciona "GitHub" como fuente
-4. Conecta el repositorio `infobotlivery/Dashboard`
-5. Configura las variables de entorno:
-   - `DATABASE_URL`: `file:./data/metrics.db`
-   - `ADMIN_PASSWORD`: Tu contraseña segura
-   - `API_SECRET_KEY`: Una clave aleatoria larga
-   - `NEXT_PUBLIC_APP_URL`: URL de tu dominio
-6. Habilita "Persistent Storage" para `/app/prisma` (para la base de datos)
-7. Deploy!
+2. Crea una nueva aplicación desde GitHub
+3. Conecta el repositorio `infobotlivery/Dashboard`
+4. **Variables de entorno** (en la pestaña Environment):
+   ```
+   DATABASE_URL=file:/app/data/metrics.db
+   ADMIN_PASSWORD=tu-contraseña-segura
+   API_SECRET_KEY=una-clave-aleatoria-larga
+   NEXT_PUBLIC_APP_URL=https://tu-dominio.com
+   ```
+5. **Volumen persistente** (en Advanced > Volumes):
+   - Mount Type: VOLUME
+   - Volume Name: dashboard-data
+   - Mount Path: `/app/data`
+6. Click en **Deploy** o **Rebuild**
 
-### 3. Configurar dominio (opcional)
+### 3. Configurar dominio
 
-En Dokploy, configura tu dominio personalizado en la sección "Domains".
+En la pestaña "Domains", agrega tu dominio personalizado.
 
 ---
 
