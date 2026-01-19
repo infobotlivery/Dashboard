@@ -57,25 +57,37 @@ COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 # Crear directorio para datos con permisos correctos
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data /app/prisma
 
-# Crear script de inicio (usando echo en múltiples líneas)
+# Crear script de inicio - FORZAR DATABASE_URL correcto
 RUN echo '#!/bin/sh' > /app/start.sh && \
     echo 'set -e' >> /app/start.sh && \
     echo 'echo "=== Dashboard Metrics - Iniciando ==="' >> /app/start.sh && \
-    echo 'echo "DATABASE_URL: $DATABASE_URL"' >> /app/start.sh && \
+    echo '' >> /app/start.sh && \
+    echo '# FORZAR la ruta correcta de la base de datos' >> /app/start.sh && \
+    echo 'export DATABASE_URL="file:/app/data/metrics.db"' >> /app/start.sh && \
+    echo 'echo "DATABASE_URL forzado a: $DATABASE_URL"' >> /app/start.sh && \
+    echo '' >> /app/start.sh && \
+    echo '# Crear directorio de datos' >> /app/start.sh && \
     echo 'mkdir -p /app/data 2>/dev/null || true' >> /app/start.sh && \
     echo 'cd /app' >> /app/start.sh && \
+    echo '' >> /app/start.sh && \
+    echo '# Inicializar base de datos con reintentos' >> /app/start.sh && \
     echo 'echo "Inicializando base de datos..."' >> /app/start.sh && \
     echo 'for i in 1 2 3 4 5; do' >> /app/start.sh && \
     echo '  echo "Intento $i de 5..."' >> /app/start.sh && \
     echo '  if npx prisma db push --skip-generate --accept-data-loss 2>&1; then' >> /app/start.sh && \
-    echo '    echo "Base de datos OK"' >> /app/start.sh && \
+    echo '    echo "Base de datos creada/actualizada correctamente"' >> /app/start.sh && \
     echo '    break' >> /app/start.sh && \
     echo '  fi' >> /app/start.sh && \
+    echo '  echo "Fallo, reintentando en 3 segundos..."' >> /app/start.sh && \
     echo '  sleep 3' >> /app/start.sh && \
     echo 'done' >> /app/start.sh && \
+    echo '' >> /app/start.sh && \
+    echo '# Verificar que la base de datos existe' >> /app/start.sh && \
     echo 'echo "Contenido de /app/data:"' >> /app/start.sh && \
-    echo 'ls -la /app/data/ || true' >> /app/start.sh && \
-    echo 'echo "=== Iniciando servidor ==="' >> /app/start.sh && \
+    echo 'ls -la /app/data/' >> /app/start.sh && \
+    echo '' >> /app/start.sh && \
+    echo '# Iniciar servidor Next.js' >> /app/start.sh && \
+    echo 'echo "=== Iniciando servidor Next.js ==="' >> /app/start.sh && \
     echo 'exec node server.js' >> /app/start.sh && \
     chmod +x /app/start.sh && \
     chown nextjs:nodejs /app/start.sh

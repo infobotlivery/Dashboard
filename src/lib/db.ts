@@ -5,14 +5,26 @@ declare global {
   var prisma: PrismaClient | undefined
 }
 
+// En producción Docker, SIEMPRE usar la ruta absoluta al volumen
+const getDatabaseUrl = () => {
+  // Si estamos en producción, forzar la ruta correcta
+  if (process.env.NODE_ENV === 'production') {
+    return 'file:/app/data/metrics.db'
+  }
+  // En desarrollo, usar la variable de entorno o un default local
+  return process.env.DATABASE_URL || 'file:./prisma/dev.db'
+}
+
 const prismaClientSingleton = () => {
-  console.log('[Prisma] Creando cliente con DATABASE_URL:', process.env.DATABASE_URL?.substring(0, 30) + '...')
+  const dbUrl = getDatabaseUrl()
+  console.log('[Prisma] NODE_ENV:', process.env.NODE_ENV)
+  console.log('[Prisma] Usando DATABASE_URL:', dbUrl)
 
   return new PrismaClient({
     log: ['error', 'warn'],
     datasources: {
       db: {
-        url: process.env.DATABASE_URL
+        url: dbUrl
       }
     }
   })
