@@ -70,39 +70,41 @@ try {
 // Iniciar servidor Next.js
 console.log('\n=== Iniciando servidor Next.js ===');
 
-// Buscar server.js en las ubicaciones posibles
-const possiblePaths = [
+// Buscar server.js en las ubicaciones posibles (para standalone build)
+const possibleServerPaths = [
   '/app/server.js',
+  '/app/.next/standalone/server.js',
   path.join(__dirname, '..', 'server.js'),
-  './server.js'
+  path.join(__dirname, '..', '.next', 'standalone', 'server.js'),
 ];
 
 let serverPath = null;
-for (const p of possiblePaths) {
-  console.log(`Buscando server.js en: ${p}`);
+for (const p of possibleServerPaths) {
   if (fs.existsSync(p)) {
     serverPath = p;
-    console.log(`Encontrado: ${p}`);
+    console.log(`Encontrado server.js en: ${p}`);
     break;
   }
 }
 
-if (!serverPath) {
-  console.error('ERROR: No se encontró server.js');
-  console.log('Contenido de /app:');
-  try {
-    fs.readdirSync('/app').forEach(f => console.log(`  ${f}`));
-  } catch (e) {
-    console.log('No se pudo listar /app');
-  }
-  process.exit(1);
+let server;
+if (serverPath) {
+  // Modo standalone - usar node server.js
+  console.log('Usando modo standalone');
+  server = spawn('node', [serverPath], {
+    stdio: 'inherit',
+    cwd: path.dirname(serverPath),
+    env: { ...process.env, DATABASE_URL }
+  });
+} else {
+  // Modo Nixpacks/normal - usar npx next start
+  console.log('Usando modo next start (Nixpacks)');
+  server = spawn('npx', ['next', 'start', '-p', process.env.PORT || '3000'], {
+    stdio: 'inherit',
+    cwd: '/app',
+    env: { ...process.env, DATABASE_URL }
+  });
 }
-
-const server = spawn('node', [serverPath], {
-  stdio: 'inherit',
-  cwd: '/app',
-  env: { ...process.env, DATABASE_URL }
-});
 
 server.on('error', (error) => {
   console.error('Error al iniciar servidor:', error);
