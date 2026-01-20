@@ -9,11 +9,22 @@ console.log('=== Dashboard Metrics - Iniciando ===');
 // Forzar la ruta correcta de la base de datos en producción
 const DATA_DIR = '/app/data';
 const DB_PATH = `${DATA_DIR}/metrics.db`;
+const DB_WAL_PATH = `${DATA_DIR}/metrics.db-wal`;
+const DB_SHM_PATH = `${DATA_DIR}/metrics.db-shm`;
 const DATABASE_URL = `file:${DB_PATH}`;
 
 // Exportar variable de entorno
 process.env.DATABASE_URL = DATABASE_URL;
 console.log(`DATABASE_URL configurado: ${DATABASE_URL}`);
+
+// Verificar permisos del usuario actual
+try {
+  const userId = process.getuid ? process.getuid() : 'N/A';
+  const groupId = process.getgid ? process.getgid() : 'N/A';
+  console.log(`Ejecutando como UID: ${userId}, GID: ${groupId}`);
+} catch (e) {
+  console.log('No se pudo obtener UID/GID (Windows?)');
+}
 
 // Crear directorio de datos si no existe
 try {
@@ -21,8 +32,32 @@ try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     console.log(`Directorio ${DATA_DIR} creado`);
   }
+
+  // Verificar permisos del directorio
+  fs.accessSync(DATA_DIR, fs.constants.R_OK | fs.constants.W_OK);
+  console.log(`Directorio ${DATA_DIR} tiene permisos de lectura/escritura`);
 } catch (error) {
-  console.log(`Nota: No se pudo crear ${DATA_DIR} (puede que ya exista o no tengamos permisos)`);
+  console.error(`ERROR: No se puede acceder a ${DATA_DIR}: ${error.message}`);
+}
+
+// Si existe la base de datos, verificar que podemos escribir en ella
+if (fs.existsSync(DB_PATH)) {
+  try {
+    fs.accessSync(DB_PATH, fs.constants.R_OK | fs.constants.W_OK);
+    console.log(`Base de datos existente en ${DB_PATH} con permisos correctos`);
+  } catch (error) {
+    console.log(`ADVERTENCIA: Base de datos existe pero sin permisos de escritura`);
+    console.log(`Intentando corregir permisos...`);
+    try {
+      // Intentar cambiar permisos (solo funciona si somos dueños o root)
+      fs.chmodSync(DB_PATH, 0o666);
+      if (fs.existsSync(DB_WAL_PATH)) fs.chmodSync(DB_WAL_PATH, 0o666);
+      if (fs.existsSync(DB_SHM_PATH)) fs.chmodSync(DB_SHM_PATH, 0o666);
+      console.log('Permisos corregidos');
+    } catch (chmodError) {
+      console.log(`No se pudieron cambiar permisos: ${chmodError.message}`);
+    }
+  }
 }
 
 // Inicializar base de datos con reintentos
@@ -38,6 +73,23 @@ for (let i = 1; i <= maxRetries; i++) {
       env: { ...process.env, DATABASE_URL }
     });
     console.log('Base de datos inicializada correctamente');
+
+    // Asegurar permisos después de crear/actualizar la base de datos
+    try {
+      if (fs.existsSync(DB_PATH)) {
+        fs.chmodSync(DB_PATH, 0o666);
+        console.log(`Permisos de ${DB_PATH} establecidos a 666`);
+      }
+      if (fs.existsSync(DB_WAL_PATH)) {
+        fs.chmodSync(DB_WAL_PATH, 0o666);
+      }
+      if (fs.existsSync(DB_SHM_PATH)) {
+        fs.chmodSync(DB_SHM_PATH, 0o666);
+      }
+    } catch (chmodError) {
+      console.log(`Nota: No se pudieron ajustar permisos: ${chmodError.message}`);
+    }
+
     dbInitialized = true;
     break;
   } catch (error) {

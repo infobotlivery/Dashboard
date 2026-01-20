@@ -27,7 +27,7 @@ RUN npm run build
 
 # Etapa 3: Runner
 FROM node:20-alpine AS runner
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl su-exec
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -63,9 +63,11 @@ COPY --from=builder /app/package.json ./package.json
 # Crear directorio para datos con permisos correctos
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data /app/prisma /app/scripts
 
-USER nextjs
+# Copiar script de entrada que maneja permisos (desde contexto de build)
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 3000
 
-# Usar npm start que ejecuta el script de inicio
-CMD ["node", "scripts/start-production.js"]
+# Usar entrypoint que inicializa DB como root y luego cambia a nextjs
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
