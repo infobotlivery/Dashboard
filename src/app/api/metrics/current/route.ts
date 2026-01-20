@@ -6,6 +6,8 @@ import { errorResponse, successResponse, getWeekStart } from '@/lib/api'
 export async function GET(request: NextRequest) {
   try {
     const weekStart = getWeekStart()
+    console.log('[Metrics API] Fecha actual del servidor:', new Date().toISOString())
+    console.log('[Metrics API] Buscando semana que inicia:', weekStart.toISOString())
 
     let metric = await prisma.weeklyMetric.findUnique({
       where: { weekStart }

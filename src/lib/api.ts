@@ -16,21 +16,29 @@ export function successResponse<T>(data: T, status: number = 200) {
   return NextResponse.json({ success: true, data }, { status })
 }
 
-// Obtener inicio de semana (lunes)
+// Obtener inicio de semana (lunes) - Usa UTC para consistencia en servidor
 export function getWeekStart(date: Date = new Date()): Date {
+  // Crear fecha en UTC para evitar problemas de zona horaria
   const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  d.setHours(0, 0, 0, 0)
+
+  // Ajustar a medianoche UTC
+  d.setUTCHours(0, 0, 0, 0)
+
+  // Obtener día de la semana (0 = domingo, 1 = lunes, etc.)
+  const day = d.getUTCDay()
+
+  // Calcular diferencia para llegar al lunes
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1)
+  d.setUTCDate(diff)
+
   return d
 }
 
-// Obtener inicio de mes
+// Obtener inicio de mes - Usa UTC para consistencia en servidor
 export function getMonthStart(date: Date = new Date()): Date {
   const d = new Date(date)
-  d.setDate(1)
-  d.setHours(0, 0, 0, 0)
+  d.setUTCDate(1)
+  d.setUTCHours(0, 0, 0, 0)
   return d
 }
 

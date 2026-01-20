@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
 
     if (current) {
       const month = getMonthStart()
+      console.log('[Scorecard API] Buscando mes actual:', month.toISOString())
+
       let scorecard = await prisma.monthlyScorecard.findUnique({
         where: { month }
       })
