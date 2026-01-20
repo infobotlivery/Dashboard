@@ -39,15 +39,17 @@ ENV HOSTNAME="0.0.0.0"
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Copiar standalone build (incluye server.js y node_modules mínimos)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+
+# Copiar archivos estáticos de Next.js (CSS, JS, fuentes)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
 # Copiar archivos públicos
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Copiar prisma schema y directorio completo
 COPY --from=builder /app/prisma ./prisma
-
-# Copiar standalone build
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copiar Prisma client y CLI completos
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma

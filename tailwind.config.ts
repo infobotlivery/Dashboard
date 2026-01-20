@@ -17,7 +17,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'Satoshi', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         'card': '20px',
