@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Sanitizar datos numéricos
     const sanitizedData: Record<string, number> = {}
-    const numericFields = ['mrr', 'pipelineActivo', 'cierresSemana', 'contenidoPublicado', 'leadsEntrantes', 'entregasPendientes']
+    const numericFields = ['mrr', 'mrrComunidad', 'pipelineActivo', 'cierresSemana', 'contenidoPublicado', 'leadsEntrantes', 'entregasPendientes']
 
     for (const field of numericFields) {
       if (data[field] !== undefined) {

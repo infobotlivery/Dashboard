@@ -10,6 +10,7 @@ interface WeeklyMetric {
   id: number
   weekStart: string
   mrr: number
+  mrrComunidad: number
   pipelineActivo: number
   cierresSemana: number
   contenidoPublicado: number
@@ -37,10 +38,17 @@ interface DailyCheck {
   respondioLeads: boolean
 }
 
+interface Settings {
+  logoUrl: string | null
+  brandPrimary: string
+  brandDark: string
+}
+
 export default function DashboardPage() {
   const [currentMetric, setCurrentMetric] = useState<WeeklyMetric | null>(null)
   const [scorecards, setScorecards] = useState<MonthlyScorecard[]>([])
   const [dailyChecks, setDailyChecks] = useState<DailyCheck[]>([])
+  const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -50,10 +58,11 @@ export default function DashboardPage() {
         setLoading(true)
 
         // Fetch all data in parallel
-        const [metricsRes, scorecardsRes, dailyRes] = await Promise.all([
+        const [metricsRes, scorecardsRes, dailyRes, settingsRes] = await Promise.all([
           fetch('/api/metrics/current'),
           fetch('/api/scorecard?limit=6'),
-          fetch('/api/daily?limit=30')
+          fetch('/api/daily?limit=30'),
+          fetch('/api/settings')
         ])
 
         if (metricsRes.ok) {
@@ -69,6 +78,11 @@ export default function DashboardPage() {
         if (dailyRes.ok) {
           const dailyData = await dailyRes.json()
           setDailyChecks(dailyData.data || [])
+        }
+
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json()
+          setSettings(settingsData.data)
         }
       } catch (err) {
         console.error('Error fetching data:', err)
@@ -119,13 +133,23 @@ export default function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             className="flex items-center justify-between"
           >
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                Sistema de <span className="text-brand-primary">Control</span>
-              </h1>
-              <p className="text-brand-muted mt-1">
-                Métricas de negocio en tiempo real
-              </p>
+            <div className="flex items-center gap-4">
+              {settings?.logoUrl && (
+                <img
+                  src={settings.logoUrl}
+                  alt="Logo"
+                  className="h-12 w-auto object-contain"
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                />
+              )}
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">
+                  Sistema de <span className="text-brand-primary">Control</span>
+                </h1>
+                <p className="text-brand-muted mt-1">
+                  Métricas de negocio en tiempo real
+                </p>
+              </div>
             </div>
             <a
               href="/admin"

@@ -7,11 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Métricas semanales - Dashboard de 6 métricas
+// Métricas semanales - Dashboard de 7 métricas
 model WeeklyMetric {
   id                 Int      @id @default(autoincrement())
   weekStart          DateTime @unique // Inicio de semana (lunes)
-  mrr                Float    @default(0) // Ingresos recurrentes confirmados
+  mrr                Float    @default(0) // MRR Clientes - Ingresos recurrentes de clientes
+  mrrComunidad       Float    @default(0) // MRR Comunidad - Ingresos recurrentes de comunidad
   pipelineActivo     Int      @default(0) // Oportunidades en conversación (leads calientes)
   cierresSemana      Float    @default(0) // Ventas cerradas (monto)
   contenidoPublicado Int      @default(0) // Piezas de contenido creadas

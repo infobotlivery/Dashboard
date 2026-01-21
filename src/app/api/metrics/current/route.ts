@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
         data: {
           weekStart,
           mrr: 0,
+          mrrComunidad: 0,
           pipelineActivo: 0,
           cierresSemana: 0,
           contenidoPublicado: 0,

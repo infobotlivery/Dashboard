@@ -7,6 +7,7 @@ interface WeeklyMetric {
   id: number
   weekStart: string
   mrr: number
+  mrrComunidad: number
   pipelineActivo: number
   cierresSemana: number
   contenidoPublicado: number
@@ -38,6 +39,7 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
   // Metas mínimas según tu sistema
   const targets = {
     mrr: { min: 875, goal: 1500 },
+    mrrComunidad: { min: 500, goal: 1000 },
     pipelineActivo: { min: 5, goal: 5 },
     cierresSemana: { min: 1000, goal: 1000 },
     contenidoPublicado: { min: 3, goal: 5 },
@@ -83,15 +85,25 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
       </motion.div>
 
       {/* Grid de métricas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
-          title="MRR"
+          title="MRR Clientes"
           value={formatCurrency(metric.mrr)}
-          subtitle="Ingresos recurrentes"
+          subtitle="Ingresos recurrentes clientes"
           target={`${formatCurrency(targets.mrr.min)} → ${formatCurrency(targets.mrr.goal)}`}
           trend={getTrend(metric.mrr, targets.mrr)}
           delay={0}
           icon={<span>💰</span>}
+        />
+
+        <MetricCard
+          title="MRR Comunidad"
+          value={formatCurrency(metric.mrrComunidad || 0)}
+          subtitle="Ingresos recurrentes comunidad"
+          target={`${formatCurrency(targets.mrrComunidad.min)} → ${formatCurrency(targets.mrrComunidad.goal)}`}
+          trend={getTrend(metric.mrrComunidad || 0, targets.mrrComunidad)}
+          delay={0.05}
+          icon={<span>👥</span>}
         />
 
         <MetricCard
@@ -110,7 +122,7 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           subtitle="Ventas cerradas"
           target={`${formatCurrency(targets.cierresSemana.min)}+/semana`}
           trend={getTrend(metric.cierresSemana, targets.cierresSemana)}
-          delay={0.2}
+          delay={0.15}
           icon={<span>🎯</span>}
         />
 
@@ -120,7 +132,7 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           subtitle="Piezas creadas"
           target={`${targets.contenidoPublicado.min}-${targets.contenidoPublicado.goal}/semana`}
           trend={getTrend(metric.contenidoPublicado, targets.contenidoPublicado)}
-          delay={0.3}
+          delay={0.2}
           icon={<span>📝</span>}
         />
 
@@ -130,7 +142,7 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           subtitle="Nuevas consultas"
           target={`${targets.leadsEntrantes.min}+/semana`}
           trend={getTrend(metric.leadsEntrantes, targets.leadsEntrantes)}
-          delay={0.4}
+          delay={0.25}
           icon={<span>📥</span>}
         />
 
@@ -140,7 +152,7 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           subtitle="Proyectos sin cerrar"
           target={`Máximo ${targets.entregasPendientes.max}`}
           trend={getTrend(metric.entregasPendientes, targets.entregasPendientes)}
-          delay={0.5}
+          delay={0.3}
           icon={<span>📦</span>}
         />
       </div>
