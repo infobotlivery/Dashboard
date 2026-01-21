@@ -20,14 +20,19 @@ ENV NODE_ENV=production
 # Database URL para build (dummy, se sobreescribe en runtime)
 ENV DATABASE_URL="file:./prisma/dev.db"
 
-# IMPORTANTE: Generar cliente Prisma ANTES del build
-# Esto asegura que el cliente incluya todos los campos del schema actual
+# Verificar que el schema tiene mrrComunidad ANTES de generar
+RUN echo "=== Verificando schema.prisma ===" && \
+    cat prisma/schema.prisma && \
+    grep -q "mrrComunidad" prisma/schema.prisma && \
+    echo "SUCCESS: Campo mrrComunidad encontrado en schema.prisma"
+
+# Generar cliente Prisma
 RUN npx prisma generate
 
-# Verificar que el cliente se generó correctamente (debug)
+# Verificar que el cliente se generó correctamente
 RUN echo "=== Verificando cliente Prisma generado ===" && \
-    grep -l "mrrComunidad" node_modules/.prisma/client/index.d.ts && \
-    echo "Campo mrrComunidad encontrado en cliente Prisma"
+    grep -q "mrrComunidad" node_modules/.prisma/client/index.d.ts && \
+    echo "SUCCESS: Campo mrrComunidad encontrado en cliente Prisma"
 
 RUN npm run build
 
