@@ -49,20 +49,31 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { weekStart: weekStartStr, ...data } = body
 
+    console.log('[Metrics POST] Datos recibidos:', JSON.stringify(body))
+
     // Si no se proporciona fecha, usar la semana actual
     const weekStart = weekStartStr
       ? new Date(weekStartStr)
       : getWeekStart()
 
-    // Sanitizar datos numéricos
-    const sanitizedData: Record<string, number> = {}
-    const numericFields = ['mrr', 'mrrComunidad', 'pipelineActivo', 'cierresSemana', 'contenidoPublicado', 'leadsEntrantes', 'entregasPendientes']
+    console.log('[Metrics POST] weekStart:', weekStart.toISOString())
 
-    for (const field of numericFields) {
+    // Sanitizar datos numéricos - campos base que siempre existen
+    const sanitizedData: Record<string, number> = {}
+    const baseFields = ['mrr', 'pipelineActivo', 'cierresSemana', 'contenidoPublicado', 'leadsEntrantes', 'entregasPendientes']
+
+    for (const field of baseFields) {
       if (data[field] !== undefined) {
         sanitizedData[field] = Number(data[field]) || 0
       }
     }
+
+    // Agregar mrrComunidad si está presente (campo nuevo, puede no existir en DB antigua)
+    if (data.mrrComunidad !== undefined) {
+      sanitizedData.mrrComunidad = Number(data.mrrComunidad) || 0
+    }
+
+    console.log('[Metrics POST] Datos sanitizados:', JSON.stringify(sanitizedData))
 
     // Upsert: crear si no existe, actualizar si existe
     const metric = await prisma.weeklyMetric.upsert({
@@ -77,9 +88,14 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('[Metrics POST] Métrica guardada:', metric.id)
+
     return successResponse(metric, 201)
-  } catch (error) {
-    console.error('Error creating/updating metric:', error)
-    return errorResponse('Error al guardar métrica', 500)
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+    const errorStack = error instanceof Error ? error.stack : ''
+    console.error('[Metrics POST] Error:', errorMessage)
+    console.error('[Metrics POST] Stack:', errorStack)
+    return errorResponse(`Error al guardar métrica: ${errorMessage}`, 500)
   }
 }
