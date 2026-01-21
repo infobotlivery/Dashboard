@@ -4,8 +4,6 @@ RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-COPY prisma ./prisma/
-
 RUN npm ci
 
 # Etapa 2: Build
@@ -22,9 +20,15 @@ ENV NODE_ENV=production
 # Database URL para build (dummy, se sobreescribe en runtime)
 ENV DATABASE_URL="file:./prisma/dev.db"
 
-# Forzar regeneración del cliente Prisma con schema actual
-# Build timestamp: 2026-01-21-v2
-RUN npx prisma generate --schema=./prisma/schema.prisma
+# IMPORTANTE: Generar cliente Prisma ANTES del build
+# Esto asegura que el cliente incluya todos los campos del schema actual
+RUN npx prisma generate
+
+# Verificar que el cliente se generó correctamente (debug)
+RUN echo "=== Verificando cliente Prisma generado ===" && \
+    grep -l "mrrComunidad" node_modules/.prisma/client/index.d.ts && \
+    echo "Campo mrrComunidad encontrado en cliente Prisma"
+
 RUN npm run build
 
 # Etapa 3: Runner
@@ -36,9 +40,6 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-
-# Instalar Prisma CLI globalmente para poder ejecutar db push
-RUN npm install -g prisma@latest
 
 # Crear usuario no-root
 RUN addgroup --system --gid 1001 nodejs
@@ -56,10 +57,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # Copiar prisma schema y directorio completo
 COPY --from=builder /app/prisma ./prisma
 
-# Copiar Prisma client y CLI completos
+# Copiar Prisma client generado (CRÍTICO - debe incluir mrrComunidad)
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+
+# Instalar prisma CLI globalmente para db push en runtime
+RUN npm install -g prisma@5.22.0
 
 # Copiar script de inicio
 COPY --from=builder /app/scripts ./scripts
@@ -68,11 +72,10 @@ COPY --from=builder /app/package.json ./package.json
 # Crear directorio para datos con permisos correctos
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data /app/prisma /app/scripts
 
-# Copiar script de entrada que maneja permisos (desde contexto de build)
+# Copiar script de entrada que maneja permisos
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 3000
 
-# Usar entrypoint que inicializa DB como root y luego cambia a nextjs
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

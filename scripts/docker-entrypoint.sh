@@ -13,69 +13,42 @@ mkdir -p "$DATA_DIR"
 chown -R 1001:1001 "$DATA_DIR"
 chmod 755 "$DATA_DIR"
 
-echo "Directorio $DATA_DIR preparado con permisos correctos"
+echo "Directorio $DATA_DIR preparado"
 
 # Configurar DATABASE_URL
 export DATABASE_URL="file:$DB_PATH"
 echo "DATABASE_URL: $DATABASE_URL"
 
-# Ejecutar prisma db push como root para crear/actualizar esquema
-echo "Inicializando base de datos..."
+# Ejecutar prisma db push para sincronizar schema con la base de datos
+echo "Sincronizando schema de base de datos..."
 cd /app
 
-# Usar prisma instalado globalmente
-echo "Ejecutando prisma db push para sincronizar schema..."
-echo "Verificando versión de prisma global..."
-prisma --version || echo "Prisma global no disponible"
+# Usar prisma CLI global instalado en Dockerfile
+prisma db push --accept-data-loss --skip-generate 2>&1 || {
+    echo "Primer intento de db push falló, reintentando..."
+    sleep 2
+    prisma db push --accept-data-loss --skip-generate 2>&1 || echo "ADVERTENCIA: db push falló, continuando..."
+}
 
-# Intentar con prisma global primero, luego con node_modules
-if command -v prisma > /dev/null 2>&1; then
-    echo "Usando prisma global..."
-    if prisma db push --schema=/app/prisma/schema.prisma --accept-data-loss 2>&1; then
-        echo "Base de datos sincronizada correctamente"
-    else
-        echo "Advertencia: primer intento falló, reintentando..."
-        sleep 2
-        prisma db push --schema=/app/prisma/schema.prisma --skip-generate --accept-data-loss 2>&1 || echo "Continuando de todos modos..."
-    fi
-elif [ -f "/app/node_modules/prisma/build/index.js" ]; then
-    echo "Usando prisma de node_modules..."
-    if node /app/node_modules/prisma/build/index.js db push --accept-data-loss 2>&1; then
-        echo "Base de datos sincronizada correctamente"
-    else
-        echo "Advertencia: prisma db push falló"
-        sleep 2
-        node /app/node_modules/prisma/build/index.js db push --skip-generate --accept-data-loss 2>&1 || echo "Continuando de todos modos..."
-    fi
-else
-    echo "ERROR: Prisma no disponible"
-    echo "Listando /app/node_modules/prisma:"
-    ls -la /app/node_modules/prisma/ 2>/dev/null || echo "Directorio no existe"
-fi
-
-# Asegurar que los archivos de base de datos pertenezcan a nextjs
+# Asegurar permisos de archivos de base de datos
 if [ -f "$DB_PATH" ]; then
     chown 1001:1001 "$DB_PATH"
     chmod 666 "$DB_PATH"
-    echo "Permisos de $DB_PATH configurados"
+    echo "Base de datos lista: $DB_PATH"
 fi
 
-# También manejar archivos WAL y SHM de SQLite si existen
-if [ -f "$DB_PATH-wal" ]; then
-    chown 1001:1001 "$DB_PATH-wal"
-    chmod 666 "$DB_PATH-wal"
-fi
+# Archivos WAL y SHM de SQLite
+for ext in "-wal" "-shm"; do
+    if [ -f "$DB_PATH$ext" ]; then
+        chown 1001:1001 "$DB_PATH$ext"
+        chmod 666 "$DB_PATH$ext"
+    fi
+done
 
-if [ -f "$DB_PATH-shm" ]; then
-    chown 1001:1001 "$DB_PATH-shm"
-    chmod 666 "$DB_PATH-shm"
-fi
-
-# Listar contenido del directorio de datos
 echo "Contenido de $DATA_DIR:"
-ls -la "$DATA_DIR" || echo "No se pudo listar"
+ls -la "$DATA_DIR" 2>/dev/null || echo "No se pudo listar"
 
-echo "=== Iniciando servidor Next.js como usuario nextjs ==="
+echo "=== Iniciando servidor Next.js ==="
 
 # Cambiar al usuario nextjs y ejecutar el servidor
 exec su-exec nextjs node /app/server.js
