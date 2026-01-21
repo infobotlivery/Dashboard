@@ -22,7 +22,9 @@ ENV NODE_ENV=production
 # Database URL para build (dummy, se sobreescribe en runtime)
 ENV DATABASE_URL="file:./prisma/dev.db"
 
-RUN npx prisma generate
+# Forzar regeneración del cliente Prisma con schema actual
+# Build timestamp: 2026-01-21-v2
+RUN npx prisma generate --schema=./prisma/schema.prisma
 RUN npm run build
 
 # Etapa 3: Runner

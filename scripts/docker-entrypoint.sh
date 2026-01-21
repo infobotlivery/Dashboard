@@ -23,26 +23,34 @@ echo "DATABASE_URL: $DATABASE_URL"
 echo "Inicializando base de datos..."
 cd /app
 
-# Usar la ruta completa al binario de prisma
-PRISMA_BIN="/app/node_modules/prisma/build/index.js"
-
-# Intentar inicializar/actualizar la base de datos
+# Usar prisma instalado globalmente
 echo "Ejecutando prisma db push para sincronizar schema..."
-if [ -f "$PRISMA_BIN" ]; then
-    echo "Prisma encontrado en: $PRISMA_BIN"
-    if node "$PRISMA_BIN" db push --accept-data-loss 2>&1; then
+echo "Verificando versión de prisma global..."
+prisma --version || echo "Prisma global no disponible"
+
+# Intentar con prisma global primero, luego con node_modules
+if command -v prisma > /dev/null 2>&1; then
+    echo "Usando prisma global..."
+    if prisma db push --schema=/app/prisma/schema.prisma --accept-data-loss 2>&1; then
         echo "Base de datos sincronizada correctamente"
     else
-        echo "Advertencia: prisma db push falló, reintentando con skip-generate..."
+        echo "Advertencia: primer intento falló, reintentando..."
         sleep 2
-        node "$PRISMA_BIN" db push --skip-generate --accept-data-loss 2>&1 || echo "Continuando de todos modos..."
+        prisma db push --schema=/app/prisma/schema.prisma --skip-generate --accept-data-loss 2>&1 || echo "Continuando de todos modos..."
+    fi
+elif [ -f "/app/node_modules/prisma/build/index.js" ]; then
+    echo "Usando prisma de node_modules..."
+    if node /app/node_modules/prisma/build/index.js db push --accept-data-loss 2>&1; then
+        echo "Base de datos sincronizada correctamente"
+    else
+        echo "Advertencia: prisma db push falló"
+        sleep 2
+        node /app/node_modules/prisma/build/index.js db push --skip-generate --accept-data-loss 2>&1 || echo "Continuando de todos modos..."
     fi
 else
-    echo "ERROR: Prisma no encontrado en $PRISMA_BIN"
-    echo "Listando node_modules/prisma:"
+    echo "ERROR: Prisma no disponible"
+    echo "Listando /app/node_modules/prisma:"
     ls -la /app/node_modules/prisma/ 2>/dev/null || echo "Directorio no existe"
-    echo "Intentando con npx..."
-    npx prisma db push --accept-data-loss 2>&1 || echo "npx también falló"
 fi
 
 # Asegurar que los archivos de base de datos pertenezcan a nextjs
