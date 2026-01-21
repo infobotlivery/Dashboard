@@ -23,11 +23,14 @@ echo "DATABASE_URL: $DATABASE_URL"
 echo "Inicializando base de datos..."
 cd /app
 
-# Intentar inicializar la base de datos
-if npx prisma db push --skip-generate --accept-data-loss 2>&1; then
-    echo "Base de datos inicializada correctamente"
+# Intentar inicializar/actualizar la base de datos
+echo "Ejecutando prisma db push para sincronizar schema..."
+if npx prisma db push --accept-data-loss 2>&1; then
+    echo "Base de datos sincronizada correctamente"
 else
-    echo "Advertencia: prisma db push falló, intentando continuar..."
+    echo "Advertencia: prisma db push falló, reintentando..."
+    sleep 2
+    npx prisma db push --skip-generate --accept-data-loss 2>&1 || echo "Continuando de todos modos..."
 fi
 
 # Asegurar que los archivos de base de datos pertenezcan a nextjs
