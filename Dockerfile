@@ -62,8 +62,7 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
-# Instalar prisma CLI globalmente para db push en runtime
-RUN npm install -g prisma@5.22.0
+# NO instalamos prisma global - usamos el de node_modules para evitar incompatibilidades
 
 # Copiar script de inicio
 COPY --from=builder /app/scripts ./scripts

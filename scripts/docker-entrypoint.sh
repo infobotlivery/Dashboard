@@ -23,12 +23,26 @@ echo "DATABASE_URL: $DATABASE_URL"
 echo "Sincronizando schema de base de datos..."
 cd /app
 
-# Usar prisma CLI global instalado en Dockerfile
-prisma db push --accept-data-loss --skip-generate 2>&1 || {
-    echo "Primer intento de db push falló, reintentando..."
-    sleep 2
-    prisma db push --accept-data-loss --skip-generate 2>&1 || echo "ADVERTENCIA: db push falló, continuando..."
-}
+# IMPORTANTE: Usar prisma de node_modules (v5.22.0), NO el global
+# El global puede ser una versión diferente e incompatible
+PRISMA_CLI="/app/node_modules/prisma/build/index.js"
+
+if [ -f "$PRISMA_CLI" ]; then
+    echo "Usando Prisma CLI de node_modules..."
+    node "$PRISMA_CLI" --version
+
+    # Ejecutar db push
+    if node "$PRISMA_CLI" db push --accept-data-loss --skip-generate 2>&1; then
+        echo "Base de datos sincronizada correctamente"
+    else
+        echo "Primer intento falló, reintentando..."
+        sleep 2
+        node "$PRISMA_CLI" db push --accept-data-loss --skip-generate 2>&1 || echo "ADVERTENCIA: db push falló"
+    fi
+else
+    echo "ERROR: Prisma CLI no encontrado en $PRISMA_CLI"
+    ls -la /app/node_modules/prisma/ 2>/dev/null || echo "Directorio prisma no existe"
+fi
 
 # Asegurar permisos de archivos de base de datos
 if [ -f "$DB_PATH" ]; then
