@@ -23,14 +23,26 @@ echo "DATABASE_URL: $DATABASE_URL"
 echo "Inicializando base de datos..."
 cd /app
 
+# Usar la ruta completa al binario de prisma
+PRISMA_BIN="/app/node_modules/prisma/build/index.js"
+
 # Intentar inicializar/actualizar la base de datos
 echo "Ejecutando prisma db push para sincronizar schema..."
-if npx prisma db push --accept-data-loss 2>&1; then
-    echo "Base de datos sincronizada correctamente"
+if [ -f "$PRISMA_BIN" ]; then
+    echo "Prisma encontrado en: $PRISMA_BIN"
+    if node "$PRISMA_BIN" db push --accept-data-loss 2>&1; then
+        echo "Base de datos sincronizada correctamente"
+    else
+        echo "Advertencia: prisma db push falló, reintentando con skip-generate..."
+        sleep 2
+        node "$PRISMA_BIN" db push --skip-generate --accept-data-loss 2>&1 || echo "Continuando de todos modos..."
+    fi
 else
-    echo "Advertencia: prisma db push falló, reintentando..."
-    sleep 2
-    npx prisma db push --skip-generate --accept-data-loss 2>&1 || echo "Continuando de todos modos..."
+    echo "ERROR: Prisma no encontrado en $PRISMA_BIN"
+    echo "Listando node_modules/prisma:"
+    ls -la /app/node_modules/prisma/ 2>/dev/null || echo "Directorio no existe"
+    echo "Intentando con npx..."
+    npx prisma db push --accept-data-loss 2>&1 || echo "npx también falló"
 fi
 
 # Asegurar que los archivos de base de datos pertenezcan a nextjs
