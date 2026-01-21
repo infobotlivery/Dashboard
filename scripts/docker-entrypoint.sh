@@ -28,39 +28,42 @@ if [ -f "$PRISMA_CLI" ]; then
     echo "Usando Prisma CLI de node_modules..."
     node "$PRISMA_CLI" --version
 
-    # Verificar si la base de datos existe y tiene la columna mrrComunidad
+    # FORZAR: Eliminar base de datos existente para recrearla con schema correcto
+    # Esto es necesario porque la DB actual no tiene la columna mrrComunidad
     if [ -f "$DB_PATH" ]; then
-        echo "Base de datos existente encontrada, verificando schema..."
+        echo "=== FORZANDO RECREACIÓN DE BASE DE DATOS ==="
+        echo "Verificando columnas actuales:"
+        sqlite3 "$DB_PATH" "PRAGMA table_info(WeeklyMetric);" 2>/dev/null || echo "No se pudo leer"
 
-        # Verificar si la columna mrrComunidad existe
-        HAS_COLUMN=$(sqlite3 "$DB_PATH" "PRAGMA table_info(WeeklyMetric);" 2>/dev/null | grep -c "mrrComunidad" || echo "0")
-
-        if [ "$HAS_COLUMN" = "0" ]; then
-            echo "=== ADVERTENCIA: Columna mrrComunidad NO existe ==="
-            echo "Eliminando base de datos antigua para recrear con schema actualizado..."
-            rm -f "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm"
-            echo "Base de datos eliminada. Se creará una nueva."
+        # Verificar si mrrComunidad existe
+        if sqlite3 "$DB_PATH" "PRAGMA table_info(WeeklyMetric);" 2>/dev/null | grep -q "mrrComunidad"; then
+            echo "Columna mrrComunidad YA existe, no es necesario recrear"
         else
-            echo "Columna mrrComunidad existe, schema OK"
+            echo "Columna mrrComunidad NO existe - ELIMINANDO BASE DE DATOS"
+            rm -f "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm"
+            echo "Base de datos eliminada"
         fi
     fi
 
     # Ejecutar db push para crear/actualizar la base de datos
     echo "Ejecutando prisma db push..."
-    if node "$PRISMA_CLI" db push --accept-data-loss --skip-generate 2>&1; then
-        echo "Base de datos sincronizada correctamente"
-    else
-        echo "Primer intento falló, reintentando con force-reset..."
-        sleep 2
-        node "$PRISMA_CLI" db push --force-reset --accept-data-loss --skip-generate 2>&1 || {
-            echo "ADVERTENCIA: db push falló, intentando crear DB desde cero..."
-            rm -f "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm"
-            node "$PRISMA_CLI" db push --accept-data-loss --skip-generate 2>&1 || echo "ERROR CRITICO: No se pudo crear la base de datos"
-        }
+    node "$PRISMA_CLI" db push --accept-data-loss --skip-generate 2>&1
+    echo "Prisma db push completado"
+
+    # Verificar resultado final
+    if [ -f "$DB_PATH" ]; then
+        echo "=== Verificación final del schema ==="
+        sqlite3 "$DB_PATH" "PRAGMA table_info(WeeklyMetric);" 2>/dev/null
+
+        if sqlite3 "$DB_PATH" "PRAGMA table_info(WeeklyMetric);" 2>/dev/null | grep -q "mrrComunidad"; then
+            echo "SUCCESS: Columna mrrComunidad existe"
+        else
+            echo "ERROR: Columna mrrComunidad NO fue creada"
+            exit 1
+        fi
     fi
 else
     echo "ERROR: Prisma CLI no encontrado en $PRISMA_CLI"
-    ls -la /app/node_modules/prisma/ 2>/dev/null || echo "Directorio prisma no existe"
     exit 1
 fi
 
@@ -69,10 +72,6 @@ if [ -f "$DB_PATH" ]; then
     chown 1001:1001 "$DB_PATH"
     chmod 666 "$DB_PATH"
     echo "Base de datos lista: $DB_PATH"
-
-    # Verificar columnas finales
-    echo "=== Verificación final del schema ==="
-    sqlite3 "$DB_PATH" "PRAGMA table_info(WeeklyMetric);" 2>/dev/null || echo "No se pudo verificar schema"
 fi
 
 # Archivos WAL y SHM de SQLite
