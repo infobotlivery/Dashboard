@@ -166,6 +166,12 @@ export default function AdminPage() {
     return `${year}-${month}-${day}`
   }
 
+  // Parsear fecha YYYY-MM-DD como hora local (no UTC)
+  function parseLocalDate(dateStr: string): Date {
+    const [year, month, day] = dateStr.split('-').map(Number)
+    return new Date(year, month - 1, day)
+  }
+
   // Autenticación
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -421,7 +427,7 @@ export default function AdminPage() {
                 <Card>
                   <h2 className="text-lg font-semibold mb-4">Métricas de la Semana</h2>
                   <DateSelector
-                    value={new Date(weeklyMetric.weekStart)}
+                    value={parseLocalDate(weeklyMetric.weekStart)}
                     onChange={(date) => setWeeklyMetric({ ...weeklyMetric, weekStart: formatLocalDate(date) })}
                     label="Semana del"
                     mode="week"
@@ -498,7 +504,7 @@ export default function AdminPage() {
                 <Card>
                   <h2 className="text-lg font-semibold mb-4">Scorecard Mensual</h2>
                   <DateSelector
-                    value={new Date(monthlyScorecard.month)}
+                    value={parseLocalDate(monthlyScorecard.month)}
                     onChange={(date) => setMonthlyScorecard({ ...monthlyScorecard, month: formatLocalDate(date) })}
                     label="Mes"
                     mode="month"
@@ -579,7 +585,7 @@ export default function AdminPage() {
                 <Card>
                   <h2 className="text-lg font-semibold mb-4">Check Diario</h2>
                   <DateSelector
-                    value={new Date(dailyCheck.date)}
+                    value={parseLocalDate(dailyCheck.date)}
                     onChange={(date) => setDailyCheck({ ...dailyCheck, date: formatLocalDate(date) })}
                     label="Fecha"
                     mode="date"
