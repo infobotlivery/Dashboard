@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { WeeklyDashboard } from '@/components/dashboard/WeeklyDashboard'
+import { WeeklyComparison } from '@/components/dashboard/WeeklyComparison'
 import { MonthlyScorecardTable } from '@/components/dashboard/MonthlyScorecard'
 import { CadenceTree } from '@/components/dashboard/CadenceTree'
 
@@ -46,6 +47,7 @@ interface Settings {
 
 export default function DashboardPage() {
   const [currentMetric, setCurrentMetric] = useState<WeeklyMetric | null>(null)
+  const [comparisonData, setComparisonData] = useState<{ currentWeek: WeeklyMetric | null; previousWeek: WeeklyMetric | null }>({ currentWeek: null, previousWeek: null })
   const [scorecards, setScorecards] = useState<MonthlyScorecard[]>([])
   const [dailyChecks, setDailyChecks] = useState<DailyCheck[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -58,8 +60,9 @@ export default function DashboardPage() {
         setLoading(true)
 
         // Fetch all data in parallel
-        const [metricsRes, scorecardsRes, dailyRes, settingsRes] = await Promise.all([
+        const [metricsRes, comparisonRes, scorecardsRes, dailyRes, settingsRes] = await Promise.all([
           fetch('/api/metrics/current'),
+          fetch('/api/metrics/comparison'),
           fetch('/api/scorecard?limit=6'),
           fetch('/api/daily?limit=30'),
           fetch('/api/settings')
@@ -68,6 +71,14 @@ export default function DashboardPage() {
         if (metricsRes.ok) {
           const metricsData = await metricsRes.json()
           setCurrentMetric(metricsData.data)
+        }
+
+        if (comparisonRes.ok) {
+          const comparisonDataRes = await comparisonRes.json()
+          setComparisonData({
+            currentWeek: comparisonDataRes.data?.currentWeek || null,
+            previousWeek: comparisonDataRes.data?.previousWeek || null
+          })
         }
 
         if (scorecardsRes.ok) {
@@ -166,6 +177,14 @@ export default function DashboardPage() {
         {/* Dashboard Semanal - Nivel 1 */}
         <section>
           <WeeklyDashboard metric={currentMetric} />
+        </section>
+
+        {/* Comparativa Semanal */}
+        <section>
+          <WeeklyComparison
+            currentWeek={comparisonData.currentWeek}
+            previousWeek={comparisonData.previousWeek}
+          />
         </section>
 
         {/* Scorecard Mensual - Nivel 4 */}
