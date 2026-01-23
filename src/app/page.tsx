@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { WeeklyDashboard } from '@/components/dashboard/WeeklyDashboard'
 import { WeeklyComparison } from '@/components/dashboard/WeeklyComparison'
-import { MonthlyScorecardTable } from '@/components/dashboard/MonthlyScorecard'
+import { MonthlyComparison } from '@/components/dashboard/MonthlyComparison'
 import { CadenceTree } from '@/components/dashboard/CadenceTree'
 
 interface WeeklyMetric {
@@ -20,7 +20,6 @@ interface WeeklyMetric {
 }
 
 interface MonthlyScorecard {
-  id: number
   month: string
   facturacionTotal: number
   mrr: number
@@ -48,7 +47,7 @@ interface Settings {
 export default function DashboardPage() {
   const [currentMetric, setCurrentMetric] = useState<WeeklyMetric | null>(null)
   const [comparisonData, setComparisonData] = useState<{ currentWeek: WeeklyMetric | null; previousWeek: WeeklyMetric | null }>({ currentWeek: null, previousWeek: null })
-  const [scorecards, setScorecards] = useState<MonthlyScorecard[]>([])
+  const [monthlyComparisonData, setMonthlyComparisonData] = useState<{ currentMonth: MonthlyScorecard | null; previousMonth: MonthlyScorecard | null }>({ currentMonth: null, previousMonth: null })
   const [dailyChecks, setDailyChecks] = useState<DailyCheck[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
@@ -60,10 +59,10 @@ export default function DashboardPage() {
         setLoading(true)
 
         // Fetch all data in parallel
-        const [metricsRes, comparisonRes, scorecardsRes, dailyRes, settingsRes] = await Promise.all([
+        const [metricsRes, comparisonRes, monthlyComparisonRes, dailyRes, settingsRes] = await Promise.all([
           fetch('/api/metrics/current'),
           fetch('/api/metrics/comparison'),
-          fetch('/api/scorecard?limit=6'),
+          fetch('/api/scorecard/comparison'),
           fetch('/api/daily?limit=30'),
           fetch('/api/settings')
         ])
@@ -81,9 +80,12 @@ export default function DashboardPage() {
           })
         }
 
-        if (scorecardsRes.ok) {
-          const scorecardsData = await scorecardsRes.json()
-          setScorecards(scorecardsData.data || [])
+        if (monthlyComparisonRes.ok) {
+          const monthlyComparisonDataRes = await monthlyComparisonRes.json()
+          setMonthlyComparisonData({
+            currentMonth: monthlyComparisonDataRes.data?.currentMonth || null,
+            previousMonth: monthlyComparisonDataRes.data?.previousMonth || null
+          })
         }
 
         if (dailyRes.ok) {
@@ -187,9 +189,12 @@ export default function DashboardPage() {
           />
         </section>
 
-        {/* Scorecard Mensual - Nivel 4 */}
+        {/* Comparativa Mensual */}
         <section>
-          <MonthlyScorecardTable scorecards={scorecards} />
+          <MonthlyComparison
+            currentMonth={monthlyComparisonData.currentMonth}
+            previousMonth={monthlyComparisonData.previousMonth}
+          />
         </section>
 
         {/* Cadencia de Revisión */}
