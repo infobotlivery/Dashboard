@@ -27,6 +27,18 @@ export async function GET(request: NextRequest) {
       return successResponse(scorecard)
     }
 
+    // Asegurar que existe el mes actual antes de devolver la lista
+    const currentMonth = getMonthStart()
+    const existsCurrentMonth = await prisma.monthlyScorecard.findUnique({
+      where: { month: currentMonth }
+    })
+
+    if (!existsCurrentMonth) {
+      await prisma.monthlyScorecard.create({
+        data: { month: currentMonth }
+      })
+    }
+
     const scorecards = await prisma.monthlyScorecard.findMany({
       orderBy: { month: 'desc' },
       take: limit
