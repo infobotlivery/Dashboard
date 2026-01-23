@@ -111,7 +111,7 @@ export default function AdminPage() {
 
   // Weekly metric state
   const [weeklyMetric, setWeeklyMetric] = useState<WeeklyMetric>({
-    weekStart: getMonday(new Date()).toISOString().split('T')[0],
+    weekStart: formatLocalDate(getMonday(new Date())),
     mrr: 0,
     mrrComunidad: 0,
     pipelineActivo: 0,
@@ -136,7 +136,7 @@ export default function AdminPage() {
 
   // Daily check state
   const [dailyCheck, setDailyCheck] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: formatLocalDate(new Date()),
     publicoContenido: false,
     respondioLeads: false,
     notas: ''
@@ -156,6 +156,14 @@ export default function AdminPage() {
     const diff = d.getDate() - day + (day === 0 ? -6 : 1)
     d.setDate(diff)
     return d
+  }
+
+  // Formatear fecha local como YYYY-MM-DD (sin conversión a UTC)
+  function formatLocalDate(date: Date): string {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
 
   // Autenticación
@@ -414,7 +422,7 @@ export default function AdminPage() {
                   <h2 className="text-lg font-semibold mb-4">Métricas de la Semana</h2>
                   <DateSelector
                     value={new Date(weeklyMetric.weekStart)}
-                    onChange={(date) => setWeeklyMetric({ ...weeklyMetric, weekStart: date.toISOString().split('T')[0] })}
+                    onChange={(date) => setWeeklyMetric({ ...weeklyMetric, weekStart: formatLocalDate(date) })}
                     label="Semana del"
                     mode="week"
                   />
@@ -491,7 +499,7 @@ export default function AdminPage() {
                   <h2 className="text-lg font-semibold mb-4">Scorecard Mensual</h2>
                   <DateSelector
                     value={new Date(monthlyScorecard.month)}
-                    onChange={(date) => setMonthlyScorecard({ ...monthlyScorecard, month: date.toISOString().split('T')[0] })}
+                    onChange={(date) => setMonthlyScorecard({ ...monthlyScorecard, month: formatLocalDate(date) })}
                     label="Mes"
                     mode="month"
                   />
@@ -572,7 +580,7 @@ export default function AdminPage() {
                   <h2 className="text-lg font-semibold mb-4">Check Diario</h2>
                   <DateSelector
                     value={new Date(dailyCheck.date)}
-                    onChange={(date) => setDailyCheck({ ...dailyCheck, date: date.toISOString().split('T')[0] })}
+                    onChange={(date) => setDailyCheck({ ...dailyCheck, date: formatLocalDate(date) })}
                     label="Fecha"
                     mode="date"
                   />
