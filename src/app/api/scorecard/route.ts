@@ -66,15 +66,29 @@ export async function POST(request: NextRequest) {
       ? new Date(monthStr)
       : getMonthStart()
 
-    // Sanitizar datos numéricos
+    // Sanitizar datos numéricos (sin tasaCierre, se calcula automáticamente)
     const sanitizedData: Record<string, number> = {}
-    const numericFields = ['facturacionTotal', 'mrr', 'clientesNuevos', 'clientesPerdidos', 'enigmaVendidos', 'serviciosRecurrentes', 'leadsTotales', 'tasaCierre']
+    const numericFields = ['facturacionTotal', 'mrr', 'clientesNuevos', 'clientesPerdidos', 'enigmaVendidos', 'serviciosRecurrentes', 'leadsTotales']
 
     for (const field of numericFields) {
       if (data[field] !== undefined) {
         sanitizedData[field] = Number(data[field]) || 0
       }
     }
+
+    // Obtener datos actuales para calcular tasaCierre correctamente
+    const existingScorecard = await prisma.monthlyScorecard.findUnique({
+      where: { month }
+    })
+
+    // Determinar valores para el cálculo (usar nuevos si vienen, si no los existentes)
+    const clientesNuevos = sanitizedData.clientesNuevos ?? existingScorecard?.clientesNuevos ?? 0
+    const leadsTotales = sanitizedData.leadsTotales ?? existingScorecard?.leadsTotales ?? 0
+
+    // Calcular tasa de cierre automáticamente
+    sanitizedData.tasaCierre = leadsTotales > 0
+      ? (clientesNuevos / leadsTotales) * 100
+      : 0
 
     const scorecard = await prisma.monthlyScorecard.upsert({
       where: { month },
