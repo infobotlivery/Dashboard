@@ -51,6 +51,7 @@ Dashboard/
 │   │       │   └── comparison/route.ts # Comparativa semanal
 │   │       ├── scorecard/route.ts      # CRUD scorecard mensual
 │   │       ├── daily/route.ts          # CRUD checks diarios
+│   │       ├── sales/route.ts          # CRUD cierres de ventas
 │   │       └── settings/route.ts       # Configuración y branding
 │   │
 │   ├── components/
@@ -59,6 +60,7 @@ Dashboard/
 │   │   │   ├── WeeklyComparison.tsx    # Tabla comparativa semanal
 │   │   │   ├── MetricCard.tsx          # Card individual de métrica
 │   │   │   ├── MonthlyScorecard.tsx    # Tabla scorecard mensual
+│   │   │   ├── SalesCloseTable.tsx     # Tabla de cierres de ventas
 │   │   │   └── CadenceTree.tsx         # Árbol de cadencias
 │   │   └── ui/
 │   │       ├── Button.tsx
@@ -66,7 +68,8 @@ Dashboard/
 │   │       ├── Input.tsx
 │   │       ├── NumberInput.tsx
 │   │       ├── Toggle.tsx
-│   │       └── DateSelector.tsx
+│   │       ├── DateSelector.tsx
+│   │       └── Select.tsx              # Dropdown select
 │   │
 │   └── lib/
 │       ├── db.ts                 # Cliente Prisma singleton
@@ -145,6 +148,31 @@ model AdminSettings {
   logoUrl      String?
 }
 ```
+
+### SalesClose
+Registro de cierres de ventas con clientes.
+```prisma
+model SalesClose {
+  id              Int       @id @default(autoincrement())
+  clientName      String                              // Nombre del cliente
+  product         String                              // Enigma, CRM, Agente IA, Asesoría, Otro
+  customProduct   String?                             // Solo si product = "Otro"
+  onboardingValue Float     @default(0)               // Pago único
+  recurringValue  Float     @default(0)               // Pago mensual (suma a MRR si activo)
+  contractMonths  Int?                                // Duración contrato (meses)
+  status          String    @default("active")        // active, cancelled, completed
+  createdAt       DateTime  @default(now())
+  cancelledAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+}
+```
+
+**Estados:**
+- `active` → Cliente activo, suma al MRR
+- `cancelled` → Cliente canceló, no suma al MRR
+- `completed` → Servicio sin recurrencia completado (Enigma, Asesoría)
+
+**MRR Híbrido:** El MRR mostrado = MRR manual + suma de `recurringValue` donde `status='active'`
 
 ---
 
@@ -291,6 +319,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-01-23 | Fix parseo de fechas con parseLocalDate | dc62ff7 |
 | 2026-01-23 | Agregar comparativa semanal | 4110d57 |
 | 2026-01-25 | Auto-calcular tasaCierre (clientesNuevos/leadsTotales×100) | a670c93 |
+| 2026-01-25 | Sistema de registro de cierres de ventas con MRR híbrido | c54a167 |
 
 ---
 
