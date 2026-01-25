@@ -290,6 +290,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-01-23 | Fix zona horaria con formatLocalDate | 7681975 |
 | 2026-01-23 | Fix parseo de fechas con parseLocalDate | dc62ff7 |
 | 2026-01-23 | Agregar comparativa semanal | 4110d57 |
+| 2026-01-25 | Auto-calcular tasaCierre (clientesNuevos/leadsTotales×100) | a670c93 |
 
 ---
 
@@ -301,4 +302,4 @@ docker logs <container>  # Ver logs del contenedor
 
 ---
 
-*Última actualización: 2026-01-23*
+*Última actualización: 2026-01-25*
