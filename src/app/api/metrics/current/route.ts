@@ -46,10 +46,26 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Calcular MRR de ventas activas para MRR híbrido
+    let salesMRR = 0
+    try {
+      const activeSales = await prisma.salesClose.findMany({
+        where: { status: 'active' }
+      })
+      salesMRR = activeSales.reduce((sum, s) => sum + s.recurringValue, 0)
+    } catch {
+      // Si la tabla no existe todavía, ignorar
+      console.log('[Metrics Current] Tabla salesClose no disponible aún')
+    }
+
     // Asegurar que mrrComunidad existe en la respuesta (puede ser undefined en DB antigua)
+    // MRR híbrido = MRR manual + MRR de ventas activas
     const metricWithDefaults = {
       ...metric,
-      mrrComunidad: (metric as Record<string, unknown>).mrrComunidad ?? 0
+      mrrComunidad: (metric as Record<string, unknown>).mrrComunidad ?? 0,
+      mrr: (metric.mrr || 0) + salesMRR,
+      mrrManual: metric.mrr || 0,
+      mrrSales: salesMRR
     }
 
     return successResponse(metricWithDefaults)

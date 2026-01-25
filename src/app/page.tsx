@@ -6,6 +6,7 @@ import { WeeklyDashboard } from '@/components/dashboard/WeeklyDashboard'
 import { WeeklyComparison } from '@/components/dashboard/WeeklyComparison'
 import { MonthlyComparison } from '@/components/dashboard/MonthlyComparison'
 import { CadenceTree } from '@/components/dashboard/CadenceTree'
+import { SalesCloseTable } from '@/components/dashboard/SalesCloseTable'
 
 interface WeeklyMetric {
   id: number
@@ -44,12 +45,34 @@ interface Settings {
   brandDark: string
 }
 
+interface SalesClose {
+  id: number
+  clientName: string
+  product: string
+  customProduct: string | null
+  onboardingValue: number
+  recurringValue: number
+  contractMonths: number | null
+  status: string
+  createdAt: string
+  cancelledAt: string | null
+}
+
+interface SalesSummary {
+  mrrActivo: number
+  totalOnboardingMes: number
+  clientesActivos: number
+  cierresMes: number
+}
+
 export default function DashboardPage() {
   const [currentMetric, setCurrentMetric] = useState<WeeklyMetric | null>(null)
   const [comparisonData, setComparisonData] = useState<{ currentWeek: WeeklyMetric | null; previousWeek: WeeklyMetric | null }>({ currentWeek: null, previousWeek: null })
   const [monthlyComparisonData, setMonthlyComparisonData] = useState<{ currentMonth: MonthlyScorecard | null; previousMonth: MonthlyScorecard | null }>({ currentMonth: null, previousMonth: null })
   const [dailyChecks, setDailyChecks] = useState<DailyCheck[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
+  const [salesCloses, setSalesCloses] = useState<SalesClose[]>([])
+  const [salesSummary, setSalesSummary] = useState<SalesSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -59,12 +82,14 @@ export default function DashboardPage() {
         setLoading(true)
 
         // Fetch all data in parallel
-        const [metricsRes, comparisonRes, monthlyComparisonRes, dailyRes, settingsRes] = await Promise.all([
+        const [metricsRes, comparisonRes, monthlyComparisonRes, dailyRes, settingsRes, salesRes, salesSummaryRes] = await Promise.all([
           fetch('/api/metrics/current'),
           fetch('/api/metrics/comparison'),
           fetch('/api/scorecard/comparison'),
           fetch('/api/daily?limit=30'),
-          fetch('/api/settings')
+          fetch('/api/settings'),
+          fetch('/api/sales'),
+          fetch('/api/sales?summary=true')
         ])
 
         if (metricsRes.ok) {
@@ -96,6 +121,16 @@ export default function DashboardPage() {
         if (settingsRes.ok) {
           const settingsData = await settingsRes.json()
           setSettings(settingsData.data)
+        }
+
+        if (salesRes.ok) {
+          const salesData = await salesRes.json()
+          setSalesCloses(salesData.data || [])
+        }
+
+        if (salesSummaryRes.ok) {
+          const summaryData = await salesSummaryRes.json()
+          setSalesSummary(summaryData.data || null)
         }
       } catch (err) {
         console.error('Error fetching data:', err)
@@ -195,6 +230,11 @@ export default function DashboardPage() {
             currentMonth={monthlyComparisonData.currentMonth}
             previousMonth={monthlyComparisonData.previousMonth}
           />
+        </section>
+
+        {/* Registro de Cierres */}
+        <section>
+          <SalesCloseTable sales={salesCloses} summary={salesSummary} />
         </section>
 
         {/* Cadencia de Revisión */}

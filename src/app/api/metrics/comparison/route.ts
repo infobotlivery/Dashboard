@@ -50,11 +50,24 @@ export async function GET(request: NextRequest) {
       entregasPendientes: 0
     }
 
+    // Calcular MRR de ventas activas para MRR híbrido
+    let salesMRR = 0
+    try {
+      const activeSales = await prisma.salesClose.findMany({
+        where: { status: 'active' }
+      })
+      salesMRR = activeSales.reduce((sum, s) => sum + s.recurringValue, 0)
+    } catch {
+      // Si la tabla no existe todavía, ignorar
+      console.log('[Metrics Comparison] Tabla salesClose no disponible aún')
+    }
+
     return successResponse({
       currentWeek: {
         ...current,
         weekStart: currentWeekStart.toISOString(),
-        mrrComunidad: (current as Record<string, unknown>).mrrComunidad ?? 0
+        mrrComunidad: (current as Record<string, unknown>).mrrComunidad ?? 0,
+        mrr: (current.mrr || 0) + salesMRR
       },
       previousWeek: {
         ...previous,

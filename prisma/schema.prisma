@@ -56,3 +56,18 @@ model AdminSettings {
   brandDark    String  @default("#171717")
   logoUrl      String?
 }
+
+// Registro de cierres de ventas
+model SalesClose {
+  id              Int       @id @default(autoincrement())
+  clientName      String                              // Nombre del cliente
+  product         String                              // Enigma, CRM, Agente IA, Asesoría, Otro
+  customProduct   String?                             // Solo si product = "Otro"
+  onboardingValue Float     @default(0)               // Pago único
+  recurringValue  Float     @default(0)               // Pago mensual (suma a MRR si activo)
+  contractMonths  Int?                                // Duración contrato (meses)
+  status          String    @default("active")        // active, cancelled, completed
+  createdAt       DateTime  @default(now())           // Fecha registro
+  cancelledAt     DateTime?                           // Fecha de cancelación
+  updatedAt       DateTime  @updatedAt
+}

@@ -8,8 +8,9 @@ import { Card } from '@/components/ui/Card'
 import Toggle from '@/components/ui/Toggle'
 import NumberInput from '@/components/ui/NumberInput'
 import DateSelector from '@/components/ui/DateSelector'
+import { Select } from '@/components/ui/Select'
 
-type Tab = 'weekly' | 'monthly' | 'daily' | 'settings'
+type Tab = 'weekly' | 'monthly' | 'daily' | 'sales' | 'settings'
 
 interface WeeklyMetric {
   id?: number
@@ -40,6 +41,17 @@ interface Settings {
   brandPrimary: string
   brandDark: string
   logoUrl: string | null
+}
+
+interface SalesClose {
+  id?: number
+  clientName: string
+  product: string
+  customProduct: string
+  onboardingValue: number
+  recurringValue: number
+  contractMonths: number | null
+  status: string
 }
 
 // Iconos para las métricas
@@ -150,6 +162,19 @@ export default function AdminPage() {
   })
   const [newPassword, setNewPassword] = useState('')
 
+  // Sales close state
+  const [salesClose, setSalesClose] = useState<SalesClose>({
+    clientName: '',
+    product: 'CRM',
+    customProduct: '',
+    onboardingValue: 0,
+    recurringValue: 0,
+    contractMonths: null,
+    status: 'active'
+  })
+  const [salesList, setSalesList] = useState<(SalesClose & { id: number })[]>([])
+  const [editingSaleId, setEditingSaleId] = useState<number | null>(null)
+
   function getMonday(date: Date) {
     const d = new Date(date)
     const day = d.getDay()
@@ -234,6 +259,12 @@ export default function AdminPage() {
               notas: data.data.notas || ''
             })
           }
+        } else if (activeTab === 'sales') {
+          const res = await fetch('/api/sales')
+          const data = await res.json()
+          if (data.data) {
+            setSalesList(data.data)
+          }
         } else if (activeTab === 'settings') {
           const res = await fetch('/api/settings')
           const data = await res.json()
@@ -267,13 +298,19 @@ export default function AdminPage() {
       } else if (activeTab === 'daily') {
         endpoint = '/api/daily'
         body = dailyCheck
+      } else if (activeTab === 'sales') {
+        endpoint = '/api/sales'
+        body = salesClose
+        if (editingSaleId) {
+          body = { ...salesClose, id: editingSaleId }
+        }
       } else if (activeTab === 'settings') {
         endpoint = '/api/settings'
         body = { ...settings, newPassword: newPassword || undefined }
       }
 
       const res = await fetch(endpoint, {
-        method: 'POST',
+        method: activeTab === 'sales' && editingSaleId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       })
@@ -283,6 +320,22 @@ export default function AdminPage() {
       if (data.success) {
         setMessage({ type: 'success', text: 'Guardado correctamente' })
         if (activeTab === 'settings') setNewPassword('')
+        if (activeTab === 'sales') {
+          // Recargar lista y limpiar formulario
+          const salesRes = await fetch('/api/sales')
+          const salesData = await salesRes.json()
+          if (salesData.data) setSalesList(salesData.data)
+          setSalesClose({
+            clientName: '',
+            product: 'CRM',
+            customProduct: '',
+            onboardingValue: 0,
+            recurringValue: 0,
+            contractMonths: null,
+            status: 'active'
+          })
+          setEditingSaleId(null)
+        }
       } else {
         setMessage({ type: 'error', text: data.error || 'Error al guardar' })
       }
@@ -386,6 +439,7 @@ export default function AdminPage() {
               { id: 'weekly', label: 'Semanal', icon: '📊' },
               { id: 'monthly', label: 'Mensual', icon: '📈' },
               { id: 'daily', label: 'Diario', icon: '✅' },
+              { id: 'sales', label: 'Cierres', icon: '💰' },
               { id: 'settings', label: 'Configuración', icon: '⚙️' }
             ].map((tab) => (
               <button
@@ -619,6 +673,171 @@ export default function AdminPage() {
                     placeholder="Observaciones, aprendizajes, pendientes..."
                   />
                 </Card>
+              </div>
+            )}
+
+            {/* Sales Tab */}
+            {activeTab === 'sales' && (
+              <div className="space-y-6">
+                <Card>
+                  <h2 className="text-lg font-semibold mb-4">
+                    {editingSaleId ? 'Editar Cierre' : 'Nuevo Cierre de Venta'}
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Input
+                      label="Nombre del Cliente"
+                      value={salesClose.clientName}
+                      onChange={(e) => setSalesClose({ ...salesClose, clientName: e.target.value })}
+                      placeholder="Ej: Juan Pérez"
+                    />
+                    <Select
+                      label="Producto"
+                      value={salesClose.product}
+                      onChange={(value) => setSalesClose({ ...salesClose, product: value })}
+                      options={[
+                        { value: 'CRM', label: 'CRM' },
+                        { value: 'Agente IA', label: 'Agente IA' },
+                        { value: 'Enigma', label: 'Enigma' },
+                        { value: 'Asesoría', label: 'Asesoría' },
+                        { value: 'Otro', label: 'Otro' }
+                      ]}
+                    />
+                    {salesClose.product === 'Otro' && (
+                      <Input
+                        label="Producto Personalizado"
+                        value={salesClose.customProduct}
+                        onChange={(e) => setSalesClose({ ...salesClose, customProduct: e.target.value })}
+                        placeholder="Especifica el producto"
+                      />
+                    )}
+                    <NumberInput
+                      label="Valor Onboarding"
+                      value={salesClose.onboardingValue}
+                      onChange={(value) => setSalesClose({ ...salesClose, onboardingValue: value })}
+                      prefix="$"
+                      step={100}
+                      color="#10b981"
+                    />
+                    <NumberInput
+                      label="Valor Recurrente (mensual)"
+                      value={salesClose.recurringValue}
+                      onChange={(value) => setSalesClose({ ...salesClose, recurringValue: value })}
+                      prefix="$"
+                      suffix="/mes"
+                      step={50}
+                      color="#3b82f6"
+                    />
+                    <NumberInput
+                      label="Duración Contrato (meses)"
+                      value={salesClose.contractMonths || 0}
+                      onChange={(value) => setSalesClose({ ...salesClose, contractMonths: value || null })}
+                      suffix="meses"
+                      min={0}
+                      max={60}
+                      color="#8b5cf6"
+                    />
+                    <Select
+                      label="Estado"
+                      value={salesClose.status}
+                      onChange={(value) => setSalesClose({ ...salesClose, status: value })}
+                      options={[
+                        { value: 'active', label: 'Activo' },
+                        { value: 'cancelled', label: 'Cancelado' },
+                        { value: 'completed', label: 'Completado' }
+                      ]}
+                    />
+                  </div>
+                  {editingSaleId && (
+                    <div className="mt-4">
+                      <button
+                        onClick={() => {
+                          setEditingSaleId(null)
+                          setSalesClose({
+                            clientName: '',
+                            product: 'CRM',
+                            customProduct: '',
+                            onboardingValue: 0,
+                            recurringValue: 0,
+                            contractMonths: null,
+                            status: 'active'
+                          })
+                        }}
+                        className="text-brand-muted hover:text-white text-sm"
+                      >
+                        Cancelar edición
+                      </button>
+                    </div>
+                  )}
+                </Card>
+
+                {/* Lista de cierres existentes */}
+                {salesList.length > 0 && (
+                  <Card>
+                    <h2 className="text-lg font-semibold mb-4">Cierres Registrados</h2>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr>
+                            <th className="text-left py-2 px-3 text-brand-muted font-medium text-sm">Cliente</th>
+                            <th className="text-left py-2 px-3 text-brand-muted font-medium text-sm">Producto</th>
+                            <th className="text-right py-2 px-3 text-brand-muted font-medium text-sm">Onboarding</th>
+                            <th className="text-right py-2 px-3 text-brand-muted font-medium text-sm">Recurrente</th>
+                            <th className="text-center py-2 px-3 text-brand-muted font-medium text-sm">Estado</th>
+                            <th className="text-center py-2 px-3 text-brand-muted font-medium text-sm">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {salesList.map((sale) => (
+                            <tr key={sale.id} className="border-t border-brand-border">
+                              <td className="py-3 px-3">{sale.clientName}</td>
+                              <td className="py-3 px-3 text-brand-muted">
+                                {sale.product === 'Otro' ? sale.customProduct : sale.product}
+                              </td>
+                              <td className="py-3 px-3 text-right text-green-400">
+                                ${sale.onboardingValue.toLocaleString()}
+                              </td>
+                              <td className="py-3 px-3 text-right text-brand-primary">
+                                ${sale.recurringValue.toLocaleString()}/mes
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                <span className={`inline-flex items-center gap-1 text-sm ${
+                                  sale.status === 'active' ? 'text-green-400' :
+                                  sale.status === 'cancelled' ? 'text-red-400' : 'text-brand-primary'
+                                }`}>
+                                  <span className={`w-2 h-2 rounded-full ${
+                                    sale.status === 'active' ? 'bg-green-400' :
+                                    sale.status === 'cancelled' ? 'bg-red-400' : 'bg-brand-primary'
+                                  }`}></span>
+                                  {sale.status === 'active' ? 'Activo' :
+                                   sale.status === 'cancelled' ? 'Cancelado' : 'Completado'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                <button
+                                  onClick={() => {
+                                    setEditingSaleId(sale.id)
+                                    setSalesClose({
+                                      clientName: sale.clientName,
+                                      product: sale.product,
+                                      customProduct: sale.customProduct || '',
+                                      onboardingValue: sale.onboardingValue,
+                                      recurringValue: sale.recurringValue,
+                                      contractMonths: sale.contractMonths,
+                                      status: sale.status
+                                    })
+                                  }}
+                                  className="text-brand-primary hover:text-white text-sm mr-2"
+                                >
+                                  Editar
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                )}
               </div>
             )}
 
