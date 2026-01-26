@@ -695,11 +695,11 @@ export default function AdminPage() {
                       value={salesClose.product}
                       onChange={(value) => setSalesClose({ ...salesClose, product: value })}
                       options={[
-                        { value: 'CRM', label: 'CRM' },
-                        { value: 'Agente IA', label: 'Agente IA' },
-                        { value: 'Enigma', label: 'Enigma' },
-                        { value: 'Asesoría', label: 'Asesoría' },
-                        { value: 'Otro', label: 'Otro' }
+                        { value: 'CRM', label: 'CRM', icon: '📊' },
+                        { value: 'Agente IA', label: 'Agente IA', icon: '🤖' },
+                        { value: 'Enigma', label: 'Enigma', icon: '🎯' },
+                        { value: 'Asesoría', label: 'Asesoría', icon: '💡' },
+                        { value: 'Otro', label: 'Otro', icon: '📦' }
                       ]}
                     />
                     {salesClose.product === 'Otro' && (
@@ -741,9 +741,9 @@ export default function AdminPage() {
                       value={salesClose.status}
                       onChange={(value) => setSalesClose({ ...salesClose, status: value })}
                       options={[
-                        { value: 'active', label: 'Activo' },
-                        { value: 'cancelled', label: 'Cancelado' },
-                        { value: 'completed', label: 'Completado' }
+                        { value: 'active', label: 'Activo', icon: '🟢' },
+                        { value: 'cancelled', label: 'Cancelado', icon: '🔴' },
+                        { value: 'completed', label: 'Completado', icon: '✅' }
                       ]}
                     />
                   </div>
