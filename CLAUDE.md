@@ -266,7 +266,13 @@ NEXT_PUBLIC_APP_URL="https://dashboard.elraperomarketero.com"
 
 ### Arquitectura
 ```
-Kommo CRM → N8N (webhook) → Dashboard (/api/webhooks/kommo)
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│   KOMMO CRM     │      │      N8N        │      │   DASHBOARD     │
+│                 │      │                 │      │                 │
+│ Lead → Etapa    │─────▶│ Webhook Trigger │─────▶│ /api/webhooks/  │
+│ "Calificado"    │ POST │ + Code Node     │ POST │    kommo        │
+│                 │      │ + HTTP Request  │      │                 │
+└─────────────────┘      └─────────────────┘      └─────────────────┘
 ```
 
 ### Endpoint: POST /api/webhooks/kommo
@@ -284,6 +290,12 @@ Recibe notificaciones cuando un lead entra a la etapa "Calificado".
   "toStage": "Calificado"
 }
 ```
+
+**Campos:**
+- `leadId`: ID del lead en Kommo
+- `leadName`: Nombre del lead/contacto
+- `fromStage`: Etapa anterior (de donde venía el lead)
+- `toStage`: Etapa nueva (siempre "Calificado")
 
 **Respuesta:**
 ```json
@@ -303,17 +315,105 @@ Recibe notificaciones cuando un lead entra a la etapa "Calificado".
 - Guarda log de auditoría en `KommoWebhookLog`
 - Auto-crea métrica de la semana si no existe
 
-### Test con curl
-```bash
-curl -X POST https://dashboard.elraperomarketero.com/api/webhooks/kommo \
-  -H "X-API-Key: tu-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{"leadId": 12345, "leadName": "Test Lead", "fromStage": "Nuevo", "toStage": "Calificado"}'
+---
+
+### Workflow N8N Completo
+
+**URL N8N:** https://ssn8n.elraperomarketero.com
+**Workflow:** Kommo → Dashboard Pipeline
+
+#### Nodo 1: Webhook Trigger
+- **Tipo:** Webhook
+- **Method:** POST
+- **Path:** `kommo-calificado`
+- **URL Producción:** `https://ssn8n.elraperomarketero.com/webhook/kommo-calificado`
+
+#### Nodo 2: Code (JavaScript)
+```javascript
+// Extraer datos del webhook de Kommo
+// Los datos vienen en body cuando es webhook
+const body = $input.first().json.body || $input.first().json;
+const leads = body.leads;
+const lead = leads?.status?.[0] || leads?.add?.[0] || {};
+
+return [{
+  json: {
+    leadId: lead.id || 0,
+    leadName: lead.name || 'Sin nombre',
+    fromStage: String(lead.old_status_id || ''),
+    toStage: 'Calificado'
+  }
+}];
 ```
 
-### N8N
-URL: https://ssn8n.elraperomarketero.com
-Workflow: Kommo → Dashboard Pipeline
+#### Nodo 3: HTTP Request
+- **Method:** POST
+- **URL:** `https://dashboard.elraperomarketero.com/api/webhooks/kommo`
+- **Headers:** `X-API-Key: [API_SECRET_KEY]`
+- **Body (JSON):**
+```json
+{
+  "leadId": {{ $json.leadId }},
+  "leadName": "{{ $json.leadName }}",
+  "fromStage": "{{ $json.fromStage }}",
+  "toStage": "{{ $json.toStage }}"
+}
+```
+
+---
+
+### Configuración en Kommo
+
+**Opción A: Digital Pipeline (Recomendada)**
+1. Ir a Leads → Automate
+2. Click en la etapa "Calificado"
+3. Agregar acción → API: Send webhook
+4. URL: `https://ssn8n.elraperomarketero.com/webhook/kommo-calificado`
+
+**Opción B: Integraciones globales**
+1. Settings → Integrations → Webhooks
+2. Evento: "Lead status changed"
+3. URL: `https://ssn8n.elraperomarketero.com/webhook/kommo-calificado`
+
+---
+
+### Payload que envía Kommo
+```json
+{
+  "leads": {
+    "status": [{
+      "id": 12345,
+      "name": "Juan Pérez",
+      "status_id": 142,
+      "old_status_id": 141,
+      "pipeline_id": 123
+    }]
+  },
+  "account": {
+    "id": 12345678,
+    "subdomain": "tuempresa"
+  }
+}
+```
+
+---
+
+### Test con Hoppscotch/Postman
+```
+POST https://ssn8n.elraperomarketero.com/webhook-test/kommo-calificado
+Content-Type: application/json
+
+{
+  "leads": {
+    "status": [{
+      "id": 12345,
+      "name": "Lead de Prueba",
+      "old_status_id": 100,
+      "status_id": 142
+    }]
+  }
+}
+```
 
 ---
 
