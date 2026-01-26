@@ -71,3 +71,15 @@ model SalesClose {
   cancelledAt     DateTime?                           // Fecha de cancelación
   updatedAt       DateTime  @updatedAt
 }
+
+// Log de webhooks de Kommo CRM - Auditoría de leads calificados
+model KommoWebhookLog {
+  id             Int      @id @default(autoincrement())
+  leadId         Int                                  // ID del lead en Kommo
+  leadName       String                               // Nombre del lead
+  fromStage      String?                              // Etapa anterior (puede ser null)
+  toStage        String                               // Etapa nueva (Calificado)
+  action         String                               // "increment"
+  pipelineActivo Int                                  // Valor después de la acción
+  createdAt      DateTime @default(now())             // Cuándo ocurrió
+}

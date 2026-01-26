@@ -94,6 +94,30 @@ fi
 echo "=== Estructura de SalesClose ==="
 sqlite3 "$DB_PATH" "PRAGMA table_info(SalesClose);" 2>/dev/null || echo "No se pudo leer estructura"
 
+# Verificar y crear tabla KommoWebhookLog si no existe
+echo "=== Verificando tabla KommoWebhookLog ==="
+if ! sqlite3 "$DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND name='KommoWebhookLog';" 2>/dev/null | grep -q "KommoWebhookLog"; then
+    echo "Tabla KommoWebhookLog NO existe - CREANDO..."
+    sqlite3 "$DB_PATH" "
+    CREATE TABLE IF NOT EXISTS KommoWebhookLog (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        leadId INTEGER NOT NULL,
+        leadName TEXT NOT NULL,
+        fromStage TEXT,
+        toStage TEXT NOT NULL,
+        action TEXT NOT NULL,
+        pipelineActivo INTEGER NOT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    " 2>&1 || echo "Error creando tabla KommoWebhookLog"
+    echo "Tabla KommoWebhookLog creada"
+else
+    echo "Tabla KommoWebhookLog ya existe"
+fi
+
+echo "=== Estructura de KommoWebhookLog ==="
+sqlite3 "$DB_PATH" "PRAGMA table_info(KommoWebhookLog);" 2>/dev/null || echo "No se pudo leer estructura"
+
 # Asegurar permisos de archivos de base de datos
 if [ -f "$DB_PATH" ]; then
     chown 1001:1001 "$DB_PATH"

@@ -52,7 +52,9 @@ Dashboard/
 │   │       ├── scorecard/route.ts      # CRUD scorecard mensual
 │   │       ├── daily/route.ts          # CRUD checks diarios
 │   │       ├── sales/route.ts          # CRUD cierres de ventas
-│   │       └── settings/route.ts       # Configuración y branding
+│   │       ├── settings/route.ts       # Configuración y branding
+│   │       └── webhooks/
+│   │           └── kommo/route.ts      # Webhook para Kommo CRM
 │   │
 │   ├── components/
 │   │   ├── dashboard/
@@ -174,6 +176,21 @@ model SalesClose {
 
 **MRR Híbrido:** El MRR mostrado = MRR manual + suma de `recurringValue` donde `status='active'`
 
+### KommoWebhookLog
+Log de auditoría para webhooks de Kommo CRM (leads calificados).
+```prisma
+model KommoWebhookLog {
+  id             Int      @id @default(autoincrement())
+  leadId         Int                      // ID del lead en Kommo
+  leadName       String                   // Nombre del lead
+  fromStage      String?                  // Etapa anterior (puede ser null)
+  toStage        String                   // Etapa nueva (Calificado)
+  action         String                   // "increment"
+  pipelineActivo Int                      // Valor después de la acción
+  createdAt      DateTime @default(now()) // Cuándo ocurrió
+}
+```
+
 ---
 
 ## Variables de Entorno
@@ -242,6 +259,61 @@ NEXT_PUBLIC_APP_URL="https://dashboard.elraperomarketero.com"
 ### Auto-crear mes actual (RESUELTO)
 **Problema:** El scorecard mostraba el mes anterior, no el actual.
 **Solución:** La API `/api/scorecard` ahora crea automáticamente el mes actual si no existe.
+
+---
+
+## Integración Kommo CRM
+
+### Arquitectura
+```
+Kommo CRM → N8N (webhook) → Dashboard (/api/webhooks/kommo)
+```
+
+### Endpoint: POST /api/webhooks/kommo
+Recibe notificaciones cuando un lead entra a la etapa "Calificado".
+
+**Headers requeridos:**
+- `X-API-Key`: API_SECRET_KEY del dashboard
+
+**Body:**
+```json
+{
+  "leadId": 12345,
+  "leadName": "Juan Pérez",
+  "fromStage": "Nuevo",
+  "toStage": "Calificado"
+}
+```
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "data": {
+    "pipelineActivo": 8,
+    "leadId": 12345,
+    "leadName": "Juan Pérez",
+    "logged": true
+  }
+}
+```
+
+**Comportamiento:**
+- Solo incrementa `pipelineActivo` (+1), nunca decrementa
+- Guarda log de auditoría en `KommoWebhookLog`
+- Auto-crea métrica de la semana si no existe
+
+### Test con curl
+```bash
+curl -X POST https://dashboard.elraperomarketero.com/api/webhooks/kommo \
+  -H "X-API-Key: tu-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"leadId": 12345, "leadName": "Test Lead", "fromStage": "Nuevo", "toStage": "Calificado"}'
+```
+
+### N8N
+URL: https://ssn8n.elraperomarketero.com
+Workflow: Kommo → Dashboard Pipeline
 
 ---
 
@@ -320,6 +392,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-01-23 | Agregar comparativa semanal | 4110d57 |
 | 2026-01-25 | Auto-calcular tasaCierre (clientesNuevos/leadsTotales×100) | a670c93 |
 | 2026-01-25 | Sistema de registro de cierres de ventas con MRR híbrido | c54a167 |
+| 2026-01-26 | Integración Kommo CRM webhook para leads calificados | pendiente |
 
 ---
 
@@ -331,4 +404,4 @@ docker logs <container>  # Ver logs del contenedor
 
 ---
 
-*Última actualización: 2026-01-25*
+*Última actualización: 2026-01-26*
