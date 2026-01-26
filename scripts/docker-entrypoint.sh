@@ -67,6 +67,33 @@ else
     # NO hacer exit 1 - intentar continuar de todos modos
 fi
 
+# Verificar y crear tabla SalesClose si no existe
+echo "=== Verificando tabla SalesClose ==="
+if ! sqlite3 "$DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND name='SalesClose';" 2>/dev/null | grep -q "SalesClose"; then
+    echo "Tabla SalesClose NO existe - CREANDO..."
+    sqlite3 "$DB_PATH" "
+    CREATE TABLE IF NOT EXISTS SalesClose (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        clientName TEXT NOT NULL,
+        product TEXT NOT NULL,
+        customProduct TEXT,
+        onboardingValue REAL NOT NULL DEFAULT 0,
+        recurringValue REAL NOT NULL DEFAULT 0,
+        contractMonths INTEGER,
+        status TEXT NOT NULL DEFAULT 'active',
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        cancelledAt DATETIME,
+        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    " 2>&1 || echo "Error creando tabla SalesClose"
+    echo "Tabla SalesClose creada"
+else
+    echo "Tabla SalesClose ya existe"
+fi
+
+echo "=== Estructura de SalesClose ==="
+sqlite3 "$DB_PATH" "PRAGMA table_info(SalesClose);" 2>/dev/null || echo "No se pudo leer estructura"
+
 # Asegurar permisos de archivos de base de datos
 if [ -f "$DB_PATH" ]; then
     chown 1001:1001 "$DB_PATH"
