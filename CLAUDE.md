@@ -392,7 +392,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-01-23 | Agregar comparativa semanal | 4110d57 |
 | 2026-01-25 | Auto-calcular tasaCierre (clientesNuevos/leadsTotales×100) | a670c93 |
 | 2026-01-25 | Sistema de registro de cierres de ventas con MRR híbrido | c54a167 |
-| 2026-01-26 | Integración Kommo CRM webhook para leads calificados | pendiente |
+| 2026-01-26 | Integración Kommo CRM webhook para leads calificados | db4dce5 |
 
 ---
 
