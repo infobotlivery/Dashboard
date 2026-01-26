@@ -17,8 +17,10 @@ interface SalesClose {
 
 interface SalesSummary {
   mrrActivo: number
+  totalOnboardingHistorico: number
   totalOnboardingMes: number
   clientesActivos: number
+  clientesTotales: number
   cierresMes: number
 }
 
@@ -98,9 +100,10 @@ export function SalesCloseTable({ sales, summary }: SalesCloseTableProps) {
   }
 
   const handleExportCSV = () => {
-    const headers = ['Cliente', 'Producto', 'Onboarding', 'Recurrente', 'Duracion', 'Fin Contrato', 'Estado', 'Fecha Registro']
+    const headers = ['Mes Cierre', 'Cliente', 'Producto', 'Onboarding', 'Recurrente', 'Duracion', 'Fin Contrato', 'Estado', 'Fecha Registro']
 
     const rows = sales.map(sale => [
+      formatMonthYear(sale.createdAt),
       sale.clientName,
       getProductDisplay(sale.product, sale.customProduct),
       sale.onboardingValue,
@@ -167,6 +170,9 @@ export function SalesCloseTable({ sales, summary }: SalesCloseTableProps) {
         <table className="w-full">
           <thead>
             <tr>
+              <th className="text-center py-3 px-4 text-brand-muted font-medium text-sm">
+                Mes
+              </th>
               <th className="text-left py-3 px-4 text-brand-muted font-medium text-sm">
                 Cliente
               </th>
@@ -196,6 +202,11 @@ export function SalesCloseTable({ sales, summary }: SalesCloseTableProps) {
                 transition={{ delay: 0.6 + idx * 0.05 }}
                 className="border-t border-brand-border hover:bg-brand-dark/50 transition-colors"
               >
+                <td className="text-center py-4 px-4">
+                  <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-lg bg-brand-primary/10 text-brand-primary">
+                    {formatMonthYear(sale.createdAt)}
+                  </span>
+                </td>
                 <td className="py-4 px-4 font-medium">
                   {sale.clientName}
                 </td>
@@ -224,18 +235,22 @@ export function SalesCloseTable({ sales, summary }: SalesCloseTableProps) {
         {/* Footer con resumen */}
         {summary && (
           <div className="border-t border-brand-border mt-4 pt-4 px-4 pb-2">
-            <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div>
                 <p className="text-brand-muted text-sm">MRR Activo</p>
                 <p className="text-xl font-bold text-brand-primary">{formatCurrency(summary.mrrActivo)}</p>
               </div>
               <div>
-                <p className="text-brand-muted text-sm">Cierres del mes</p>
-                <p className="text-xl font-bold text-green-400">{formatCurrency(summary.totalOnboardingMes)}</p>
+                <p className="text-brand-muted text-sm">Total Onboarding</p>
+                <p className="text-xl font-bold text-green-400">{formatCurrency(summary.totalOnboardingHistorico)}</p>
               </div>
               <div>
-                <p className="text-brand-muted text-sm">Clientes activos</p>
-                <p className="text-xl font-bold">{summary.clientesActivos}</p>
+                <p className="text-brand-muted text-sm">Onboarding este mes</p>
+                <p className="text-xl font-bold text-yellow-400">{formatCurrency(summary.totalOnboardingMes)}</p>
+              </div>
+              <div>
+                <p className="text-brand-muted text-sm">Clientes</p>
+                <p className="text-xl font-bold">{summary.clientesActivos} <span className="text-brand-muted text-sm font-normal">/ {summary.clientesTotales}</span></p>
               </div>
             </div>
           </div>

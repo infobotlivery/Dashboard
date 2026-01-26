@@ -9,13 +9,14 @@ export async function GET(request: NextRequest) {
     const summary = searchParams.get('summary') === 'true'
 
     if (summary) {
-      // Calcular resumen: MRR activo, total cierres del mes, cantidad de clientes
+      // Calcular resumen: MRR activo, totales históricos y del mes
       const monthStart = getMonthStart()
 
-      const [activeSales, monthCloses] = await Promise.all([
+      const [activeSales, allSales, monthCloses] = await Promise.all([
         prisma.salesClose.findMany({
           where: { status: 'active' }
         }),
+        prisma.salesClose.findMany(),
         prisma.salesClose.findMany({
           where: {
             createdAt: { gte: monthStart }
@@ -23,15 +24,25 @@ export async function GET(request: NextRequest) {
         })
       ])
 
+      // MRR de clientes activos
       const mrrActivo = activeSales.reduce((sum, s) => sum + s.recurringValue, 0)
+
+      // Total histórico de onboarding (todos los cierres)
+      const totalOnboardingHistorico = allSales.reduce((sum, s) => sum + s.onboardingValue, 0)
+
+      // Onboarding solo del mes actual
       const totalOnboardingMes = monthCloses.reduce((sum, s) => sum + s.onboardingValue, 0)
+
       const clientesActivos = activeSales.length
+      const clientesTotales = allSales.length
       const cierresMes = monthCloses.length
 
       return successResponse({
         mrrActivo,
+        totalOnboardingHistorico,
         totalOnboardingMes,
         clientesActivos,
+        clientesTotales,
         cierresMes
       })
     }

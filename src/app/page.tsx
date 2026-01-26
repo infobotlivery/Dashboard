@@ -60,8 +60,10 @@ interface SalesClose {
 
 interface SalesSummary {
   mrrActivo: number
+  totalOnboardingHistorico: number
   totalOnboardingMes: number
   clientesActivos: number
+  clientesTotales: number
   cierresMes: number
 }
 
