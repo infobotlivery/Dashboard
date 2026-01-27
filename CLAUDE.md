@@ -328,25 +328,29 @@ Recibe notificaciones cuando un lead entra a la etapa "Calificado".
 - **Path:** `kommo-calificado`
 - **URL Producción:** `https://ssn8n.elraperomarketero.com/webhook/kommo-calificado`
 
-#### Nodo 2: Code (JavaScript)
+#### Nodo 2: Kommo (Get Lead)
+- **Credential:** Kommo account
+- **Resource:** Lead
+- **Operation:** Get Lead List
+- **Filter > List of Lead IDs:** `{{ $json.body['leads[add][0][id]'] }}`
+
+#### Nodo 3: Code (JavaScript)
 ```javascript
-// Extraer datos del webhook de Kommo
-// Los datos vienen en body cuando es webhook
-const body = $input.first().json.body || $input.first().json;
-const leads = body.leads;
-const lead = leads?.status?.[0] || leads?.add?.[0] || {};
+// Extraer datos de la respuesta de Kommo
+const data = $input.first().json;
+const lead = data._embedded?.leads?.[0] || {};
 
 return [{
   json: {
     leadId: lead.id || 0,
     leadName: lead.name || 'Sin nombre',
-    fromStage: String(lead.old_status_id || ''),
+    fromStage: String(lead.status_id || ''),
     toStage: 'Calificado'
   }
 }];
 ```
 
-#### Nodo 3: HTTP Request
+#### Nodo 4: HTTP Request
 - **Method:** POST
 - **URL:** `https://dashboard.elraperomarketero.com/api/webhooks/kommo`
 - **Headers:** `X-API-Key: [API_SECRET_KEY]`
