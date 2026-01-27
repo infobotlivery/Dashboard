@@ -36,6 +36,13 @@ RUN echo "=== Verificando cliente Prisma generado ===" && \
 
 RUN npm run build
 
+# DEBUG: Verificar que el build generó los archivos estáticos
+RUN echo "=== [BUILDER] Verificando output del build ===" && \
+    echo "--- .next/standalone existe:" && ls -la /app/.next/standalone/ | head -10 && \
+    echo "--- .next/static existe:" && ls -la /app/.next/static/ | head -10 && \
+    echo "--- .next/static/chunks:" && ls /app/.next/static/chunks/ | head -5 && \
+    echo "--- public:" && ls -la /app/public/
+
 # Etapa 3: Runner
 FROM node:20-alpine AS runner
 RUN apk add --no-cache openssl su-exec sqlite
@@ -50,42 +57,68 @@ ENV HOSTNAME="0.0.0.0"
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copiar standalone build (incluye server.js y node_modules mínimos)
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+# ============================================
+# PASO 1: Copiar standalone build
+# ============================================
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone /app
 
-# Copiar archivos estáticos de Next.js (CSS, JS, fuentes)
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# DEBUG: Verificar qué se copió del standalone
+RUN echo "=== [RUNNER] Después de copiar standalone ===" && \
+    echo "--- /app contiene:" && ls -la /app/ && \
+    echo "--- /app/.next contiene:" && ls -la /app/.next/ 2>/dev/null || echo "NO EXISTE /app/.next"
 
-# Copiar archivos públicos
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# ============================================
+# PASO 2: Copiar archivos estáticos de Next.js
+# ============================================
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static /app/.next/static
 
-# Copiar prisma schema y directorio completo
-COPY --from=builder /app/prisma ./prisma
+# DEBUG: Verificar que se copiaron los archivos estáticos
+RUN echo "=== [RUNNER] Después de copiar static ===" && \
+    echo "--- /app/.next/static contiene:" && ls -la /app/.next/static/ && \
+    echo "--- /app/.next/static/chunks (primeros 5):" && ls /app/.next/static/chunks/ | head -5
 
-# Copiar Prisma client generado (CRÍTICO - debe incluir mrrComunidad)
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+# ============================================
+# PASO 3: Copiar archivos públicos
+# ============================================
+COPY --from=builder --chown=nextjs:nodejs /app/public /app/public
 
-# NO instalamos prisma global - usamos el de node_modules para evitar incompatibilidades
+# DEBUG: Verificar archivos públicos
+RUN echo "=== [RUNNER] Después de copiar public ===" && \
+    echo "--- /app/public contiene:" && ls -la /app/public/
 
-# Copiar script de inicio
-COPY --from=builder /app/scripts ./scripts
-COPY --from=builder /app/package.json ./package.json
+# ============================================
+# PASO 4: Copiar archivos de Prisma
+# ============================================
+COPY --from=builder /app/prisma /app/prisma
+COPY --from=builder /app/node_modules/.prisma /app/node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma /app/node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma /app/node_modules/prisma
+
+# ============================================
+# PASO 5: Copiar scripts y configuración
+# ============================================
+COPY --from=builder /app/scripts /app/scripts
+COPY --from=builder /app/package.json /app/package.json
 
 # Crear directorio para datos con permisos correctos
 RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data /app/prisma /app/scripts
 
-# Copiar script de entrada que maneja permisos
+# Copiar script de entrada
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# DEBUG: Verificar estructura de archivos estáticos
-RUN echo "=== Verificando archivos estáticos ===" && \
-    echo "--- /app/.next/static:" && ls -la /app/.next/static 2>/dev/null || echo "NO EXISTE" && \
-    echo "--- /app/.next/static/chunks:" && ls /app/.next/static/chunks 2>/dev/null | head -5 || echo "NO EXISTE" && \
-    echo "--- /app/public:" && ls -la /app/public 2>/dev/null || echo "NO EXISTE" && \
-    echo "--- /app/server.js:" && ls -la /app/server.js 2>/dev/null || echo "NO EXISTE"
+# ============================================
+# DEBUG FINAL: Verificar estructura completa
+# ============================================
+RUN echo "=== [RUNNER] ESTRUCTURA FINAL ===" && \
+    echo "--- /app (raíz):" && ls -la /app/ && \
+    echo "--- /app/.next:" && ls -la /app/.next/ && \
+    echo "--- /app/.next/static:" && ls -la /app/.next/static/ && \
+    echo "--- /app/.next/static/chunks (5 archivos):" && ls /app/.next/static/chunks/ | head -5 && \
+    echo "--- /app/.next/static/css:" && ls /app/.next/static/css/ 2>/dev/null || echo "NO HAY CSS" && \
+    echo "--- /app/.next/static/media:" && ls /app/.next/static/media/ 2>/dev/null || echo "NO HAY MEDIA" && \
+    echo "--- /app/public:" && ls -la /app/public/ && \
+    echo "--- /app/server.js existe:" && ls -la /app/server.js
 
 EXPOSE 3000
 

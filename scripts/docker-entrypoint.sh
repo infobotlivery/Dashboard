@@ -207,15 +207,5 @@ done
 echo "Contenido de $DATA_DIR:"
 ls -la "$DATA_DIR" 2>/dev/null
 
-echo "=== Verificando archivos estáticos en runtime ==="
-echo "--- /app/.next/static:"
-ls -la /app/.next/static 2>/dev/null || echo "NO EXISTE"
-echo "--- /app/.next/static/chunks (primeros 5):"
-ls /app/.next/static/chunks 2>/dev/null | head -5 || echo "NO EXISTE"
-echo "--- /app/public:"
-ls -la /app/public 2>/dev/null || echo "NO EXISTE"
-echo "--- /app/server.js:"
-ls -la /app/server.js 2>/dev/null || echo "NO EXISTE"
-
 echo "=== Iniciando servidor Next.js ==="
 exec su-exec nextjs node /app/server.js
