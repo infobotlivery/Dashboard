@@ -76,6 +76,15 @@ export function ResumenTab({ summary, currentGoal }: ResumenTabProps) {
       minimumFractionDigits: 0
     }).format(value)
 
+  // Formatear mes correctamente (evitar problemas de zona horaria)
+  const formatMonth = (monthStr: string) => {
+    // Si viene como ISO (2026-01-01T00:00:00.000Z) o YYYY-MM-DD
+    const parts = monthStr.split('T')[0].split('-')
+    const year = parseInt(parts[0])
+    const month = parseInt(parts[1]) - 1 // JavaScript months are 0-indexed
+    return new Date(year, month, 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+  }
+
   // Calcular porcentajes para el gráfico de ingresos
   const incomeBreakdown = useMemo(() => {
     const total = summary.income.total || 1
@@ -117,7 +126,7 @@ export function ResumenTab({ summary, currentGoal }: ResumenTabProps) {
           <div>
             <p className="text-xs text-gray-400">Mes actual</p>
             <p className="font-semibold capitalize">
-              {new Date(summary.month).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+              {formatMonth(summary.month)}
             </p>
           </div>
         </div>
