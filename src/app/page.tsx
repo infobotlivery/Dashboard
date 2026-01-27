@@ -201,12 +201,21 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
-            <a
-              href="/admin"
-              className="btn-secondary text-sm"
-            >
-              Panel Admin
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href="/finanzas"
+                className="btn-secondary text-sm flex items-center gap-2"
+              >
+                <span className="text-green-500">$</span>
+                Finanzas
+              </a>
+              <a
+                href="/admin"
+                className="btn-secondary text-sm"
+              >
+                Panel Admin
+              </a>
+            </div>
           </motion.div>
         </div>
       </header>
