@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
+// Middleware de autenticación v2 - GET público para dashboard
 // Secret para verificar tokens (debe coincidir con api.ts)
 const AUTH_SECRET = process.env.API_SECRET_KEY || 'fallback-secret-change-in-production'
 
