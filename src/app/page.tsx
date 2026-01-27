@@ -147,7 +147,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -159,8 +159,8 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="card text-center">
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="glass-card text-center">
           <p className="text-red-400 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
@@ -175,9 +175,9 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-black">
-      {/* Header */}
-      <header className="border-b border-brand-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Header con glass effect */}
+      <header className="sticky top-0 z-50 glass border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -185,36 +185,46 @@ export default function DashboardPage() {
           >
             <div className="flex items-center gap-4">
               {settings?.logoUrl && (
-                <img
+                <motion.img
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 }}
                   src={settings.logoUrl}
                   alt="Logo"
-                  className="h-12 w-auto object-contain"
+                  className="h-10 w-auto object-contain"
                   onError={(e) => (e.currentTarget.style.display = 'none')}
                 />
               )}
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
                   Sistema de <span className="text-brand-primary">Control</span>
                 </h1>
-                <p className="text-brand-muted mt-1">
+                <p className="text-brand-muted text-sm hidden sm:block">
                   Métricas de negocio en tiempo real
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <a
+              <motion.a
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
                 href="/finanzas"
-                className="btn-secondary text-sm flex items-center gap-2"
+                className="btn-secondary text-sm flex items-center gap-2 backdrop-blur-sm"
               >
                 <span className="text-green-500">$</span>
-                Finanzas
-              </a>
-              <a
+                <span className="hidden sm:inline">Finanzas</span>
+              </motion.a>
+              <motion.a
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
                 href="/admin"
-                className="btn-secondary text-sm"
+                className="btn-secondary text-sm backdrop-blur-sm"
               >
-                Panel Admin
-              </a>
+                <span className="hidden sm:inline">Panel Admin</span>
+                <span className="sm:hidden">Admin</span>
+              </motion.a>
             </div>
           </motion.div>
         </div>
@@ -254,8 +264,8 @@ export default function DashboardPage() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-brand-border mt-12">
+      {/* Footer con glass */}
+      <footer className="glass border-t border-white/10 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <p className="text-center text-brand-muted text-sm">
             Dashboard de Métricas - Sistema de Control

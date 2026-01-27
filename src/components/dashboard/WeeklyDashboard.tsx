@@ -59,7 +59,7 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
 
   if (!metric) {
     return (
-      <div className="card text-center py-12">
+      <div className="glass-card text-center py-12">
         <p className="text-brand-muted">No hay datos para esta semana</p>
       </div>
     )
@@ -79,7 +79,7 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
             Semana del {formatDate(metric.weekStart)}
           </p>
         </div>
-        <span className="text-brand-primary text-sm font-medium px-3 py-1 rounded-full border border-brand-primary">
+        <span className="text-brand-primary text-sm font-medium px-3 py-1 rounded-full border border-brand-primary backdrop-blur-sm bg-brand-primary/5">
           NIVEL 1
         </span>
       </motion.div>
@@ -94,6 +94,9 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           trend={getTrend(metric.mrr, targets.mrr)}
           delay={0}
           icon={<span>💰</span>}
+          currentValue={metric.mrr}
+          targetValue={targets.mrr.goal}
+          isCurrency
         />
 
         <MetricCard
@@ -104,6 +107,9 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           trend={getTrend(metric.mrrComunidad || 0, targets.mrrComunidad)}
           delay={0.05}
           icon={<span>👥</span>}
+          currentValue={metric.mrrComunidad || 0}
+          targetValue={targets.mrrComunidad.goal}
+          isCurrency
         />
 
         <MetricCard
@@ -114,6 +120,8 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           trend={getTrend(metric.pipelineActivo, targets.pipelineActivo)}
           delay={0.1}
           icon={<span>📨</span>}
+          currentValue={metric.pipelineActivo}
+          targetValue={targets.pipelineActivo.goal}
         />
 
         <MetricCard
@@ -124,6 +132,9 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           trend={getTrend(metric.cierresSemana, targets.cierresSemana)}
           delay={0.15}
           icon={<span>🎯</span>}
+          currentValue={metric.cierresSemana}
+          targetValue={targets.cierresSemana.goal}
+          isCurrency
         />
 
         <MetricCard
@@ -134,6 +145,8 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           trend={getTrend(metric.contenidoPublicado, targets.contenidoPublicado)}
           delay={0.2}
           icon={<span>📝</span>}
+          currentValue={metric.contenidoPublicado}
+          targetValue={targets.contenidoPublicado.goal}
         />
 
         <MetricCard
@@ -144,6 +157,8 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           trend={getTrend(metric.leadsEntrantes, targets.leadsEntrantes)}
           delay={0.25}
           icon={<span>📥</span>}
+          currentValue={metric.leadsEntrantes}
+          targetValue={targets.leadsEntrantes.goal}
         />
 
         <MetricCard
@@ -154,6 +169,8 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           trend={getTrend(metric.entregasPendientes, targets.entregasPendientes)}
           delay={0.3}
           icon={<span>📦</span>}
+          currentValue={Math.max(0, targets.entregasPendientes.max - metric.entregasPendientes + 1)}
+          targetValue={targets.entregasPendientes.max + 1}
         />
       </div>
     </div>
