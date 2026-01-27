@@ -107,7 +107,7 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
         />
 
         <MetricCard
-          title="Propuestas Enviadas"
+          title="Pipeline Activo"
           value={metric.pipelineActivo}
           subtitle="Sobre la mesa"
           target={`${targets.pipelineActivo.min}+`}
