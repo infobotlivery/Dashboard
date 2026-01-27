@@ -38,6 +38,7 @@
 ```
 Dashboard/
 ├── src/
+│   ├── middleware.ts             # Middleware de autenticación para APIs
 │   ├── app/
 │   │   ├── page.tsx              # Dashboard público principal
 │   │   ├── admin/page.tsx        # Panel de administración (protegido)
@@ -98,7 +99,7 @@ Dashboard/
 │   │
 │   └── lib/
 │       ├── db.ts                 # Cliente Prisma singleton
-│       └── api.ts                # Utilidades API (getWeekStart, etc.)
+│       └── api.ts                # Utilidades API + auth (createAuthToken, verifyAuthToken)
 │
 ├── prisma/
 │   └── schema.prisma             # Modelos de base de datos
@@ -601,6 +602,44 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-01-26 | Integración Kommo CRM webhook para leads calificados | db4dce5 |
 | 2026-01-26 | Dashboard financiero privado + fixes UI admin | 38bbe49 |
 | 2026-01-27 | Rediseño Dashboard Financiero con sidebar y glassmorphism | ea57d96 |
+| 2026-01-27 | Seguridad APIs con middleware + fixes visuales | d81e2e0 |
+
+### Detalle del cambio d81e2e0 (Seguridad APIs):
+
+**Problema resuelto:**
+- Las APIs estaban abiertas sin verificación server-side
+- El token era predecible (`Buffer.from('admin:timestamp').toString('base64')`)
+- Cualquiera podía hacer requests a `/api/finance/*`, `/api/sales`, etc.
+
+**Solución implementada:**
+
+1. **Middleware de Next.js** (`src/middleware.ts`):
+   - Intercepta todas las requests a `/api/*`
+   - Verifica token firmado en header `Authorization: Bearer <token>`
+   - Retorna 401 si el token es inválido o expirado
+   - Rutas públicas excluidas: `/api/auth`, `/api/webhooks`
+
+2. **Token firmado con HMAC-SHA256** (`src/lib/api.ts`):
+   - `createAuthToken()`: Genera `admin:timestamp:signature`
+   - `verifyAuthToken()`: Verifica firma y expiración (24h)
+   - Usa `crypto.timingSafeEqual()` para comparación segura
+
+3. **Clientes actualizados**:
+   - `finanzas/page.tsx`: Helper `authFetch()` envía token en headers
+   - `admin/page.tsx`: Helper `authFetch()` envía token en headers
+
+**Fixes visuales incluidos:**
+- ResumenTab: Fecha ISO formateada a "enero 2026" (línea 119)
+- GastosTab: Selects con clase `.dark-select` para tema oscuro
+- globals.css: Estilos `.dark-select` con flecha custom SVG
+
+**Rutas protegidas:**
+- `/api/finance/*`, `/api/sales`, `/api/settings`, `/api/daily`, `/api/metrics`, `/api/scorecard`
+
+**Rutas públicas:**
+- `/api/auth` (login), `/api/webhooks/*` (externos con X-API-Key)
+
+**Nota:** Usuarios con tokens antiguos deben re-loguearse después del deploy.
 
 ### Detalle del cambio 2026-01-27 (Rediseño Dashboard Financiero):
 
