@@ -54,10 +54,10 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 
 # Copiar archivos estáticos de Next.js (CSS, JS, fuentes)
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/standalone/.next/static
 
 # Copiar archivos públicos
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/public ./.next/standalone/public
 
 # Copiar prisma schema y directorio completo
 COPY --from=builder /app/prisma ./prisma
