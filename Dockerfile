@@ -54,10 +54,10 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 
 # Copiar archivos estáticos de Next.js (CSS, JS, fuentes)
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/standalone/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copiar archivos públicos
-COPY --from=builder --chown=nextjs:nodejs /app/public ./.next/standalone/public
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Copiar prisma schema y directorio completo
 COPY --from=builder /app/prisma ./prisma
@@ -79,6 +79,13 @@ RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data /app/prisma /app/scri
 # Copiar script de entrada que maneja permisos
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# DEBUG: Verificar estructura de archivos estáticos
+RUN echo "=== Verificando archivos estáticos ===" && \
+    echo "--- /app/.next/static:" && ls -la /app/.next/static 2>/dev/null || echo "NO EXISTE" && \
+    echo "--- /app/.next/static/chunks:" && ls /app/.next/static/chunks 2>/dev/null | head -5 || echo "NO EXISTE" && \
+    echo "--- /app/public:" && ls -la /app/public 2>/dev/null || echo "NO EXISTE" && \
+    echo "--- /app/server.js:" && ls -la /app/server.js 2>/dev/null || echo "NO EXISTE"
 
 EXPOSE 3000
 
