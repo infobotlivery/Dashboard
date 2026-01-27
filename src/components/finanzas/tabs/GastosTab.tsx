@@ -247,7 +247,7 @@ export function GastosTab({
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none"
+            className="dark-select px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none cursor-pointer"
           >
             <option value="all">Todas las categorias</option>
             {categories.map(cat => (
@@ -259,7 +259,7 @@ export function GastosTab({
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as FilterType)}
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none"
+            className="dark-select px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none cursor-pointer"
           >
             <option value="all">Todos los tipos</option>
             <option value="recurring">Recurrentes</option>
@@ -270,7 +270,7 @@ export function GastosTab({
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none"
+            className="dark-select px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none cursor-pointer"
           >
             <option value="all">Todos</option>
             <option value="active">Activos</option>

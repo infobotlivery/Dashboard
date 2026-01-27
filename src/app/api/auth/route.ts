@@ -1,7 +1,5 @@
 import { NextRequest } from 'next/server'
-import bcrypt from 'bcryptjs'
-import prisma from '@/lib/db'
-import { errorResponse, successResponse } from '@/lib/api'
+import { errorResponse, successResponse, createAuthToken } from '@/lib/api'
 
 // POST /api/auth - Verificar contraseña de admin
 export async function POST(request: NextRequest) {
@@ -17,7 +15,8 @@ export async function POST(request: NextRequest) {
 
     // Verificar directamente contra la variable de entorno
     if (password === envPassword) {
-      const token = Buffer.from(`admin:${Date.now()}`).toString('base64')
+      // Generar token firmado con HMAC-SHA256
+      const token = createAuthToken()
       return successResponse({ authenticated: true, token })
     }
 

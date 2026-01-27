@@ -116,7 +116,9 @@ export function ResumenTab({ summary, currentGoal }: ResumenTabProps) {
           <span className="text-2xl">📅</span>
           <div>
             <p className="text-xs text-gray-400">Mes actual</p>
-            <p className="font-semibold">{summary.month}</p>
+            <p className="font-semibold capitalize">
+              {new Date(summary.month).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/5 border border-white/10">

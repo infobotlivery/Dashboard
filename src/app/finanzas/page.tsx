@@ -146,6 +146,19 @@ export default function FinanzasPage() {
     setIsAuthenticated(false)
   }
 
+  // Helper para requests autenticados
+  function authFetch(url: string, options: RequestInit = {}) {
+    const token = localStorage.getItem('finance_token')
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+  }
+
   // Cargar datos
   useEffect(() => {
     if (!isAuthenticated) return
@@ -154,10 +167,10 @@ export default function FinanzasPage() {
       setLoading(true)
       try {
         const [summaryRes, historyRes, categoriesRes, expensesRes] = await Promise.all([
-          fetch('/api/finance/summary'),
-          fetch('/api/finance/history'),
-          fetch('/api/finance/categories'),
-          fetch('/api/finance/expenses')
+          authFetch('/api/finance/summary'),
+          authFetch('/api/finance/history'),
+          authFetch('/api/finance/categories'),
+          authFetch('/api/finance/expenses')
         ])
 
         const [summaryData, historyData, categoriesData, expensesData] = await Promise.all([
@@ -175,7 +188,7 @@ export default function FinanzasPage() {
         // Cargar meta del mes actual
         const now = new Date()
         const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-        const goalRes = await fetch(`/api/finance/goals?month=${currentMonth}`)
+        const goalRes = await authFetch(`/api/finance/goals?month=${currentMonth}`)
         const goalData = await goalRes.json()
         if (goalData.data) setCurrentGoal(goalData.data)
       } catch (err) {
@@ -197,9 +210,8 @@ export default function FinanzasPage() {
 
     setSaving(true)
     try {
-      const res = await fetch('/api/finance/categories', {
+      const res = await authFetch('/api/finance/categories', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newCategory)
       })
       const data = await res.json()
@@ -232,21 +244,20 @@ export default function FinanzasPage() {
         ? { ...newExpense, id: editingExpenseId }
         : newExpense
 
-      const res = await fetch('/api/finance/expenses', {
+      const res = await authFetch('/api/finance/expenses', {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       })
       const data = await res.json()
 
       if (data.success) {
         // Recargar gastos
-        const expensesRes = await fetch('/api/finance/expenses')
+        const expensesRes = await authFetch('/api/finance/expenses')
         const expensesData = await expensesRes.json()
         if (expensesData.data) setExpenses(expensesData.data)
 
         // Recargar resumen
-        const summaryRes = await fetch('/api/finance/summary')
+        const summaryRes = await authFetch('/api/finance/summary')
         const summaryData = await summaryRes.json()
         if (summaryData.data) setSummary(summaryData.data)
 
@@ -268,13 +279,13 @@ export default function FinanzasPage() {
     if (!confirm('Eliminar este gasto?')) return
 
     try {
-      const res = await fetch(`/api/finance/expenses?id=${id}`, { method: 'DELETE' })
+      const res = await authFetch(`/api/finance/expenses?id=${id}`, { method: 'DELETE' })
       const data = await res.json()
 
       if (data.success) {
         setExpenses(expenses.filter(e => e.id !== id))
         // Recargar resumen
-        const summaryRes = await fetch('/api/finance/summary')
+        const summaryRes = await authFetch('/api/finance/summary')
         const summaryData = await summaryRes.json()
         if (summaryData.data) setSummary(summaryData.data)
         showMessage('success', 'Gasto eliminado')
