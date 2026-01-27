@@ -4,17 +4,22 @@ import crypto from 'crypto'
 // Secret para verificar tokens (debe coincidir con api.ts)
 const AUTH_SECRET = process.env.API_SECRET_KEY || 'fallback-secret-change-in-production'
 
-// Rutas que requieren autenticación
-const PROTECTED_ROUTES = [
+// Rutas que SIEMPRE requieren autenticación (cualquier método)
+const ALWAYS_PROTECTED_ROUTES = [
   '/api/finance',
   '/api/sales',
   '/api/settings',
-  '/api/daily',
+  '/api/daily'
+]
+
+// Rutas que solo requieren auth para modificar (POST/PUT/DELETE)
+// GET es público para el dashboard principal
+const PROTECTED_WRITE_ONLY = [
   '/api/metrics',
   '/api/scorecard'
 ]
 
-// Rutas excluidas (públicas)
+// Rutas completamente públicas
 const PUBLIC_ROUTES = [
   '/api/auth',
   '/api/webhooks'
@@ -50,17 +55,36 @@ function verifyAuthToken(token: string | null): boolean {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const method = request.method
 
-  // Permitir rutas públicas
+  // Permitir rutas completamente públicas
   if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
     return NextResponse.next()
   }
 
-  // Verificar si es ruta protegida
-  const isProtected = PROTECTED_ROUTES.some(route => pathname.startsWith(route))
-  if (!isProtected) return NextResponse.next()
+  // Rutas de solo escritura protegida: GET es público, POST/PUT/DELETE requieren auth
+  const isWriteOnlyProtected = PROTECTED_WRITE_ONLY.some(route => pathname.startsWith(route))
+  if (isWriteOnlyProtected) {
+    // GET requests son públicos (para el dashboard)
+    if (method === 'GET') {
+      return NextResponse.next()
+    }
+    // POST/PUT/DELETE requieren autenticación
+    return verifyAndRespond(request)
+  }
 
-  // Extraer token del header Authorization
+  // Rutas siempre protegidas (cualquier método)
+  const isAlwaysProtected = ALWAYS_PROTECTED_ROUTES.some(route => pathname.startsWith(route))
+  if (isAlwaysProtected) {
+    return verifyAndRespond(request)
+  }
+
+  // Cualquier otra ruta API no listada: permitir
+  return NextResponse.next()
+}
+
+// Helper para verificar auth y responder
+function verifyAndRespond(request: NextRequest): NextResponse {
   const authHeader = request.headers.get('Authorization')
   const token = authHeader?.replace('Bearer ', '') || null
 

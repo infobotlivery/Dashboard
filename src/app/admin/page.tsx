@@ -9,6 +9,7 @@ import Toggle from '@/components/ui/Toggle'
 import NumberInput from '@/components/ui/NumberInput'
 import DateSelector from '@/components/ui/DateSelector'
 import { Select } from '@/components/ui/Select'
+import { adminAuthFetch } from '@/lib/authFetch'
 
 type Tab = 'weekly' | 'monthly' | 'daily' | 'sales' | 'settings'
 
@@ -197,19 +198,6 @@ export default function AdminPage() {
     return new Date(year, month - 1, day)
   }
 
-  // Helper para requests autenticados
-  function authFetch(url: string, options: RequestInit = {}) {
-    const token = localStorage.getItem('admin_token')
-    return fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    })
-  }
-
   // Autenticación
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -245,7 +233,7 @@ export default function AdminPage() {
     async function loadData() {
       try {
         if (activeTab === 'weekly') {
-          const res = await authFetch('/api/metrics/current')
+          const res = await adminAuthFetch('/api/metrics/current')
           const data = await res.json()
           if (data.data) {
             setWeeklyMetric({
@@ -254,7 +242,7 @@ export default function AdminPage() {
             })
           }
         } else if (activeTab === 'monthly') {
-          const res = await authFetch('/api/scorecard?current=true')
+          const res = await adminAuthFetch('/api/scorecard?current=true')
           const data = await res.json()
           if (data.data) {
             setMonthlyScorecard({
@@ -263,7 +251,7 @@ export default function AdminPage() {
             })
           }
         } else if (activeTab === 'daily') {
-          const res = await authFetch('/api/daily?today=true')
+          const res = await adminAuthFetch('/api/daily?today=true')
           const data = await res.json()
           if (data.data) {
             setDailyCheck({
@@ -273,13 +261,13 @@ export default function AdminPage() {
             })
           }
         } else if (activeTab === 'sales') {
-          const res = await authFetch('/api/sales')
+          const res = await adminAuthFetch('/api/sales')
           const data = await res.json()
           if (data.data) {
             setSalesList(data.data)
           }
         } else if (activeTab === 'settings') {
-          const res = await authFetch('/api/settings')
+          const res = await adminAuthFetch('/api/settings')
           const data = await res.json()
           if (data.data) {
             setSettings(data.data)
@@ -322,7 +310,7 @@ export default function AdminPage() {
         body = { ...settings, newPassword: newPassword || undefined }
       }
 
-      const res = await authFetch(endpoint, {
+      const res = await adminAuthFetch(endpoint, {
         method: activeTab === 'sales' && editingSaleId ? 'PUT' : 'POST',
         body: JSON.stringify(body)
       })
@@ -334,7 +322,7 @@ export default function AdminPage() {
         if (activeTab === 'settings') setNewPassword('')
         if (activeTab === 'sales') {
           // Recargar lista y limpiar formulario
-          const salesRes = await authFetch('/api/sales')
+          const salesRes = await adminAuthFetch('/api/sales')
           const salesData = await salesRes.json()
           if (salesData.data) setSalesList(salesData.data)
           setSalesClose({
