@@ -41,6 +41,7 @@ Dashboard/
 │   ├── app/
 │   │   ├── page.tsx              # Dashboard público principal
 │   │   ├── admin/page.tsx        # Panel de administración (protegido)
+│   │   ├── finanzas/page.tsx     # Dashboard financiero privado (protegido)
 │   │   ├── layout.tsx            # Layout principal
 │   │   ├── globals.css           # Estilos globales
 │   │   └── api/
@@ -49,6 +50,11 @@ Dashboard/
 │   │       │   ├── route.ts      # CRUD métricas semanales
 │   │       │   ├── current/route.ts    # Métrica semana actual
 │   │       │   └── comparison/route.ts # Comparativa semanal
+│   │       ├── finance/
+│   │       │   ├── summary/route.ts    # Resumen financiero mensual
+│   │       │   ├── history/route.ts    # Histórico últimos 6 meses
+│   │       │   ├── expenses/route.ts   # CRUD gastos
+│   │       │   └── categories/route.ts # CRUD categorías de gastos
 │   │       ├── scorecard/route.ts      # CRUD scorecard mensual
 │   │       ├── daily/route.ts          # CRUD checks diarios
 │   │       ├── sales/route.ts          # CRUD cierres de ventas
@@ -191,6 +197,57 @@ model KommoWebhookLog {
 }
 ```
 
+### ExpenseCategory
+Categorías personalizadas de gastos para el dashboard financiero.
+```prisma
+model ExpenseCategory {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique           // "Herramientas", "Marketing", etc.
+  color     String    @default("#44e1fc") // Color para visualización
+  expenses  Expense[]
+  createdAt DateTime  @default(now())
+}
+```
+
+### Expense
+Registro de gastos fijos y recurrentes.
+```prisma
+model Expense {
+  id          Int              @id @default(autoincrement())
+  name        String                    // "Cursor Pro", "ChatGPT Plus"
+  amount      Float                     // Monto mensual
+  type        String           @default("recurring") // "fixed" | "recurring"
+  categoryId  Int
+  category    ExpenseCategory  @relation(fields: [categoryId], references: [id])
+  startDate   DateTime         @default(now())
+  endDate     DateTime?                 // Si terminó (para cancelados)
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+```
+
+**Tipos de gasto:**
+- `recurring` → Se contabiliza cada mes mientras esté activo (endDate = null)
+- `fixed` → Pago único, se contabiliza solo en el mes de creación
+
+### MonthlyFinance
+Snapshot mensual de finanzas (para histórico).
+```prisma
+model MonthlyFinance {
+  id               Int      @id @default(autoincrement())
+  month            DateTime @unique      // Primer día del mes
+  totalIncome      Float    @default(0)  // Onboarding + MRR
+  totalOnboarding  Float    @default(0)
+  totalMrrServices Float    @default(0)
+  totalMrrCommunity Float   @default(0)
+  totalExpenses    Float    @default(0)
+  netProfit        Float    @default(0)  // Ingresos - Gastos
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+```
+
 ---
 
 ## Variables de Entorno
@@ -240,7 +297,28 @@ NEXT_PUBLIC_APP_URL="https://dashboard.elraperomarketero.com"
 - **Tab Semanal:** Editar métricas de cualquier semana
 - **Tab Mensual:** Editar scorecard de cualquier mes
 - **Tab Diario:** Registrar checks diarios
+- **Tab Cierres:** Registrar y editar cierres de ventas
 - **Tab Configuración:** Colores de marca, logo, cambiar contraseña
+
+### Dashboard Financiero (`/finanzas`)
+- Protegido con la misma contraseña del admin
+- URL separada y privada para control de finanzas
+- **Tab Resumen:** Balance general del mes (ingresos vs gastos vs utilidad)
+  - Desglose de ingresos: Onboarding, MRR Servicios, MRR Comunidad
+  - Desglose de gastos por categoría
+- **Tab Gastos:** CRUD de gastos fijos y recurrentes
+  - Asignar categoría y tipo (fijo/recurrente)
+  - Marcar como cancelado (endDate)
+- **Tab Categorías:** Gestión de categorías personalizadas con colores
+- **Tab Historial:** Tabla de últimos 6 meses con tendencias
+
+**Cálculo automático de ingresos:**
+- Onboarding = SUM(SalesClose.onboardingValue) del mes actual
+- MRR Servicios = SUM(SalesClose.recurringValue) donde status='active'
+- MRR Comunidad = WeeklyMetric.mrrComunidad más reciente
+
+**Cálculo automático de gastos:**
+- Gastos recurrentes activos (sin endDate) + gastos fijos del mes
 
 ---
 
@@ -448,6 +526,13 @@ Content-Type: application/json
 - Los datos persisten en un volumen Docker
 - NO borrar la base de datos sin confirmación del usuario
 
+### Regla #6: Actualización de documentación
+- **SIEMPRE** actualizar este archivo (CLAUDE.md) después de cada cambio significativo
+- Agregar nuevas funcionalidades a la sección correspondiente
+- Registrar cada cambio en el "Historial de Cambios Importantes"
+- Actualizar la estructura del proyecto si se crean nuevos archivos/carpetas
+- Actualizar la fecha de "Última actualización" al final del documento
+
 ---
 
 ## Flujo de Trabajo Típico
@@ -497,6 +582,23 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-01-25 | Auto-calcular tasaCierre (clientesNuevos/leadsTotales×100) | a670c93 |
 | 2026-01-25 | Sistema de registro de cierres de ventas con MRR híbrido | c54a167 |
 | 2026-01-26 | Integración Kommo CRM webhook para leads calificados | db4dce5 |
+| 2026-01-26 | Dashboard financiero privado + fixes UI admin | 38bbe49 |
+
+### Detalle del cambio 38bbe49:
+**Fixes Admin UI:**
+- Fix z-index en Select y DateSelector (z-50 → z-[100])
+- Remover scale del hover en Card para evitar overlap
+- Toast fijo en esquina inferior derecha (z-[200])
+- Tabla de cierres con scroll vertical (max-h-400px)
+- Header responsive con flex-wrap
+- Botones +/- más grandes en mobile
+- Renombrar "Pipeline Activo" a "Propuestas Enviadas"
+
+**Dashboard Financiero:**
+- Nuevos modelos: ExpenseCategory, Expense, MonthlyFinance
+- API endpoints: /api/finance/categories, expenses, summary, history
+- Página /finanzas protegida con tabs: Resumen, Gastos, Categorías, Historial
+- Cálculo automático de ingresos y gastos
 
 ---
 
@@ -505,6 +607,7 @@ docker logs <container>  # Ver logs del contenedor
 - **Repositorio:** https://github.com/infobotlivery/Dashboard
 - **Producción:** https://dashboard.elraperomarketero.com
 - **Admin:** https://dashboard.elraperomarketero.com/admin
+- **Finanzas:** https://dashboard.elraperomarketero.com/finanzas
 
 ---
 
