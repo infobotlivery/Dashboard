@@ -600,7 +600,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-01-25 | Sistema de registro de cierres de ventas con MRR híbrido | c54a167 |
 | 2026-01-26 | Integración Kommo CRM webhook para leads calificados | db4dce5 |
 | 2026-01-26 | Dashboard financiero privado + fixes UI admin | 38bbe49 |
-| 2026-01-27 | Rediseño Dashboard Financiero con sidebar y glassmorphism | pending |
+| 2026-01-27 | Rediseño Dashboard Financiero con sidebar y glassmorphism | ea57d96 |
 
 ### Detalle del cambio 2026-01-27 (Rediseño Dashboard Financiero):
 
@@ -613,11 +613,11 @@ docker logs <container>  # Ver logs del contenedor
 - `ExportButton.tsx` - Botón para exportar datos a CSV
 
 **Tabs extraídos (src/components/finanzas/tabs/):**
-- `ResumenTab.tsx` - Balance general con GlassCards animadas
-- `GastosTab.tsx` - CRUD de gastos
-- `CategoriasTab.tsx` - Gestión de categorías
-- `HistorialTab.tsx` - Historial mensual con detalle expandido
-- `MetasTab.tsx` - Sistema de metas mensuales (NUEVO)
+- `ResumenTab.tsx` - Balance general con donut chart SVG, desglose visual de ingresos/gastos
+- `GastosTab.tsx` - CRUD de gastos con filtros, vista cards/lista, estadísticas
+- `CategoriasTab.tsx` - Gestión de categorías con paleta de colores visual y preview en vivo
+- `HistorialTab.tsx` - Historial mensual con gráfico de barras visual y tendencias
+- `MetasTab.tsx` - Sistema de metas con progreso visual e indicadores de estado
 
 **Nuevo modelo Prisma:**
 ```prisma
@@ -646,6 +646,13 @@ model MonthlyGoal {
 **Layout:**
 - Desktop: Sidebar fijo 256px izquierda + contenido con margin-left
 - Mobile: Header fijo top + Bottom navigation + contenido con padding
+
+**Mejoras visuales en todos los tabs:**
+- **ResumenTab**: Header con badges (mes, clientes, margen), donut chart SVG animado para ingresos, barras de progreso con gradientes, cards de gastos por categoría con iconos automáticos
+- **GastosTab**: Filtros por categoría/tipo, toggle vista cards/lista, estadísticas rápidas (total, recurrentes, fijos, promedio), cards con glow effects
+- **CategoriasTab**: Paleta visual de 12 colores predefinidos + color picker, preview en vivo de la categoría, iconos automáticos según nombre, grid de categorías con progress bars
+- **HistorialTab**: Gráfico de barras visual con animaciones, indicadores de tendencia (mejor/peor mes), cards expandibles con desglose detallado
+- **MetasTab**: Badges de estado del mes, cards de progreso con indicadores (🏆 alcanzada, 🔥 cerca, ⏳ en progreso), preview en vivo al configurar, historial diferenciado por color (pasado/actual/futuro)
 
 ### Detalle del cambio 38bbe49:
 **Fixes Admin UI:**
