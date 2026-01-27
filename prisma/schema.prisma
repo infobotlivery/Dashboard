@@ -125,3 +125,15 @@ model MonthlyFinance {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
+
+// Metas mensuales financieras
+model MonthlyGoal {
+  id            Int      @id @default(autoincrement())
+  month         DateTime @unique                      // Primer día del mes
+  incomeTarget  Float    @default(0)                  // Meta de ingresos
+  expenseLimit  Float    @default(0)                  // Límite de gastos
+  savingsTarget Float    @default(0)                  // Meta de ahorro
+  notes         String?                               // Notas adicionales
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

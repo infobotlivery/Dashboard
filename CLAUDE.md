@@ -52,9 +52,11 @@ Dashboard/
 │   │       │   └── comparison/route.ts # Comparativa semanal
 │   │       ├── finance/
 │   │       │   ├── summary/route.ts    # Resumen financiero mensual
-│   │       │   ├── history/route.ts    # Histórico últimos 6 meses
+│   │       │   ├── history/route.ts    # Histórico últimos 6 meses (solo 2026+)
 │   │       │   ├── expenses/route.ts   # CRUD gastos
-│   │       │   └── categories/route.ts # CRUD categorías de gastos
+│   │       │   ├── categories/route.ts # CRUD categorías de gastos
+│   │       │   ├── goals/route.ts      # CRUD metas mensuales
+│   │       │   └── export/route.ts     # Exportar CSV
 │   │       ├── scorecard/route.ts      # CRUD scorecard mensual
 │   │       ├── daily/route.ts          # CRUD checks diarios
 │   │       ├── sales/route.ts          # CRUD cierres de ventas
@@ -70,6 +72,21 @@ Dashboard/
 │   │   │   ├── MonthlyScorecard.tsx    # Tabla scorecard mensual
 │   │   │   ├── SalesCloseTable.tsx     # Tabla de cierres de ventas
 │   │   │   └── CadenceTree.tsx         # Árbol de cadencias
+│   │   ├── finanzas/
+│   │   │   ├── index.ts                # Exportaciones centrales
+│   │   │   ├── GlassCard.tsx           # Card con glassmorphism
+│   │   │   ├── AnimatedNumber.tsx      # Números animados
+│   │   │   ├── ProgressBar.tsx         # Barra de progreso para metas
+│   │   │   ├── FinanceSidebar.tsx      # Sidebar lateral + mobile nav
+│   │   │   ├── LoginScreen.tsx         # Pantalla de login
+│   │   │   ├── ExportButton.tsx        # Botón exportar CSV
+│   │   │   └── tabs/
+│   │   │       ├── index.ts            # Exportaciones de tabs
+│   │   │       ├── ResumenTab.tsx      # Tab resumen financiero
+│   │   │       ├── GastosTab.tsx       # Tab gestión gastos
+│   │   │       ├── CategoriasTab.tsx   # Tab categorías
+│   │   │       ├── HistorialTab.tsx    # Tab historial mensual
+│   │   │       └── MetasTab.tsx        # Tab metas mensuales
 │   │   └── ui/
 │   │       ├── Button.tsx
 │   │       ├── Card.tsx
@@ -583,6 +600,52 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-01-25 | Sistema de registro de cierres de ventas con MRR híbrido | c54a167 |
 | 2026-01-26 | Integración Kommo CRM webhook para leads calificados | db4dce5 |
 | 2026-01-26 | Dashboard financiero privado + fixes UI admin | 38bbe49 |
+| 2026-01-27 | Rediseño Dashboard Financiero con sidebar y glassmorphism | pending |
+
+### Detalle del cambio 2026-01-27 (Rediseño Dashboard Financiero):
+
+**Nuevos componentes (src/components/finanzas/):**
+- `GlassCard.tsx` - Cards con efecto glassmorphism (variantes: default, green, red, cyan)
+- `AnimatedNumber.tsx` - Números animados con Framer Motion useSpring
+- `ProgressBar.tsx` - Barras de progreso para metas
+- `FinanceSidebar.tsx` - Sidebar lateral fijo (desktop) + bottom nav (mobile)
+- `LoginScreen.tsx` - Pantalla de login extraída
+- `ExportButton.tsx` - Botón para exportar datos a CSV
+
+**Tabs extraídos (src/components/finanzas/tabs/):**
+- `ResumenTab.tsx` - Balance general con GlassCards animadas
+- `GastosTab.tsx` - CRUD de gastos
+- `CategoriasTab.tsx` - Gestión de categorías
+- `HistorialTab.tsx` - Historial mensual con detalle expandido
+- `MetasTab.tsx` - Sistema de metas mensuales (NUEVO)
+
+**Nuevo modelo Prisma:**
+```prisma
+model MonthlyGoal {
+  id            Int      @id @default(autoincrement())
+  month         DateTime @unique
+  incomeTarget  Float    @default(0)
+  expenseLimit  Float    @default(0)
+  savingsTarget Float    @default(0)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+```
+
+**Nuevas APIs:**
+- `POST/GET/DELETE /api/finance/goals` - CRUD metas mensuales
+- `GET /api/finance/export?type=all|expenses|history|goals` - Exportar CSV
+
+**Bug fix:**
+- `/api/finance/history` ahora filtra meses anteriores a 2026
+
+**CSS nuevo (globals.css):**
+- Clases `.glass`, `.glass-card`, `.glass-card-green/red/cyan`, `.glass-sidebar`
+
+**Layout:**
+- Desktop: Sidebar fijo 256px izquierda + contenido con margin-left
+- Mobile: Header fijo top + Bottom navigation + contenido con padding
 
 ### Detalle del cambio 38bbe49:
 **Fixes Admin UI:**
@@ -611,4 +674,4 @@ docker logs <container>  # Ver logs del contenedor
 
 ---
 
-*Última actualización: 2026-01-26*
+*Última actualización: 2026-01-27*

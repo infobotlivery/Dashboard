@@ -1,14 +1,22 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 
-// GET - Histórico de últimos 6 meses
+// GET - Histórico de últimos 6 meses (solo 2026+)
 export async function GET() {
   try {
     const now = new Date()
     const history = []
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 12; i++) {
+      // Buscar hasta 12 meses atrás pero solo incluir 2026+
       const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
+
+      // Filtrar meses anteriores a 2026
+      if (monthStart.getFullYear() < 2026) continue
+
+      // Limitar a 6 entradas
+      if (history.length >= 6) break
+
       const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999)
 
       // Buscar en MonthlyFinance (si existe snapshot guardado)

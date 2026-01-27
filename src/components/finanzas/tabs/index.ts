@@ -1,0 +1,5 @@
+export { ResumenTab } from './ResumenTab'
+export { GastosTab } from './GastosTab'
+export { CategoriasTab } from './CategoriasTab'
+export { HistorialTab } from './HistorialTab'
+export { MetasTab } from './MetasTab'
