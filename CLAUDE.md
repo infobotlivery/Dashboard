@@ -603,6 +603,31 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-01-26 | Dashboard financiero privado + fixes UI admin | 38bbe49 |
 | 2026-01-27 | Rediseño Dashboard Financiero con sidebar y glassmorphism | ea57d96 |
 | 2026-01-27 | Seguridad APIs con middleware + fixes visuales | d81e2e0 |
+| 2026-01-27 | Rediseño visual dashboard público con glassmorphism | 329179f |
+
+### Detalle del cambio 329179f (Rediseño Dashboard Público):
+
+**Archivos modificados:**
+- `src/components/dashboard/MetricCard.tsx` - Usa GlassCard, AnimatedNumber y ProgressBar
+- `src/components/dashboard/WeeklyDashboard.tsx` - Añade barras de progreso vs metas
+- `src/components/dashboard/WeeklyComparison.tsx` - Glassmorphism en tabla
+- `src/components/dashboard/MonthlyComparison.tsx` - Glassmorphism en tabla
+- `src/components/dashboard/SalesCloseTable.tsx` - KPI cards con GlassCard y AnimatedNumber
+- `src/app/page.tsx` - Header sticky con glass effect
+
+**Mejoras visuales:**
+- Cards de métricas con glassmorphism (variantes por color según trend)
+- Números animados al cargar usando framer-motion useSpring
+- Barras de progreso vs metas en cada métrica
+- Tablas con efecto glass y bordes semitransparentes
+- Badges de cambio (% positivo/negativo) con fondo coloreado
+- Header sticky con backdrop-blur
+- Mejoras responsive en mobile
+
+**Reutilización de componentes:**
+- `GlassCard` de finanzas → wrapper para MetricCard
+- `AnimatedNumber` de finanzas → valores numéricos animados
+- `ProgressBar` de finanzas → progreso vs metas
 
 ### Detalle del cambio d81e2e0 (Seguridad APIs):
 
