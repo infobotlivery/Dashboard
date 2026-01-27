@@ -83,3 +83,45 @@ model KommoWebhookLog {
   pipelineActivo Int                                  // Valor después de la acción
   createdAt      DateTime @default(now())             // Cuándo ocurrió
 }
+
+// =====================================================
+// DASHBOARD FINANCIERO PRIVADO
+// =====================================================
+
+// Categorías de gastos personalizadas
+model ExpenseCategory {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique                        // "Herramientas", "Marketing", etc.
+  color     String    @default("#44e1fc")            // Color para visualización
+  expenses  Expense[]
+  createdAt DateTime  @default(now())
+}
+
+// Registro de gastos
+model Expense {
+  id          Int              @id @default(autoincrement())
+  name        String                                 // "Cursor Pro", "ChatGPT Plus"
+  amount      Float                                  // Monto
+  type        String           @default("recurring") // "fixed" | "recurring"
+  categoryId  Int
+  category    ExpenseCategory  @relation(fields: [categoryId], references: [id])
+  startDate   DateTime         @default(now())       // Cuándo empezó
+  endDate     DateTime?                              // Si terminó (para recurrentes cancelados)
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+// Snapshot mensual de finanzas (para histórico)
+model MonthlyFinance {
+  id               Int      @id @default(autoincrement())
+  month            DateTime @unique                  // Primer día del mes
+  totalIncome      Float    @default(0)              // Onboarding + MRR
+  totalOnboarding  Float    @default(0)              // Solo onboarding del mes
+  totalMrrServices Float    @default(0)              // MRR de clientes activos
+  totalMrrCommunity Float   @default(0)              // MRR de comunidad
+  totalExpenses    Float    @default(0)              // Total gastos del mes
+  netProfit        Float    @default(0)              // Ingresos - Gastos
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}

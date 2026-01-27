@@ -157,7 +157,7 @@ export default function DateSelector({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-2 w-full bg-brand-dark border border-brand-border rounded-xl shadow-2xl p-4 animate-fadeIn">
+        <div className="absolute z-[100] mt-2 w-full bg-brand-dark border border-brand-border rounded-xl shadow-2xl p-4 animate-fadeIn">
           {mode === 'month' ? (
             <>
               {/* Header para selección de mes */}

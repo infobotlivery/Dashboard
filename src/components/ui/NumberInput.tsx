@@ -87,9 +87,9 @@ export default function NumberInput({
             type="button"
             onClick={decrement}
             disabled={disabled || value <= min}
-            className="px-3 py-2 text-brand-muted hover:text-white hover:bg-brand-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-4 py-3 sm:px-3 sm:py-2 text-brand-muted hover:text-white hover:bg-brand-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
             </svg>
           </button>
@@ -108,9 +108,9 @@ export default function NumberInput({
             type="button"
             onClick={increment}
             disabled={disabled || value >= max}
-            className="px-3 py-2 text-brand-muted hover:text-white hover:bg-brand-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-4 py-3 sm:px-3 sm:py-2 text-brand-muted hover:text-white hover:bg-brand-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
             </svg>
           </button>

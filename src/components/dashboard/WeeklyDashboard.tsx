@@ -107,13 +107,13 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
         />
 
         <MetricCard
-          title="Pipeline Activo"
+          title="Propuestas Enviadas"
           value={metric.pipelineActivo}
-          subtitle="Leads calientes"
+          subtitle="Sobre la mesa"
           target={`${targets.pipelineActivo.min}+`}
           trend={getTrend(metric.pipelineActivo, targets.pipelineActivo)}
           delay={0.1}
-          icon={<span>🔥</span>}
+          icon={<span>📨</span>}
         />
 
         <MetricCard

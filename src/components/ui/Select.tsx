@@ -90,7 +90,7 @@ export function Select({ label, error, options, value, onChange, placeholder = '
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute z-50 w-full mt-2 bg-brand-dark border border-brand-border rounded-xl shadow-xl overflow-hidden"
+              className="absolute z-[100] w-full mt-2 bg-brand-dark border border-brand-border rounded-xl shadow-xl overflow-hidden"
             >
               <div className="py-1 max-h-60 overflow-y-auto">
                 {options.map((option, index) => (

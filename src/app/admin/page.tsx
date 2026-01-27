@@ -408,12 +408,12 @@ export default function AdminPage() {
       {/* Header */}
       <header className="border-b border-brand-border bg-brand-dark/50 backdrop-blur-sm sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <h1 className="text-xl font-bold">Panel de Administración</h1>
               <p className="text-brand-muted text-sm">Edita tus métricas y configuración</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2 flex-wrap">
               <a href="/" className="btn-secondary text-sm">
                 Ver Dashboard
               </a>
@@ -508,11 +508,11 @@ export default function AdminPage() {
                     color="#06b6d4"
                   />
                   <NumberInput
-                    label="Pipeline Activo"
+                    label="Propuestas Enviadas"
                     value={weeklyMetric.pipelineActivo}
                     onChange={(value) => setWeeklyMetric({ ...weeklyMetric, pipelineActivo: value })}
                     icon={icons.pipeline}
-                    suffix="leads"
+                    suffix="propuestas"
                     color="#3b82f6"
                   />
                   <NumberInput
@@ -774,7 +774,7 @@ export default function AdminPage() {
                 {salesList.length > 0 && (
                   <Card>
                     <h2 className="text-lg font-semibold mb-4">Cierres Registrados</h2>
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
                       <table className="w-full">
                         <thead>
                           <tr>
@@ -949,13 +949,13 @@ export default function AdminPage() {
           <AnimatePresence>
             {message && (
               <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className={`fixed bottom-4 right-4 z-[200] flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
                   message.type === 'success'
-                    ? 'bg-green-400/10 text-green-400'
-                    : 'bg-red-400/10 text-red-400'
+                    ? 'bg-green-500/90 text-white'
+                    : 'bg-red-500/90 text-white'
                 }`}
               >
                 {message.type === 'success' ? (

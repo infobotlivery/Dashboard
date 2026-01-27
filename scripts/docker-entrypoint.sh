@@ -118,6 +118,79 @@ fi
 echo "=== Estructura de KommoWebhookLog ==="
 sqlite3 "$DB_PATH" "PRAGMA table_info(KommoWebhookLog);" 2>/dev/null || echo "No se pudo leer estructura"
 
+# =====================================================
+# DASHBOARD FINANCIERO - Nuevas tablas
+# =====================================================
+
+# Verificar y crear tabla ExpenseCategory si no existe
+echo "=== Verificando tabla ExpenseCategory ==="
+if ! sqlite3 "$DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND name='ExpenseCategory';" 2>/dev/null | grep -q "ExpenseCategory"; then
+    echo "Tabla ExpenseCategory NO existe - CREANDO..."
+    sqlite3 "$DB_PATH" "
+    CREATE TABLE IF NOT EXISTS ExpenseCategory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        color TEXT NOT NULL DEFAULT '#44e1fc',
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    " 2>&1 || echo "Error creando tabla ExpenseCategory"
+    echo "Tabla ExpenseCategory creada"
+else
+    echo "Tabla ExpenseCategory ya existe"
+fi
+
+# Verificar y crear tabla Expense si no existe
+echo "=== Verificando tabla Expense ==="
+if ! sqlite3 "$DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND name='Expense';" 2>/dev/null | grep -q "Expense"; then
+    echo "Tabla Expense NO existe - CREANDO..."
+    sqlite3 "$DB_PATH" "
+    CREATE TABLE IF NOT EXISTS Expense (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        amount REAL NOT NULL,
+        type TEXT NOT NULL DEFAULT 'recurring',
+        categoryId INTEGER NOT NULL,
+        startDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        endDate DATETIME,
+        notes TEXT,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (categoryId) REFERENCES ExpenseCategory(id)
+    );
+    " 2>&1 || echo "Error creando tabla Expense"
+    echo "Tabla Expense creada"
+else
+    echo "Tabla Expense ya existe"
+fi
+
+# Verificar y crear tabla MonthlyFinance si no existe
+echo "=== Verificando tabla MonthlyFinance ==="
+if ! sqlite3 "$DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND name='MonthlyFinance';" 2>/dev/null | grep -q "MonthlyFinance"; then
+    echo "Tabla MonthlyFinance NO existe - CREANDO..."
+    sqlite3 "$DB_PATH" "
+    CREATE TABLE IF NOT EXISTS MonthlyFinance (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        month DATETIME NOT NULL UNIQUE,
+        totalIncome REAL NOT NULL DEFAULT 0,
+        totalOnboarding REAL NOT NULL DEFAULT 0,
+        totalMrrServices REAL NOT NULL DEFAULT 0,
+        totalMrrCommunity REAL NOT NULL DEFAULT 0,
+        totalExpenses REAL NOT NULL DEFAULT 0,
+        netProfit REAL NOT NULL DEFAULT 0,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    " 2>&1 || echo "Error creando tabla MonthlyFinance"
+    echo "Tabla MonthlyFinance creada"
+else
+    echo "Tabla MonthlyFinance ya existe"
+fi
+
+echo "=== Estructura de tablas financieras ==="
+sqlite3 "$DB_PATH" "PRAGMA table_info(ExpenseCategory);" 2>/dev/null || echo "No se pudo leer ExpenseCategory"
+sqlite3 "$DB_PATH" "PRAGMA table_info(Expense);" 2>/dev/null || echo "No se pudo leer Expense"
+sqlite3 "$DB_PATH" "PRAGMA table_info(MonthlyFinance);" 2>/dev/null || echo "No se pudo leer MonthlyFinance"
+
 # Asegurar permisos de archivos de base de datos
 if [ -f "$DB_PATH" ]; then
     chown 1001:1001 "$DB_PATH"

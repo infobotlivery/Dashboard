@@ -20,7 +20,7 @@ export function Card({ children, className = '', delay = 0, hover = true }: Card
         delay,
         ease: [0.25, 0.1, 0.25, 1]
       }}
-      whileHover={hover ? { scale: 1.02, borderColor: 'var(--brand-primary)' } : undefined}
+      whileHover={hover ? { borderColor: 'var(--brand-primary)' } : undefined}
       className={`card ${className}`}
     >
       {children}

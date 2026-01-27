@@ -66,8 +66,8 @@ export function WeeklyComparison({ currentWeek, previousWeek }: WeeklyComparison
     },
     {
       key: 'pipelineActivo',
-      label: 'Pipeline Activo',
-      format: (v: number) => `${v} leads`,
+      label: 'Propuestas Enviadas',
+      format: (v: number) => `${v} propuestas`,
       inverted: false
     },
     {
