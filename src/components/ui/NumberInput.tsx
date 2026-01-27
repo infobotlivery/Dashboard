@@ -77,19 +77,19 @@ export default function NumberInput({
         <label className="text-sm font-medium text-brand-muted">{label}</label>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-2">
         {prefix && (
-          <span className="text-brand-muted text-lg font-medium">{prefix}</span>
+          <span className="text-brand-muted text-lg font-medium shrink-0">{prefix}</span>
         )}
 
-        <div className="flex-1 flex items-center bg-black/30 rounded-lg overflow-hidden border border-brand-border focus-within:border-brand-primary transition-colors">
+        <div className="flex items-center bg-black/30 rounded-lg overflow-hidden border border-brand-border focus-within:border-brand-primary transition-colors">
           <button
             type="button"
             onClick={decrement}
             disabled={disabled || value <= min}
-            className="px-4 py-3 sm:px-3 sm:py-2 text-brand-muted hover:text-white hover:bg-brand-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-3 py-2 text-brand-muted hover:text-white hover:bg-brand-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
             </svg>
           </button>
@@ -101,23 +101,23 @@ export default function NumberInput({
             onChange={handleInputChange}
             onBlur={handleBlur}
             disabled={disabled}
-            className="flex-1 bg-transparent text-center text-xl font-semibold text-white py-2 focus:outline-none disabled:opacity-50"
+            className="w-20 bg-transparent text-center text-xl font-semibold text-white py-2 focus:outline-none disabled:opacity-50"
           />
 
           <button
             type="button"
             onClick={increment}
             disabled={disabled || value >= max}
-            className="px-4 py-3 sm:px-3 sm:py-2 text-brand-muted hover:text-white hover:bg-brand-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-3 py-2 text-brand-muted hover:text-white hover:bg-brand-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
             </svg>
           </button>
         </div>
 
         {suffix && (
-          <span className="text-brand-muted text-lg font-medium">{suffix}</span>
+          <span className="text-brand-muted text-sm font-medium shrink-0">{suffix}</span>
         )}
       </div>
     </div>

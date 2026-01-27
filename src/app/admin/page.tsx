@@ -508,11 +508,10 @@ export default function AdminPage() {
                     color="#06b6d4"
                   />
                   <NumberInput
-                    label="Propuestas Enviadas"
+                    label="Pipeline Activo"
                     value={weeklyMetric.pipelineActivo}
                     onChange={(value) => setWeeklyMetric({ ...weeklyMetric, pipelineActivo: value })}
                     icon={icons.pipeline}
-                    suffix="propuestas"
                     color="#3b82f6"
                   />
                   <NumberInput
@@ -529,7 +528,6 @@ export default function AdminPage() {
                     value={weeklyMetric.contenidoPublicado}
                     onChange={(value) => setWeeklyMetric({ ...weeklyMetric, contenidoPublicado: value })}
                     icon={icons.contenido}
-                    suffix="piezas"
                     color="#8b5cf6"
                   />
                   <NumberInput
@@ -537,7 +535,6 @@ export default function AdminPage() {
                     value={weeklyMetric.leadsEntrantes}
                     onChange={(value) => setWeeklyMetric({ ...weeklyMetric, leadsEntrantes: value })}
                     icon={icons.leads}
-                    suffix="nuevos"
                     color="#ec4899"
                   />
                   <NumberInput
@@ -545,7 +542,6 @@ export default function AdminPage() {
                     value={weeklyMetric.entregasPendientes}
                     onChange={(value) => setWeeklyMetric({ ...weeklyMetric, entregasPendientes: value })}
                     icon={icons.entregas}
-                    suffix="proyectos"
                     color="#ef4444"
                   />
                 </div>
