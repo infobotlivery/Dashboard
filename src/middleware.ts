@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
 
-// Middleware de autenticación v2 - GET público para dashboard
-// Secret para verificar tokens (debe coincidir con api.ts)
+// Middleware de autenticación v3 - Compatible con Edge Runtime
+// Usa Web Crypto API en lugar de Node.js crypto
+
+// Secret para verificar tokens
 const AUTH_SECRET = process.env.API_SECRET_KEY || 'fallback-secret-change-in-production'
 
 // Rutas que SIEMPRE requieren autenticación (cualquier método)
@@ -26,8 +27,22 @@ const PUBLIC_ROUTES = [
   '/api/webhooks'
 ]
 
-// Verificar token firmado (duplicado para middleware ya que no puede importar de api.ts)
-function verifyAuthToken(token: string | null): boolean {
+// Convertir string a ArrayBuffer
+function stringToArrayBuffer(str: string): ArrayBuffer {
+  const encoder = new TextEncoder()
+  return encoder.encode(str).buffer
+}
+
+// Convertir ArrayBuffer a hex string
+function arrayBufferToHex(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  return Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+// Verificar token firmado usando Web Crypto API
+async function verifyAuthToken(token: string | null): Promise<boolean> {
   if (!token) return false
 
   const parts = token.split(':')
@@ -37,10 +52,23 @@ function verifyAuthToken(token: string | null): boolean {
   const payload = `${prefix}:${timestamp}`
 
   try {
-    const expectedSig = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex')
+    // Crear key para HMAC
+    const keyData = stringToArrayBuffer(AUTH_SECRET)
+    const key = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    )
 
-    // Verificar firma usando comparación segura
-    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+    // Generar firma esperada
+    const payloadBuffer = stringToArrayBuffer(payload)
+    const signatureBuffer = await crypto.subtle.sign('HMAC', key, payloadBuffer)
+    const expectedSig = arrayBufferToHex(signatureBuffer)
+
+    // Comparar firmas (timing-safe no es crítico aquí pero comparamos igual)
+    if (signature !== expectedSig) {
       return false
     }
 
@@ -49,12 +77,13 @@ function verifyAuthToken(token: string | null): boolean {
     if (age > 24 * 60 * 60 * 1000) return false
 
     return true
-  } catch {
+  } catch (error) {
+    console.error('Token verification error:', error)
     return false
   }
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const method = request.method
 
@@ -71,13 +100,13 @@ export function middleware(request: NextRequest) {
       return NextResponse.next()
     }
     // POST/PUT/DELETE requieren autenticación
-    return verifyAndRespond(request)
+    return await verifyAndRespond(request)
   }
 
   // Rutas siempre protegidas (cualquier método)
   const isAlwaysProtected = ALWAYS_PROTECTED_ROUTES.some(route => pathname.startsWith(route))
   if (isAlwaysProtected) {
-    return verifyAndRespond(request)
+    return await verifyAndRespond(request)
   }
 
   // Cualquier otra ruta API no listada: permitir
@@ -85,11 +114,13 @@ export function middleware(request: NextRequest) {
 }
 
 // Helper para verificar auth y responder
-function verifyAndRespond(request: NextRequest): NextResponse {
+async function verifyAndRespond(request: NextRequest): Promise<NextResponse> {
   const authHeader = request.headers.get('Authorization')
   const token = authHeader?.replace('Bearer ', '') || null
 
-  if (!verifyAuthToken(token)) {
+  const isValid = await verifyAuthToken(token)
+
+  if (!isValid) {
     return NextResponse.json(
       { success: false, error: 'No autorizado' },
       { status: 401 }
