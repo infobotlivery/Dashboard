@@ -62,20 +62,13 @@ async function calculateMonthSalesMetrics(monthStart: Date, monthEnd: Date) {
 // GET /api/scorecard/comparison - Obtener comparación entre mes actual y anterior
 export async function GET(request: NextRequest) {
   try {
-    // Mes actual (primer día del mes)
+    // Mes actual (primer día del mes) - usar hora local
     const currentMonthStart = getMonthStart()
-    const currentMonthEnd = new Date(currentMonthStart)
-    currentMonthEnd.setUTCMonth(currentMonthEnd.getUTCMonth() + 1)
-    currentMonthEnd.setUTCDate(0)
-    currentMonthEnd.setUTCHours(23, 59, 59, 999)
+    const currentMonthEnd = new Date(currentMonthStart.getFullYear(), currentMonthStart.getMonth() + 1, 0, 23, 59, 59, 999)
 
-    // Mes anterior
-    const previousMonthStart = new Date(currentMonthStart)
-    previousMonthStart.setUTCMonth(previousMonthStart.getUTCMonth() - 1)
-    const previousMonthEnd = new Date(previousMonthStart)
-    previousMonthEnd.setUTCMonth(previousMonthEnd.getUTCMonth() + 1)
-    previousMonthEnd.setUTCDate(0)
-    previousMonthEnd.setUTCHours(23, 59, 59, 999)
+    // Mes anterior - usar hora local
+    const previousMonthStart = new Date(currentMonthStart.getFullYear(), currentMonthStart.getMonth() - 1, 1, 0, 0, 0, 0)
+    const previousMonthEnd = new Date(previousMonthStart.getFullYear(), previousMonthStart.getMonth() + 1, 0, 23, 59, 59, 999)
 
     // Buscar ambos meses en la base de datos
     const [currentScorecard, previousScorecard] = await Promise.all([

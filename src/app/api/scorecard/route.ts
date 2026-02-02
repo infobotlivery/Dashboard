@@ -71,15 +71,15 @@ export async function GET(request: NextRequest) {
       // Usar mes especificado o el actual
       let month: Date
       if (monthParam) {
-        // Parsear el mes del parámetro (formato: YYYY-MM-DD o YYYY-MM)
-        const [year, monthNum] = monthParam.split('-').map(Number)
-        month = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0, 0))
+        // Parsear como fecha local (igual que formatLocalDate en admin)
+        const [year, monthNum, day] = monthParam.split('-').map(Number)
+        month = new Date(year, monthNum - 1, day || 1, 0, 0, 0, 0)
       } else {
         month = getMonthStart()
       }
 
-      // Calcular fin del mes (último día a las 23:59:59.999 UTC)
-      const monthEnd = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 0, 23, 59, 59, 999))
+      // Calcular fin del mes en hora local
+      const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999)
 
       console.log('[Scorecard API] Consultando mes:', month.toISOString(), 'hasta:', monthEnd.toISOString())
 
