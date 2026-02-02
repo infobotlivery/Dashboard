@@ -6,16 +6,18 @@ import { errorResponse, successResponse, getWeekStart } from '@/lib/api'
 export async function GET(request: NextRequest) {
   try {
     const weekStart = getWeekStart()
-    console.log('[Metrics Current] Fecha actual del servidor:', new Date().toISOString())
-    console.log('[Metrics Current] Buscando semana que inicia:', weekStart.toISOString())
+
+    // Calcular fin de semana (domingo 23:59:59)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6)
+    weekEnd.setUTCHours(23, 59, 59, 999)
 
     let metric = await prisma.weeklyMetric.findUnique({
       where: { weekStart }
     })
 
-    // Si no existe, crear con valores por defecto (sin mrrComunidad para compatibilidad)
+    // Si no existe, crear con valores por defecto
     if (!metric) {
-      console.log('[Metrics Current] No existe métrica, creando nueva...')
       try {
         metric = await prisma.weeklyMetric.create({
           data: {
@@ -29,9 +31,8 @@ export async function GET(request: NextRequest) {
             entregasPendientes: 0
           }
         })
-      } catch (createError) {
+      } catch {
         // Si falla con mrrComunidad, intentar sin él (DB antigua)
-        console.log('[Metrics Current] Error creando con mrrComunidad, intentando sin él...')
         metric = await prisma.weeklyMetric.create({
           data: {
             weekStart,
@@ -46,29 +47,43 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Calcular MRR de ventas activas para MRR híbrido
+    // Calcular métricas dinámicas desde SalesClose
     let salesMRR = 0
+    let cierresSemana = 0
+
     try {
+      // MRR = suma de recurringValue de clientes activos
       const activeSales = await prisma.salesClose.findMany({
         where: { status: 'active' }
       })
       salesMRR = activeSales.reduce((sum, s) => sum + s.recurringValue, 0)
+
+      // Cierres de la semana = onboarding + recurring de ventas creadas esta semana
+      const weekSales = await prisma.salesClose.findMany({
+        where: {
+          createdAt: {
+            gte: weekStart,
+            lte: weekEnd
+          }
+        }
+      })
+      cierresSemana = weekSales.reduce((sum, s) => sum + s.onboardingValue + s.recurringValue, 0)
     } catch {
-      // Si la tabla no existe todavía, ignorar
+      // Si la tabla no existe todavía, usar valores manuales
       console.log('[Metrics Current] Tabla salesClose no disponible aún')
     }
 
-    // Asegurar que mrrComunidad existe en la respuesta (puede ser undefined en DB antigua)
-    // MRR híbrido = MRR manual + MRR de ventas activas
-    const metricWithDefaults = {
+    // Devolver métrica con valores calculados dinámicamente
+    const metricWithCalculated = {
       ...metric,
       mrrComunidad: (metric as Record<string, unknown>).mrrComunidad ?? 0,
-      mrr: (metric.mrr || 0) + salesMRR,
-      mrrManual: metric.mrr || 0,
-      mrrSales: salesMRR
+      // MRR Clientes = calculado desde SalesClose (clientes activos)
+      mrr: salesMRR,
+      // Cierres de la semana = calculado desde SalesClose (ventas de la semana)
+      cierresSemana: cierresSemana
     }
 
-    return successResponse(metricWithDefaults)
+    return successResponse(metricWithCalculated)
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
     console.error('[Metrics Current] Error:', errorMessage)
