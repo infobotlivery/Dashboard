@@ -2,6 +2,56 @@ import { NextRequest } from 'next/server'
 import prisma from '@/lib/db'
 import { verifyApiKey, errorResponse, successResponse, getMonthStart } from '@/lib/api'
 
+// Calcular métricas de ventas para un mes específico
+async function calculateMonthSalesMetrics(monthStart: Date, monthEnd: Date) {
+  try {
+    // Ventas creadas en el mes
+    const monthSales = await prisma.salesClose.findMany({
+      where: {
+        createdAt: {
+          gte: monthStart,
+          lte: monthEnd
+        }
+      }
+    })
+
+    // Clientes activos (para MRR actual)
+    const activeSales = await prisma.salesClose.findMany({
+      where: { status: 'active' }
+    })
+
+    // Clientes perdidos en el mes (cancelados durante el mes)
+    const cancelledThisMonth = await prisma.salesClose.findMany({
+      where: {
+        status: 'cancelled',
+        cancelledAt: {
+          gte: monthStart,
+          lte: monthEnd
+        }
+      }
+    })
+
+    // Enigmas vendidos (producto = 'Enigma')
+    const enigmasThisMonth = monthSales.filter(s => s.product === 'Enigma').length
+
+    // Cálculos
+    const onboardingTotal = monthSales.reduce((sum, s) => sum + s.onboardingValue, 0)
+    const mrrActivo = activeSales.reduce((sum, s) => sum + s.recurringValue, 0)
+    const facturacionTotal = onboardingTotal + mrrActivo
+
+    return {
+      facturacionTotal,
+      mrr: mrrActivo,
+      clientesNuevos: monthSales.length,
+      clientesPerdidos: cancelledThisMonth.length,
+      enigmaVendidos: enigmasThisMonth,
+      serviciosRecurrentes: activeSales.length
+    }
+  } catch {
+    return null
+  }
+}
+
 // GET /api/scorecard - Obtener scorecards mensuales
 export async function GET(request: NextRequest) {
   try {
@@ -11,7 +61,10 @@ export async function GET(request: NextRequest) {
 
     if (current) {
       const month = getMonthStart()
-      console.log('[Scorecard API] Buscando mes actual:', month.toISOString())
+      const monthEnd = new Date(month)
+      monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1)
+      monthEnd.setUTCDate(0)
+      monthEnd.setUTCHours(23, 59, 59, 999)
 
       let scorecard = await prisma.monthlyScorecard.findUnique({
         where: { month }
@@ -21,6 +74,28 @@ export async function GET(request: NextRequest) {
       if (!scorecard) {
         scorecard = await prisma.monthlyScorecard.create({
           data: { month }
+        })
+      }
+
+      // Calcular métricas dinámicas desde SalesClose
+      const salesMetrics = await calculateMonthSalesMetrics(month, monthEnd)
+
+      if (salesMetrics) {
+        // Calcular tasa de cierre
+        const tasaCierre = scorecard.leadsTotales > 0
+          ? (salesMetrics.clientesNuevos / scorecard.leadsTotales) * 100
+          : 0
+
+        // Devolver scorecard con valores calculados
+        return successResponse({
+          ...scorecard,
+          facturacionTotal: salesMetrics.facturacionTotal,
+          mrr: salesMetrics.mrr,
+          clientesNuevos: salesMetrics.clientesNuevos,
+          clientesPerdidos: salesMetrics.clientesPerdidos,
+          enigmaVendidos: salesMetrics.enigmaVendidos,
+          serviciosRecurrentes: salesMetrics.serviciosRecurrentes,
+          tasaCierre
         })
       }
 

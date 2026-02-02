@@ -53,6 +53,7 @@ interface SalesClose {
   recurringValue: number
   contractMonths: number | null
   status: string
+  createdAt?: string
 }
 
 // Iconos para las métricas
@@ -774,6 +775,7 @@ export default function AdminPage() {
                       <table className="w-full">
                         <thead>
                           <tr>
+                            <th className="text-left py-2 px-3 text-brand-muted font-medium text-sm">Fecha</th>
                             <th className="text-left py-2 px-3 text-brand-muted font-medium text-sm">Cliente</th>
                             <th className="text-left py-2 px-3 text-brand-muted font-medium text-sm">Producto</th>
                             <th className="text-right py-2 px-3 text-brand-muted font-medium text-sm">Onboarding</th>
@@ -785,6 +787,13 @@ export default function AdminPage() {
                         <tbody>
                           {salesList.map((sale) => (
                             <tr key={sale.id} className="border-t border-brand-border">
+                              <td className="py-3 px-3 text-brand-muted text-sm">
+                                {sale.createdAt ? new Date(sale.createdAt).toLocaleDateString('es-ES', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric'
+                                }) : '-'}
+                              </td>
                               <td className="py-3 px-3">{sale.clientName}</td>
                               <td className="py-3 px-3 text-brand-muted">
                                 {sale.product === 'Otro' ? sale.customProduct : sale.product}
