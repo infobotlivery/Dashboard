@@ -5,6 +5,8 @@ import { verifyApiKey, errorResponse, successResponse, getMonthStart } from '@/l
 // Calcular métricas de ventas para un mes específico
 async function calculateMonthSalesMetrics(monthStart: Date, monthEnd: Date) {
   try {
+    console.log('[Scorecard] Buscando cierres entre:', monthStart.toISOString(), 'y', monthEnd.toISOString())
+
     // Ventas creadas en el mes
     const monthSales = await prisma.salesClose.findMany({
       where: {
@@ -13,6 +15,11 @@ async function calculateMonthSalesMetrics(monthStart: Date, monthEnd: Date) {
           lte: monthEnd
         }
       }
+    })
+
+    console.log('[Scorecard] Cierres encontrados:', monthSales.length)
+    monthSales.forEach(s => {
+      console.log(`  - ${s.clientName}: createdAt=${s.createdAt.toISOString()}, onboarding=$${s.onboardingValue}`)
     })
 
     // Clientes activos (para MRR actual)
@@ -58,13 +65,23 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '12')
     const current = searchParams.get('current') === 'true'
+    const monthParam = searchParams.get('month') // Permite especificar mes: ?month=2026-01-01
 
-    if (current) {
-      const month = getMonthStart()
-      const monthEnd = new Date(month)
-      monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1)
-      monthEnd.setUTCDate(0)
-      monthEnd.setUTCHours(23, 59, 59, 999)
+    if (current || monthParam) {
+      // Usar mes especificado o el actual
+      let month: Date
+      if (monthParam) {
+        // Parsear el mes del parámetro (formato: YYYY-MM-DD o YYYY-MM)
+        const [year, monthNum] = monthParam.split('-').map(Number)
+        month = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0, 0))
+      } else {
+        month = getMonthStart()
+      }
+
+      // Calcular fin del mes (último día a las 23:59:59.999 UTC)
+      const monthEnd = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 0, 23, 59, 59, 999))
+
+      console.log('[Scorecard API] Consultando mes:', month.toISOString(), 'hasta:', monthEnd.toISOString())
 
       let scorecard = await prisma.monthlyScorecard.findUnique({
         where: { month }

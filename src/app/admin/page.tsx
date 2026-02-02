@@ -243,6 +243,7 @@ export default function AdminPage() {
             })
           }
         } else if (activeTab === 'monthly') {
+          // Cargar scorecard del mes actual con métricas calculadas
           const res = await adminAuthFetch('/api/scorecard?current=true')
           const data = await res.json()
           if (data.data) {
@@ -556,7 +557,25 @@ export default function AdminPage() {
                   <h2 className="text-lg font-semibold mb-4">Scorecard Mensual</h2>
                   <DateSelector
                     value={parseLocalDate(monthlyScorecard.month)}
-                    onChange={(date) => setMonthlyScorecard({ ...monthlyScorecard, month: formatLocalDate(date) })}
+                    onChange={async (date) => {
+                      const monthStr = formatLocalDate(date)
+                      // Cargar datos del mes seleccionado
+                      try {
+                        const res = await adminAuthFetch(`/api/scorecard?month=${monthStr}`)
+                        const data = await res.json()
+                        if (data.data) {
+                          setMonthlyScorecard({
+                            ...data.data,
+                            month: data.data.month.split('T')[0]
+                          })
+                        } else {
+                          // Si no hay datos, solo cambiar el mes
+                          setMonthlyScorecard({ ...monthlyScorecard, month: monthStr })
+                        }
+                      } catch {
+                        setMonthlyScorecard({ ...monthlyScorecard, month: monthStr })
+                      }
+                    }}
                     label="Mes"
                     mode="month"
                   />
