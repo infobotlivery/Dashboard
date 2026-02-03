@@ -66,6 +66,19 @@ interface Expense {
   startDate: string
   endDate: string | null
   notes: string | null
+  billingDay: number | null
+  paidByClient: string | null
+}
+
+interface UpcomingPayment {
+  id: number
+  name: string
+  amount: number
+  billingDay: number
+  paidByClient: string | null
+  category: { name: string; color: string }
+  nextPaymentDate: string
+  daysUntil: number
 }
 
 interface MonthlyGoal {
@@ -110,9 +123,16 @@ export default function FinanzasPage() {
     amount: 0,
     type: 'recurring',
     categoryId: '',
-    notes: ''
+    notes: '',
+    billingDay: '',
+    paidByClient: ''
   })
   const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null)
+
+  // Upcoming payments state
+  const [upcomingPayments, setUpcomingPayments] = useState<UpcomingPayment[]>([])
+  const [upcomingTotal, setUpcomingTotal] = useState(0)
+  const [upcomingLoading, setUpcomingLoading] = useState(true)
 
   // Autenticacion
   async function handleLogin(e: React.FormEvent) {
@@ -153,25 +173,32 @@ export default function FinanzasPage() {
 
     async function loadData() {
       setLoading(true)
+      setUpcomingLoading(true)
       try {
-        const [summaryRes, historyRes, categoriesRes, expensesRes] = await Promise.all([
+        const [summaryRes, historyRes, categoriesRes, expensesRes, upcomingRes] = await Promise.all([
           financeAuthFetch('/api/finance/summary'),
           financeAuthFetch('/api/finance/history'),
           financeAuthFetch('/api/finance/categories'),
-          financeAuthFetch('/api/finance/expenses')
+          financeAuthFetch('/api/finance/expenses'),
+          financeAuthFetch('/api/finance/expenses/upcoming')
         ])
 
-        const [summaryData, historyData, categoriesData, expensesData] = await Promise.all([
+        const [summaryData, historyData, categoriesData, expensesData, upcomingData] = await Promise.all([
           summaryRes.json(),
           historyRes.json(),
           categoriesRes.json(),
-          expensesRes.json()
+          expensesRes.json(),
+          upcomingRes.json()
         ])
 
         if (summaryData.data) setSummary(summaryData.data)
         if (historyData.data) setHistory(historyData.data)
         if (categoriesData.data) setCategories(categoriesData.data)
         if (expensesData.data) setExpenses(expensesData.data)
+        if (upcomingData.data) {
+          setUpcomingPayments(upcomingData.data.payments)
+          setUpcomingTotal(upcomingData.data.total)
+        }
 
         // Cargar meta del mes actual
         const now = new Date()
@@ -183,6 +210,7 @@ export default function FinanzasPage() {
         console.error('Error loading data:', err)
       } finally {
         setLoading(false)
+        setUpcomingLoading(false)
       }
     }
 
@@ -239,17 +267,27 @@ export default function FinanzasPage() {
       const data = await res.json()
 
       if (data.success) {
-        // Recargar gastos
-        const expensesRes = await financeAuthFetch('/api/finance/expenses')
-        const expensesData = await expensesRes.json()
+        // Recargar gastos y próximos pagos
+        const [expensesRes, upcomingRes] = await Promise.all([
+          financeAuthFetch('/api/finance/expenses'),
+          financeAuthFetch('/api/finance/expenses/upcoming')
+        ])
+        const [expensesData, upcomingData] = await Promise.all([
+          expensesRes.json(),
+          upcomingRes.json()
+        ])
         if (expensesData.data) setExpenses(expensesData.data)
+        if (upcomingData.data) {
+          setUpcomingPayments(upcomingData.data.payments)
+          setUpcomingTotal(upcomingData.data.total)
+        }
 
         // Recargar resumen
         const summaryRes = await financeAuthFetch('/api/finance/summary')
         const summaryData = await summaryRes.json()
         if (summaryData.data) setSummary(summaryData.data)
 
-        setNewExpense({ name: '', amount: 0, type: 'recurring', categoryId: '', notes: '' })
+        setNewExpense({ name: '', amount: 0, type: 'recurring', categoryId: '', notes: '', billingDay: '', paidByClient: '' })
         setEditingExpenseId(null)
         showMessage('success', editingExpenseId ? 'Gasto actualizado' : 'Gasto creado')
       } else {
@@ -272,10 +310,20 @@ export default function FinanzasPage() {
 
       if (data.success) {
         setExpenses(expenses.filter(e => e.id !== id))
-        // Recargar resumen
-        const summaryRes = await financeAuthFetch('/api/finance/summary')
-        const summaryData = await summaryRes.json()
+        // Recargar resumen y próximos pagos
+        const [summaryRes, upcomingRes] = await Promise.all([
+          financeAuthFetch('/api/finance/summary'),
+          financeAuthFetch('/api/finance/expenses/upcoming')
+        ])
+        const [summaryData, upcomingData] = await Promise.all([
+          summaryRes.json(),
+          upcomingRes.json()
+        ])
         if (summaryData.data) setSummary(summaryData.data)
+        if (upcomingData.data) {
+          setUpcomingPayments(upcomingData.data.payments)
+          setUpcomingTotal(upcomingData.data.total)
+        }
         showMessage('success', 'Gasto eliminado')
       }
     } catch {
@@ -348,7 +396,13 @@ export default function FinanzasPage() {
                 transition={{ duration: 0.2 }}
               >
                 {activeTab === 'resumen' && summary && (
-                  <ResumenTab summary={summary} currentGoal={currentGoal} />
+                  <ResumenTab
+                    summary={summary}
+                    currentGoal={currentGoal}
+                    upcomingPayments={upcomingPayments}
+                    upcomingTotal={upcomingTotal}
+                    upcomingLoading={upcomingLoading}
+                  />
                 )}
 
                 {activeTab === 'gastos' && (
@@ -362,6 +416,9 @@ export default function FinanzasPage() {
                     onSave={handleSaveExpense}
                     onDelete={handleDeleteExpense}
                     saving={saving}
+                    upcomingPayments={upcomingPayments}
+                    upcomingTotal={upcomingTotal}
+                    upcomingLoading={upcomingLoading}
                   />
                 )}
 

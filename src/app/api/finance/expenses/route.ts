@@ -38,13 +38,24 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, amount, type, categoryId, startDate, notes } = body
+    const { name, amount, type, categoryId, startDate, notes, billingDay, paidByClient } = body
 
     if (!name || !amount || !categoryId) {
       return NextResponse.json(
         { success: false, error: 'Nombre, monto y categoría son requeridos' },
         { status: 400 }
       )
+    }
+
+    // Validar billingDay si se proporciona
+    if (billingDay !== undefined && billingDay !== null && billingDay !== '') {
+      const day = parseInt(billingDay)
+      if (isNaN(day) || day < 1 || day > 31) {
+        return NextResponse.json(
+          { success: false, error: 'Día de cobro debe ser entre 1 y 31' },
+          { status: 400 }
+        )
+      }
     }
 
     const expense = await prisma.expense.create({
@@ -54,7 +65,9 @@ export async function POST(request: Request) {
         type: type || 'recurring',
         categoryId: parseInt(categoryId),
         startDate: startDate ? new Date(startDate) : new Date(),
-        notes: notes || null
+        notes: notes || null,
+        billingDay: billingDay ? parseInt(billingDay) : null,
+        paidByClient: paidByClient?.trim() || null
       },
       include: {
         category: true
@@ -75,13 +88,24 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { id, name, amount, type, categoryId, startDate, endDate, notes } = body
+    const { id, name, amount, type, categoryId, startDate, endDate, notes, billingDay, paidByClient } = body
 
     if (!id) {
       return NextResponse.json(
         { success: false, error: 'ID requerido' },
         { status: 400 }
       )
+    }
+
+    // Validar billingDay si se proporciona
+    if (billingDay !== undefined && billingDay !== null && billingDay !== '') {
+      const day = parseInt(billingDay)
+      if (isNaN(day) || day < 1 || day > 31) {
+        return NextResponse.json(
+          { success: false, error: 'Día de cobro debe ser entre 1 y 31' },
+          { status: 400 }
+        )
+      }
     }
 
     const expense = await prisma.expense.update({
@@ -93,7 +117,9 @@ export async function PUT(request: Request) {
         ...(categoryId && { categoryId: parseInt(categoryId) }),
         ...(startDate && { startDate: new Date(startDate) }),
         ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
-        ...(notes !== undefined && { notes: notes || null })
+        ...(notes !== undefined && { notes: notes || null }),
+        ...(billingDay !== undefined && { billingDay: billingDay ? parseInt(billingDay) : null }),
+        ...(paidByClient !== undefined && { paidByClient: paidByClient?.trim() || null })
       },
       include: {
         category: true

@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GlassCard } from '../GlassCard'
+import { UpcomingPayments } from '../UpcomingPayments'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -24,6 +25,8 @@ interface Expense {
   startDate: string
   endDate: string | null
   notes: string | null
+  billingDay: number | null
+  paidByClient: string | null
 }
 
 interface NewExpense {
@@ -32,6 +35,19 @@ interface NewExpense {
   type: string
   categoryId: string
   notes: string
+  billingDay: string
+  paidByClient: string
+}
+
+interface UpcomingPayment {
+  id: number
+  name: string
+  amount: number
+  billingDay: number
+  paidByClient: string | null
+  category: { name: string; color: string }
+  nextPaymentDate: string
+  daysUntil: number
 }
 
 interface GastosTabProps {
@@ -44,6 +60,9 @@ interface GastosTabProps {
   onSave: () => void
   onDelete: (id: number) => void
   saving: boolean
+  upcomingPayments: UpcomingPayment[]
+  upcomingTotal: number
+  upcomingLoading: boolean
 }
 
 // Iconos para categorías
@@ -87,7 +106,10 @@ export function GastosTab({
   setEditingExpenseId,
   onSave,
   onDelete,
-  saving
+  saving,
+  upcomingPayments,
+  upcomingTotal,
+  upcomingLoading
 }: GastosTabProps) {
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterType, setFilterType] = useState<FilterType>('all')
@@ -135,7 +157,9 @@ export function GastosTab({
       amount: expense.amount,
       type: expense.type,
       categoryId: String(expense.categoryId),
-      notes: expense.notes || ''
+      notes: expense.notes || '',
+      billingDay: expense.billingDay ? String(expense.billingDay) : '',
+      paidByClient: expense.paidByClient || ''
     })
     setShowForm(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -148,13 +172,22 @@ export function GastosTab({
       amount: 0,
       type: 'recurring',
       categoryId: '',
-      notes: ''
+      notes: '',
+      billingDay: '',
+      paidByClient: ''
     })
     setShowForm(false)
   }
 
   return (
     <div className="space-y-6">
+      {/* Próximos Pagos */}
+      <UpcomingPayments
+        payments={upcomingPayments}
+        total={upcomingTotal}
+        loading={upcomingLoading}
+      />
+
       {/* Estadísticas rápidas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <motion.div
@@ -356,6 +389,31 @@ export function GastosTab({
                     { value: 'fixed', label: '📌 Fijo (pago único)' }
                   ]}
                 />
+
+                {/* Campos adicionales solo para gastos recurrentes */}
+                {newExpense.type === 'recurring' && (
+                  <>
+                    <Select
+                      label="Dia de cobro (opcional)"
+                      value={newExpense.billingDay}
+                      onChange={(value) => setNewExpense({ ...newExpense, billingDay: value })}
+                      options={[
+                        { value: '', label: 'Sin fecha definida' },
+                        ...Array.from({ length: 31 }, (_, i) => ({
+                          value: String(i + 1),
+                          label: `Dia ${i + 1}`
+                        }))
+                      ]}
+                      placeholder="Seleccionar dia..."
+                    />
+                    <Input
+                      label="Pagado por cliente (opcional)"
+                      value={newExpense.paidByClient}
+                      onChange={(e) => setNewExpense({ ...newExpense, paidByClient: e.target.value })}
+                      placeholder="Ej: Acme Corp, Cliente X..."
+                    />
+                  </>
+                )}
               </div>
 
               <div className="mt-4 flex gap-3">
@@ -436,7 +494,7 @@ export function GastosTab({
                     </div>
 
                     {/* Tags */}
-                    <div className="flex items-center gap-2 mb-4">
+                    <div className="flex flex-wrap items-center gap-2 mb-4">
                       <span className={`px-2 py-1 rounded-lg text-xs ${
                         expense.type === 'recurring'
                           ? 'bg-purple-500/20 text-purple-400'
@@ -447,6 +505,16 @@ export function GastosTab({
                       {!expense.endDate && (
                         <span className="px-2 py-1 rounded-lg bg-green-500/20 text-green-400 text-xs">
                           ✓ Activo
+                        </span>
+                      )}
+                      {expense.billingDay && (
+                        <span className="px-2 py-1 rounded-lg bg-blue-500/20 text-blue-400 text-xs">
+                          📅 Dia {expense.billingDay}
+                        </span>
+                      )}
+                      {expense.paidByClient && (
+                        <span className="px-2 py-1 rounded-lg bg-yellow-500/20 text-yellow-400 text-xs">
+                          👤 {expense.paidByClient}
                         </span>
                       )}
                     </div>
@@ -505,7 +573,21 @@ export function GastosTab({
                           >
                             {getCategoryIcon(expense.category.name)}
                           </div>
-                          <span className="font-medium">{expense.name}</span>
+                          <div>
+                            <span className="font-medium">{expense.name}</span>
+                            <div className="flex items-center gap-1 mt-1">
+                              {expense.billingDay && (
+                                <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs">
+                                  📅 {expense.billingDay}
+                                </span>
+                              )}
+                              {expense.paidByClient && (
+                                <span className="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-xs">
+                                  👤 {expense.paidByClient}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="py-4 px-4">

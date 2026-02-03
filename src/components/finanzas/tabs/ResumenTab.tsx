@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { GlassCard } from '../GlassCard'
 import { AnimatedNumber } from '../AnimatedNumber'
 import { ProgressBar } from '../ProgressBar'
+import { UpcomingPayments } from '../UpcomingPayments'
 
 interface FinanceSummary {
   month: string
@@ -35,9 +36,23 @@ interface MonthlyGoal {
   notes: string | null
 }
 
+interface UpcomingPayment {
+  id: number
+  name: string
+  amount: number
+  billingDay: number
+  paidByClient: string | null
+  category: { name: string; color: string }
+  nextPaymentDate: string
+  daysUntil: number
+}
+
 interface ResumenTabProps {
   summary: FinanceSummary
   currentGoal: MonthlyGoal | null
+  upcomingPayments: UpcomingPayment[]
+  upcomingTotal: number
+  upcomingLoading: boolean
 }
 
 // Iconos para las categorías de gastos
@@ -68,7 +83,7 @@ function getCategoryIcon(name: string): string {
   return categoryIcons.default
 }
 
-export function ResumenTab({ summary, currentGoal }: ResumenTabProps) {
+export function ResumenTab({ summary, currentGoal, upcomingPayments, upcomingTotal, upcomingLoading }: ResumenTabProps) {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-MX', {
       style: 'currency',
@@ -660,6 +675,19 @@ export function ResumenTab({ summary, currentGoal }: ResumenTabProps) {
           </p>
           <p className="text-xs text-gray-400">Balance</p>
         </div>
+      </motion.div>
+
+      {/* Próximos Pagos */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+      >
+        <UpcomingPayments
+          payments={upcomingPayments}
+          total={upcomingTotal}
+          loading={upcomingLoading}
+        />
       </motion.div>
     </div>
   )

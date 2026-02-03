@@ -55,6 +55,7 @@ Dashboard/
 │   │       │   ├── summary/route.ts    # Resumen financiero mensual
 │   │       │   ├── history/route.ts    # Histórico últimos 6 meses (solo 2026+)
 │   │       │   ├── expenses/route.ts   # CRUD gastos
+│   │       │   ├── expenses/upcoming/route.ts # Próximos 5 pagos
 │   │       │   ├── categories/route.ts # CRUD categorías de gastos
 │   │       │   ├── goals/route.ts      # CRUD metas mensuales
 │   │       │   └── export/route.ts     # Exportar CSV
@@ -81,6 +82,7 @@ Dashboard/
 │   │   │   ├── FinanceSidebar.tsx      # Sidebar lateral + mobile nav
 │   │   │   ├── LoginScreen.tsx         # Pantalla de login
 │   │   │   ├── ExportButton.tsx        # Botón exportar CSV
+│   │   │   ├── UpcomingPayments.tsx    # Tabla de próximos 5 pagos
 │   │   │   └── tabs/
 │   │   │       ├── index.ts            # Exportaciones de tabs
 │   │   │       ├── ResumenTab.tsx      # Tab resumen financiero
@@ -231,23 +233,29 @@ model ExpenseCategory {
 Registro de gastos fijos y recurrentes.
 ```prisma
 model Expense {
-  id          Int              @id @default(autoincrement())
-  name        String                    // "Cursor Pro", "ChatGPT Plus"
-  amount      Float                     // Monto mensual
-  type        String           @default("recurring") // "fixed" | "recurring"
-  categoryId  Int
-  category    ExpenseCategory  @relation(fields: [categoryId], references: [id])
-  startDate   DateTime         @default(now())
-  endDate     DateTime?                 // Si terminó (para cancelados)
-  notes       String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id           Int              @id @default(autoincrement())
+  name         String                    // "Cursor Pro", "ChatGPT Plus"
+  amount       Float                     // Monto mensual
+  type         String           @default("recurring") // "fixed" | "recurring"
+  categoryId   Int
+  category     ExpenseCategory  @relation(fields: [categoryId], references: [id])
+  startDate    DateTime         @default(now())
+  endDate      DateTime?                 // Si terminó (para cancelados)
+  notes        String?
+  billingDay   Int?                      // Día del mes (1-31) en que se cobra
+  paidByClient String?                   // Nombre del cliente que paga el gasto
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 }
 ```
 
 **Tipos de gasto:**
 - `recurring` → Se contabiliza cada mes mientras esté activo (endDate = null)
 - `fixed` → Pago único, se contabiliza solo en el mes de creación
+
+**Campos de fecha de pago:**
+- `billingDay` → Día del mes (1-31) cuando se cobra. Permite ver "Próximos Pagos"
+- `paidByClient` → Si un cliente paga este gasto, su nombre. Mostrado con badge amarillo
 
 ### MonthlyFinance
 Snapshot mensual de finanzas (para histórico).
@@ -604,6 +612,34 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-01-27 | Rediseño Dashboard Financiero con sidebar y glassmorphism | ea57d96 |
 | 2026-01-27 | Seguridad APIs con middleware + fixes visuales | d81e2e0 |
 | 2026-01-27 | Rediseño visual dashboard público con glassmorphism | 329179f |
+| 2026-02-02 | Sistema de fechas de pago y próximos pagos | pendiente |
+
+### Detalle del cambio 2026-02-02 (Fechas de Pago):
+
+**Nuevos campos en modelo Expense:**
+- `billingDay` (Int?) - Día del mes (1-31) cuando se cobra el gasto
+- `paidByClient` (String?) - Nombre del cliente que paga este gasto
+
+**Nuevo endpoint API:**
+- `GET /api/finance/expenses/upcoming` - Retorna los 5 próximos pagos ordenados por fecha
+
+**Nuevo componente:**
+- `UpcomingPayments.tsx` - Tabla de próximos 5 pagos con indicadores de urgencia
+
+**Archivos modificados:**
+- `prisma/schema.prisma` - Agregados campos billingDay y paidByClient
+- `src/app/api/finance/expenses/route.ts` - POST/PUT aceptan nuevos campos con validación
+- `src/app/api/finance/expenses/upcoming/route.ts` - Nuevo endpoint
+- `src/components/finanzas/tabs/GastosTab.tsx` - Formulario con día de cobro y cliente pagador
+- `src/components/finanzas/tabs/ResumenTab.tsx` - Muestra próximos pagos
+- `src/app/finanzas/page.tsx` - Estado y props para upcoming payments
+
+**Funcionalidades:**
+- Campos de día de cobro y cliente pagador solo visibles para gastos recurrentes
+- Badges en cards: azul para día de cobro, amarillo para cliente pagador
+- Vista "Próximos Pagos" en ResumenTab y GastosTab
+- Indicadores de urgencia: rojo (<3 días), amarillo (<7 días), verde (+7 días)
+- Cálculo automático de nextPaymentDate considerando fin de mes
 
 ### Detalle del cambio 329179f (Rediseño Dashboard Público):
 
@@ -745,4 +781,4 @@ model MonthlyGoal {
 
 ---
 
-*Última actualización: 2026-01-27*
+*Última actualización: 2026-02-02*

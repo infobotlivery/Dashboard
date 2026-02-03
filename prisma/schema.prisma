@@ -99,17 +99,19 @@ model ExpenseCategory {
 
 // Registro de gastos
 model Expense {
-  id          Int              @id @default(autoincrement())
-  name        String                                 // "Cursor Pro", "ChatGPT Plus"
-  amount      Float                                  // Monto
-  type        String           @default("recurring") // "fixed" | "recurring"
-  categoryId  Int
-  category    ExpenseCategory  @relation(fields: [categoryId], references: [id])
-  startDate   DateTime         @default(now())       // Cuándo empezó
-  endDate     DateTime?                              // Si terminó (para recurrentes cancelados)
-  notes       String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id           Int              @id @default(autoincrement())
+  name         String                                 // "Cursor Pro", "ChatGPT Plus"
+  amount       Float                                  // Monto
+  type         String           @default("recurring") // "fixed" | "recurring"
+  categoryId   Int
+  category     ExpenseCategory  @relation(fields: [categoryId], references: [id])
+  startDate    DateTime         @default(now())       // Cuándo empezó
+  endDate      DateTime?                              // Si terminó (para recurrentes cancelados)
+  notes        String?
+  billingDay   Int?                                   // Día del mes (1-31), null = sin fecha definida
+  paidByClient String?                               // Nombre del cliente que paga, null = lo pagas tú
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 }
 
 // Snapshot mensual de finanzas (para histórico)
