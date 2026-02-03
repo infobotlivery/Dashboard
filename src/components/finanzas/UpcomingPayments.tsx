@@ -139,7 +139,9 @@ export function UpcomingPayments({ payments, total, loading }: UpcomingPaymentsP
                     </div>
                   </td>
                   <td className="py-3 px-2 text-center">
-                    <span className="text-sm text-gray-300">{formatDate(payment.nextPaymentDate)}</span>
+                    <span className="text-sm font-medium text-white bg-white/10 px-2 py-1 rounded">
+                      {formatDate(payment.nextPaymentDate)}
+                    </span>
                   </td>
                   <td className="py-3 px-2 text-center">
                     <span className={`inline-block px-2 py-1 rounded-lg text-xs font-medium ${urgency.bg} ${urgency.text} ${urgency.border} border`}>

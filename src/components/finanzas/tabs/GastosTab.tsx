@@ -162,7 +162,6 @@ export function GastosTab({
       paidByClient: expense.paidByClient || ''
     })
     setShowForm(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleCancel = () => {
@@ -332,102 +331,126 @@ export function GastosTab({
         </div>
       </div>
 
-      {/* Formulario */}
+      {/* Modal del formulario */}
       <AnimatePresence>
         {showForm && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <GlassCard>
-              <div className="flex items-center gap-3 mb-6">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  editingExpenseId ? 'bg-orange-500/20' : 'bg-red-500/20'
-                }`}>
-                  <span className="text-xl">{editingExpenseId ? '✏️' : '💸'}</span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">
-                    {editingExpenseId ? 'Editar Gasto' : 'Nuevo Gasto'}
-                  </h3>
-                  <p className="text-sm text-gray-400">
-                    {editingExpenseId ? 'Modifica los datos del gasto' : 'Registra un nuevo gasto'}
-                  </p>
-                </div>
-              </div>
+          <>
+            {/* Overlay oscuro */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleCancel}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+            />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="Nombre del gasto"
-                  value={newExpense.name}
-                  onChange={(e) => setNewExpense({ ...newExpense, name: e.target.value })}
-                  placeholder="Ej: Cursor Pro, ChatGPT Plus..."
-                />
-                <NumberInput
-                  label="Monto mensual"
-                  value={newExpense.amount}
-                  onChange={(value) => setNewExpense({ ...newExpense, amount: value })}
-                  prefix="$"
-                  step={10}
-                  color="#ef4444"
-                />
-                <Select
-                  label="Categoria"
-                  value={newExpense.categoryId}
-                  onChange={(value) => setNewExpense({ ...newExpense, categoryId: value })}
-                  options={categories.map((c) => ({ value: String(c.id), label: `${getCategoryIcon(c.name)} ${c.name}` }))}
-                  placeholder="Seleccionar categoria..."
-                />
-                <Select
-                  label="Tipo de gasto"
-                  value={newExpense.type}
-                  onChange={(value) => setNewExpense({ ...newExpense, type: value })}
-                  options={[
-                    { value: 'recurring', label: '🔄 Recurrente (mensual)' },
-                    { value: 'fixed', label: '📌 Fijo (pago único)' }
-                  ]}
-                />
+            {/* Modal centrado */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[101] flex items-center justify-center p-4"
+            >
+              <div className="bg-[#171717] border border-white/10 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                {/* Header del modal */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      editingExpenseId ? 'bg-orange-500/20' : 'bg-red-500/20'
+                    }`}>
+                      <span className="text-xl">{editingExpenseId ? '✏️' : '💸'}</span>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">
+                        {editingExpenseId ? 'Editar Gasto' : 'Nuevo Gasto'}
+                      </h3>
+                      <p className="text-sm text-gray-400">
+                        {editingExpenseId ? 'Modifica los datos del gasto' : 'Registra un nuevo gasto'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleCancel}
+                    className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
 
-                {/* Campos adicionales solo para gastos recurrentes */}
-                {newExpense.type === 'recurring' && (
-                  <>
+                {/* Contenido del formulario */}
+                <div className="space-y-4">
+                  <Input
+                    label="Nombre del gasto"
+                    value={newExpense.name}
+                    onChange={(e) => setNewExpense({ ...newExpense, name: e.target.value })}
+                    placeholder="Ej: Cursor Pro, ChatGPT Plus..."
+                  />
+                  <NumberInput
+                    label="Monto mensual"
+                    value={newExpense.amount}
+                    onChange={(value) => setNewExpense({ ...newExpense, amount: value })}
+                    prefix="$"
+                    step={10}
+                    color="#ef4444"
+                  />
+                  <div className="grid grid-cols-2 gap-4">
                     <Select
-                      label="Dia de cobro (opcional)"
-                      value={newExpense.billingDay}
-                      onChange={(value) => setNewExpense({ ...newExpense, billingDay: value })}
+                      label="Categoria"
+                      value={newExpense.categoryId}
+                      onChange={(value) => setNewExpense({ ...newExpense, categoryId: value })}
+                      options={categories.map((c) => ({ value: String(c.id), label: `${getCategoryIcon(c.name)} ${c.name}` }))}
+                      placeholder="Seleccionar categoria..."
+                    />
+                    <Select
+                      label="Tipo de gasto"
+                      value={newExpense.type}
+                      onChange={(value) => setNewExpense({ ...newExpense, type: value })}
                       options={[
-                        { value: '', label: 'Sin fecha definida' },
-                        ...Array.from({ length: 31 }, (_, i) => ({
-                          value: String(i + 1),
-                          label: `Dia ${i + 1}`
-                        }))
+                        { value: 'recurring', label: '🔄 Recurrente (mensual)' },
+                        { value: 'fixed', label: '📌 Fijo (pago único)' }
                       ]}
-                      placeholder="Seleccionar dia..."
                     />
-                    <Input
-                      label="Pagado por cliente (opcional)"
-                      value={newExpense.paidByClient}
-                      onChange={(e) => setNewExpense({ ...newExpense, paidByClient: e.target.value })}
-                      placeholder="Ej: Acme Corp, Cliente X..."
-                    />
-                  </>
-                )}
-              </div>
+                  </div>
 
-              <div className="mt-4 flex gap-3">
-                <Button onClick={onSave} loading={saving}>
-                  {editingExpenseId ? 'Actualizar Gasto' : 'Agregar Gasto'}
-                </Button>
-                {editingExpenseId && (
+                  {/* Campos adicionales solo para gastos recurrentes */}
+                  {newExpense.type === 'recurring' && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <Select
+                        label="Dia de cobro (opcional)"
+                        value={newExpense.billingDay}
+                        onChange={(value) => setNewExpense({ ...newExpense, billingDay: value })}
+                        options={[
+                          { value: '', label: 'Sin fecha definida' },
+                          ...Array.from({ length: 31 }, (_, i) => ({
+                            value: String(i + 1),
+                            label: `Dia ${i + 1}`
+                          }))
+                        ]}
+                        placeholder="Seleccionar dia..."
+                      />
+                      <Input
+                        label="Pagado por cliente (opcional)"
+                        value={newExpense.paidByClient}
+                        onChange={(e) => setNewExpense({ ...newExpense, paidByClient: e.target.value })}
+                        placeholder="Ej: Acme Corp, Cliente X..."
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Botones del modal */}
+                <div className="mt-6 flex gap-3 justify-end">
                   <Button variant="secondary" onClick={handleCancel}>
                     Cancelar
                   </Button>
-                )}
+                  <Button onClick={onSave} loading={saving}>
+                    {editingExpenseId ? 'Actualizar Gasto' : 'Agregar Gasto'}
+                  </Button>
+                </div>
               </div>
-            </GlassCard>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
