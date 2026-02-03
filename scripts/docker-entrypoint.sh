@@ -186,10 +186,52 @@ else
     echo "Tabla MonthlyFinance ya existe"
 fi
 
+# Verificar y agregar columna billingDay a Expense si no existe
+echo "=== Verificando columna billingDay en Expense ==="
+if ! sqlite3 "$DB_PATH" "PRAGMA table_info(Expense);" 2>/dev/null | grep -q "billingDay"; then
+    echo "Columna billingDay NO existe - AGREGANDO..."
+    sqlite3 "$DB_PATH" "ALTER TABLE Expense ADD COLUMN billingDay INTEGER;" 2>&1 || echo "Error agregando billingDay"
+    echo "Columna billingDay agregada"
+else
+    echo "Columna billingDay ya existe"
+fi
+
+# Verificar y agregar columna paidByClient a Expense si no existe
+echo "=== Verificando columna paidByClient en Expense ==="
+if ! sqlite3 "$DB_PATH" "PRAGMA table_info(Expense);" 2>/dev/null | grep -q "paidByClient"; then
+    echo "Columna paidByClient NO existe - AGREGANDO..."
+    sqlite3 "$DB_PATH" "ALTER TABLE Expense ADD COLUMN paidByClient TEXT;" 2>&1 || echo "Error agregando paidByClient"
+    echo "Columna paidByClient agregada"
+else
+    echo "Columna paidByClient ya existe"
+fi
+
+# Verificar y crear tabla MonthlyGoal si no existe
+echo "=== Verificando tabla MonthlyGoal ==="
+if ! sqlite3 "$DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND name='MonthlyGoal';" 2>/dev/null | grep -q "MonthlyGoal"; then
+    echo "Tabla MonthlyGoal NO existe - CREANDO..."
+    sqlite3 "$DB_PATH" "
+    CREATE TABLE IF NOT EXISTS MonthlyGoal (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        month DATETIME NOT NULL UNIQUE,
+        incomeTarget REAL NOT NULL DEFAULT 0,
+        expenseLimit REAL NOT NULL DEFAULT 0,
+        savingsTarget REAL NOT NULL DEFAULT 0,
+        notes TEXT,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    " 2>&1 || echo "Error creando tabla MonthlyGoal"
+    echo "Tabla MonthlyGoal creada"
+else
+    echo "Tabla MonthlyGoal ya existe"
+fi
+
 echo "=== Estructura de tablas financieras ==="
 sqlite3 "$DB_PATH" "PRAGMA table_info(ExpenseCategory);" 2>/dev/null || echo "No se pudo leer ExpenseCategory"
 sqlite3 "$DB_PATH" "PRAGMA table_info(Expense);" 2>/dev/null || echo "No se pudo leer Expense"
 sqlite3 "$DB_PATH" "PRAGMA table_info(MonthlyFinance);" 2>/dev/null || echo "No se pudo leer MonthlyFinance"
+sqlite3 "$DB_PATH" "PRAGMA table_info(MonthlyGoal);" 2>/dev/null || echo "No se pudo leer MonthlyGoal"
 
 # Asegurar permisos de archivos de base de datos
 if [ -f "$DB_PATH" ]; then
