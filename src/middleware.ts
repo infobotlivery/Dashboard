@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
 
 const AUTH_SECRET = process.env.API_SECRET_KEY
 
@@ -9,10 +8,35 @@ const PUBLIC_ROUTES = ['/api/auth', '/api/webhooks']
 // Routes where GET is public but POST/PUT/DELETE need auth
 const PUBLIC_GET_ROUTES = ['/api/metrics', '/api/scorecard', '/api/sales', '/api/daily', '/api/settings']
 
-// Inline token verification (duplicated from src/lib/api.ts)
-// Cannot import from api.ts because middleware runs in Edge Runtime
-// and path aliases (@/) are not available in middleware
-function verifyToken(token: string | null): boolean {
+// Convert hex string to Uint8Array
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16)
+  }
+  return bytes
+}
+
+// Convert ArrayBuffer to hex string
+function bufferToHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+// Constant-time string comparison to prevent timing attacks
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let result = 0
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  return result === 0
+}
+
+// Token verification using Web Crypto API (Edge Runtime compatible)
+// Duplicated logic from src/lib/api.ts which uses Node.js crypto
+async function verifyToken(token: string | null): Promise<boolean> {
   if (!token || !AUTH_SECRET) return false
 
   const parts = token.split(':')
@@ -20,10 +44,21 @@ function verifyToken(token: string | null): boolean {
 
   const [prefix, timestamp, signature] = parts
   const payload = `${prefix}:${timestamp}`
-  const expectedSig = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex')
 
   try {
-    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) return false
+    const encoder = new TextEncoder()
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(AUTH_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    )
+
+    const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(payload))
+    const expectedSig = bufferToHex(signatureBuffer)
+
+    if (!safeCompare(signature, expectedSig)) return false
   } catch {
     return false
   }
@@ -35,7 +70,7 @@ function verifyToken(token: string | null): boolean {
   return true
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public routes - always allow
@@ -54,7 +89,7 @@ export function middleware(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
 
-  if (!verifyToken(token)) {
+  if (!await verifyToken(token)) {
     return NextResponse.json(
       { success: false, error: 'No autorizado' },
       { status: 401 }
