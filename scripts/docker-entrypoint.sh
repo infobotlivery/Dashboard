@@ -233,6 +233,17 @@ sqlite3 "$DB_PATH" "PRAGMA table_info(Expense);" 2>/dev/null || echo "No se pudo
 sqlite3 "$DB_PATH" "PRAGMA table_info(MonthlyFinance);" 2>/dev/null || echo "No se pudo leer MonthlyFinance"
 sqlite3 "$DB_PATH" "PRAGMA table_info(MonthlyGoal);" 2>/dev/null || echo "No se pudo leer MonthlyGoal"
 
+# =====================================================
+# INDEXES - Asegurar que existan para performance
+# =====================================================
+echo "=== Verificando indexes ==="
+sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS SalesClose_status_createdAt_idx ON SalesClose(status, createdAt);" 2>&1 || echo "Error creando index SalesClose_status_createdAt"
+sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS SalesClose_createdAt_idx ON SalesClose(createdAt);" 2>&1 || echo "Error creando index SalesClose_createdAt"
+sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS SalesClose_cancelledAt_idx ON SalesClose(cancelledAt);" 2>&1 || echo "Error creando index SalesClose_cancelledAt"
+sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS Expense_type_endDate_idx ON Expense(type, endDate);" 2>&1 || echo "Error creando index Expense_type_endDate"
+sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS Expense_startDate_idx ON Expense(startDate);" 2>&1 || echo "Error creando index Expense_startDate"
+echo "Indexes verificados"
+
 # Asegurar permisos de archivos de base de datos
 if [ -f "$DB_PATH" ]; then
     chown 1001:1001 "$DB_PATH"
