@@ -1,17 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-
-interface WeeklyMetric {
-  weekStart: string
-  mrr: number
-  mrrComunidad: number
-  pipelineActivo: number
-  cierresSemana: number
-  contenidoPublicado: number
-  leadsEntrantes: number
-  entregasPendientes: number
-}
+import type { WeeklyMetric } from '@/types'
 
 interface WeeklyComparisonProps {
   currentWeek: WeeklyMetric | null

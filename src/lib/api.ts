@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
 // Secret para firmar tokens de autenticación
-const AUTH_SECRET = process.env.API_SECRET_KEY || 'fallback-secret-change-in-production'
+const AUTH_SECRET = process.env.API_SECRET_KEY || ''
 
 // Verificar API Key para endpoints externos (N8N)
 export function verifyApiKey(request: NextRequest): boolean {

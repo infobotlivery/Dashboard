@@ -2,18 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { MetricCard } from './MetricCard'
-
-interface WeeklyMetric {
-  id: number
-  weekStart: string
-  mrr: number
-  mrrComunidad: number
-  pipelineActivo: number
-  cierresSemana: number
-  contenidoPublicado: number
-  leadsEntrantes: number
-  entregasPendientes: number
-}
+import type { WeeklyMetric } from '@/types'
 
 interface WeeklyDashboardProps {
   metric: WeeklyMetric | null

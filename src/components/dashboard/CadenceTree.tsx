@@ -1,13 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-
-interface DailyCheck {
-  id: number
-  date: string
-  publicoContenido: boolean
-  respondioLeads: boolean
-}
+import type { DailyCheck } from '@/types'
 
 interface CadenceTreeProps {
   dailyChecks?: DailyCheck[]

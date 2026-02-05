@@ -3,28 +3,7 @@
 import { motion } from 'framer-motion'
 import { GlassCard } from '../finanzas/GlassCard'
 import { AnimatedNumber } from '../finanzas/AnimatedNumber'
-
-interface SalesClose {
-  id: number
-  clientName: string
-  product: string
-  customProduct: string | null
-  onboardingValue: number
-  recurringValue: number
-  contractMonths: number | null
-  status: string
-  createdAt: string
-  cancelledAt: string | null
-}
-
-interface SalesSummary {
-  mrrActivo: number
-  totalOnboardingHistorico: number
-  totalOnboardingMes: number
-  clientesActivos: number
-  clientesTotales: number
-  cierresMes: number
-}
+import type { SalesClose, SalesSummary } from '@/types'
 
 interface SalesCloseTableProps {
   sales: SalesClose[]

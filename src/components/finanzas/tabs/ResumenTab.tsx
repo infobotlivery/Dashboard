@@ -6,46 +6,7 @@ import { GlassCard } from '../GlassCard'
 import { AnimatedNumber } from '../AnimatedNumber'
 import { ProgressBar } from '../ProgressBar'
 import { UpcomingPayments } from '../UpcomingPayments'
-
-interface FinanceSummary {
-  month: string
-  income: {
-    total: number
-    onboarding: number
-    mrrServices: number
-    mrrCommunity: number
-  }
-  expenses: {
-    total: number
-    byType: {
-      fixed: number
-      recurring: number
-    }
-    byCategory: Record<string, { total: number; color: string; items: { name: string; amount: number }[] }>
-  }
-  netProfit: number
-  activeClients: number
-}
-
-interface MonthlyGoal {
-  id: number
-  month: string
-  incomeTarget: number
-  expenseLimit: number
-  savingsTarget: number
-  notes: string | null
-}
-
-interface UpcomingPayment {
-  id: number
-  name: string
-  amount: number
-  billingDay: number
-  paidByClient: string | null
-  category: { name: string; color: string }
-  nextPaymentDate: string
-  daysUntil: number
-}
+import type { FinanceSummary, MonthlyGoal, UpcomingPayment } from '@/types'
 
 interface ResumenTabProps {
   summary: FinanceSummary

@@ -10,51 +10,9 @@ import NumberInput from '@/components/ui/NumberInput'
 import DateSelector from '@/components/ui/DateSelector'
 import { Select } from '@/components/ui/Select'
 import { adminAuthFetch } from '@/lib/authFetch'
+import type { WeeklyMetric, MonthlyScorecard, Settings, SalesClose } from '@/types'
 
 type Tab = 'weekly' | 'monthly' | 'daily' | 'sales' | 'settings'
-
-interface WeeklyMetric {
-  id?: number
-  weekStart: string
-  mrr: number
-  mrrComunidad: number
-  pipelineActivo: number
-  cierresSemana: number
-  contenidoPublicado: number
-  leadsEntrantes: number
-  entregasPendientes: number
-}
-
-interface MonthlyScorecard {
-  id?: number
-  month: string
-  facturacionTotal: number
-  mrr: number
-  clientesNuevos: number
-  clientesPerdidos: number
-  enigmaVendidos: number
-  serviciosRecurrentes: number
-  leadsTotales: number
-  tasaCierre: number
-}
-
-interface Settings {
-  brandPrimary: string
-  brandDark: string
-  logoUrl: string | null
-}
-
-interface SalesClose {
-  id?: number
-  clientName: string
-  product: string
-  customProduct: string
-  onboardingValue: number
-  recurringValue: number
-  contractMonths: number | null
-  status: string
-  createdAt?: string
-}
 
 // Iconos para las métricas
 const icons = {
@@ -172,7 +130,9 @@ export default function AdminPage() {
     onboardingValue: 0,
     recurringValue: 0,
     contractMonths: null,
-    status: 'active'
+    status: 'active',
+    createdAt: '',
+    cancelledAt: null
   })
   const [salesList, setSalesList] = useState<(SalesClose & { id: number })[]>([])
   const [editingSaleId, setEditingSaleId] = useState<number | null>(null)
@@ -334,7 +294,9 @@ export default function AdminPage() {
             onboardingValue: 0,
             recurringValue: 0,
             contractMonths: null,
-            status: 'active'
+            status: 'active',
+            createdAt: '',
+            cancelledAt: null
           })
           setEditingSaleId(null)
         }
@@ -721,7 +683,7 @@ export default function AdminPage() {
                     {salesClose.product === 'Otro' && (
                       <Input
                         label="Producto Personalizado"
-                        value={salesClose.customProduct}
+                        value={salesClose.customProduct || ''}
                         onChange={(e) => setSalesClose({ ...salesClose, customProduct: e.target.value })}
                         placeholder="Especifica el producto"
                       />
@@ -755,7 +717,7 @@ export default function AdminPage() {
                     <Select
                       label="Estado"
                       value={salesClose.status}
-                      onChange={(value) => setSalesClose({ ...salesClose, status: value })}
+                      onChange={(value) => setSalesClose({ ...salesClose, status: value as SalesClose['status'] })}
                       options={[
                         { value: 'active', label: 'Activo', icon: '🟢' },
                         { value: 'cancelled', label: 'Cancelado', icon: '🔴' },
@@ -775,7 +737,9 @@ export default function AdminPage() {
                             onboardingValue: 0,
                             recurringValue: 0,
                             contractMonths: null,
-                            status: 'active'
+                            status: 'active',
+                            createdAt: '',
+                            cancelledAt: null
                           })
                         }}
                         className="text-brand-muted hover:text-white text-sm"
@@ -847,7 +811,9 @@ export default function AdminPage() {
                                       onboardingValue: sale.onboardingValue,
                                       recurringValue: sale.recurringValue,
                                       contractMonths: sale.contractMonths,
-                                      status: sale.status
+                                      status: sale.status,
+                                      createdAt: sale.createdAt,
+                                      cancelledAt: sale.cancelledAt
                                     })
                                   }}
                                   className="text-brand-primary hover:text-white text-sm mr-2"

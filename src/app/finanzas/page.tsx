@@ -16,79 +16,7 @@ import {
   HistorialTab,
   MetasTab
 } from '@/components/finanzas/tabs'
-
-interface FinanceSummary {
-  month: string
-  income: {
-    total: number
-    onboarding: number
-    mrrServices: number
-    mrrCommunity: number
-  }
-  expenses: {
-    total: number
-    byType: {
-      fixed: number
-      recurring: number
-    }
-    byCategory: Record<string, { total: number; color: string; items: { name: string; amount: number }[] }>
-    list: { id: number; name: string; amount: number; type: string; category: string; categoryColor: string }[]
-  }
-  netProfit: number
-  activeClients: number
-}
-
-interface HistoryEntry {
-  month: string
-  monthLabel: string
-  totalIncome: number
-  totalOnboarding: number
-  totalMrrServices: number
-  totalMrrCommunity: number
-  totalExpenses: number
-  netProfit: number
-}
-
-interface Category {
-  id: number
-  name: string
-  color: string
-  _count: { expenses: number }
-}
-
-interface Expense {
-  id: number
-  name: string
-  amount: number
-  type: string
-  categoryId: number
-  category: { name: string; color: string }
-  startDate: string
-  endDate: string | null
-  notes: string | null
-  billingDay: number | null
-  paidByClient: string | null
-}
-
-interface UpcomingPayment {
-  id: number
-  name: string
-  amount: number
-  billingDay: number
-  paidByClient: string | null
-  category: { name: string; color: string }
-  nextPaymentDate: string
-  daysUntil: number
-}
-
-interface MonthlyGoal {
-  id: number
-  month: string
-  incomeTarget: number
-  expenseLimit: number
-  savingsTarget: number
-  notes: string | null
-}
+import type { FinanceSummary, MonthlyHistory, Category, Expense, UpcomingPayment, MonthlyGoal } from '@/types'
 
 const tabTitles: Record<FinanceTab, string> = {
   resumen: 'Resumen Financiero',
@@ -110,7 +38,7 @@ export default function FinanzasPage() {
 
   // Data states
   const [summary, setSummary] = useState<FinanceSummary | null>(null)
-  const [history, setHistory] = useState<HistoryEntry[]>([])
+  const [history, setHistory] = useState<MonthlyHistory[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [currentGoal, setCurrentGoal] = useState<MonthlyGoal | null>(null)

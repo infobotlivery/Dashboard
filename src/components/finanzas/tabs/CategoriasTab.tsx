@@ -5,13 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { GlassCard } from '../GlassCard'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-
-interface Category {
-  id: number
-  name: string
-  color: string
-  _count: { expenses: number }
-}
+import type { Category } from '@/types'
 
 interface NewCategory {
   name: string

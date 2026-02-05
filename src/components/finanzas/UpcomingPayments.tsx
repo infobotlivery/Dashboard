@@ -2,17 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { GlassCard } from './GlassCard'
-
-interface UpcomingPayment {
-  id: number
-  name: string
-  amount: number
-  billingDay: number
-  paidByClient: string | null
-  category: { name: string; color: string }
-  nextPaymentDate: string
-  daysUntil: number
-}
+import type { UpcomingPayment } from '@/types'
 
 interface UpcomingPaymentsProps {
   payments: UpcomingPayment[]

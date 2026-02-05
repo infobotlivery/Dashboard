@@ -4,20 +4,10 @@ import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { GlassCard } from '../GlassCard'
 import { AnimatedNumber } from '../AnimatedNumber'
-
-interface HistoryEntry {
-  month: string
-  monthLabel: string
-  totalIncome: number
-  totalOnboarding: number
-  totalMrrServices: number
-  totalMrrCommunity: number
-  totalExpenses: number
-  netProfit: number
-}
+import type { MonthlyHistory } from '@/types'
 
 interface HistorialTabProps {
-  history: HistoryEntry[]
+  history: MonthlyHistory[]
 }
 
 export function HistorialTab({ history }: HistorialTabProps) {

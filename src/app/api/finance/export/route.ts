@@ -39,73 +39,89 @@ export async function GET(request: NextRequest) {
     }
 
     if (type === 'history' || type === 'all') {
-      // Exportar historial mensual
+      // Exportar historial mensual - bulk fetch optimization
       const now = new Date()
-      const history = []
 
+      // 1. Determine valid months
+      const months: { start: Date; end: Date }[] = []
       for (let i = 0; i < 12; i++) {
         const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
-
-        // Solo incluir meses de 2026 en adelante
         if (monthStart.getFullYear() < 2026) continue
-
         const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999)
+        months.push({ start: monthStart, end: monthEnd })
+      }
 
-        // Calcular ingresos
-        const salesThisMonth = await prisma.salesClose.findMany({
-          where: {
-            createdAt: { gte: monthStart, lte: monthEnd }
-          }
-        })
+      const history: {
+        month: string
+        totalIncome: number
+        totalOnboarding: number
+        totalMrrServices: number
+        totalMrrCommunity: number
+        totalExpenses: number
+        netProfit: number
+      }[] = []
 
-        const totalOnboarding = salesThisMonth.reduce(
-          (sum, sale) => sum + sale.onboardingValue, 0
-        )
+      if (months.length > 0) {
+        const earliestStart = months[months.length - 1].start
+        const latestEnd = months[0].end
 
-        const activeSales = await prisma.salesClose.findMany({
-          where: {
-            status: 'active',
-            createdAt: { lte: monthEnd }
-          }
-        })
+        // 2. Bulk fetch all data in parallel (4 queries instead of ~48)
+        const [allSalesInRange, activeSales, weeklyMetrics, expensesData] = await Promise.all([
+          prisma.salesClose.findMany({
+            where: { createdAt: { gte: earliestStart, lte: latestEnd } },
+            select: { onboardingValue: true, createdAt: true }
+          }),
+          prisma.salesClose.findMany({
+            where: { status: 'active' },
+            select: { recurringValue: true, createdAt: true }
+          }),
+          prisma.weeklyMetric.findMany({
+            where: { weekStart: { gte: earliestStart, lte: latestEnd } },
+            select: { weekStart: true, mrrComunidad: true }
+          }),
+          prisma.expense.findMany({
+            where: {
+              startDate: { lte: latestEnd },
+              OR: [
+                { endDate: null },
+                { endDate: { gte: earliestStart } }
+              ]
+            },
+            select: { amount: true, startDate: true, endDate: true }
+          })
+        ])
 
-        const totalMrrServices = activeSales.reduce(
-          (sum, sale) => sum + sale.recurringValue, 0
-        )
+        // 3. Compute per-month values from pre-fetched data
+        for (const { start: monthStart, end: monthEnd } of months) {
+          const totalOnboarding = allSalesInRange
+            .filter(s => s.createdAt >= monthStart && s.createdAt <= monthEnd)
+            .reduce((sum, s) => sum + s.onboardingValue, 0)
 
-        const weeklyMetrics = await prisma.weeklyMetric.findMany({
-          where: {
-            weekStart: { gte: monthStart, lte: monthEnd }
-          },
-          orderBy: { weekStart: 'desc' },
-          take: 1
-        })
+          const totalMrrServices = activeSales
+            .filter(s => s.createdAt <= monthEnd)
+            .reduce((sum, s) => sum + s.recurringValue, 0)
 
-        const totalMrrCommunity = weeklyMetrics[0]?.mrrComunidad || 0
-        const totalIncome = totalOnboarding + totalMrrServices + totalMrrCommunity
+          const monthWeeklyMetrics = weeklyMetrics
+            .filter(w => w.weekStart >= monthStart && w.weekStart <= monthEnd)
+            .sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime())
+          const totalMrrCommunity = monthWeeklyMetrics.length > 0 ? monthWeeklyMetrics[0].mrrComunidad : 0
 
-        // Calcular gastos
-        const expenses = await prisma.expense.findMany({
-          where: {
-            startDate: { lte: monthEnd },
-            OR: [
-              { endDate: null },
-              { endDate: { gte: monthStart } }
-            ]
-          }
-        })
+          const totalIncome = totalOnboarding + totalMrrServices + totalMrrCommunity
 
-        const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
+          const totalExpenses = expensesData
+            .filter(e => e.startDate <= monthEnd && (!e.endDate || e.endDate >= monthStart))
+            .reduce((sum, e) => sum + e.amount, 0)
 
-        history.push({
-          month: monthStart.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }),
-          totalIncome,
-          totalOnboarding,
-          totalMrrServices,
-          totalMrrCommunity,
-          totalExpenses,
-          netProfit: totalIncome - totalExpenses
-        })
+          history.push({
+            month: monthStart.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }),
+            totalIncome,
+            totalOnboarding,
+            totalMrrServices,
+            totalMrrCommunity,
+            totalExpenses,
+            netProfit: totalIncome - totalExpenses
+          })
+        }
       }
 
       csv += 'HISTORIAL MENSUAL\n'

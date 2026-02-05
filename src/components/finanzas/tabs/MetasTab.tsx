@@ -6,21 +6,7 @@ import { GlassCard } from '../GlassCard'
 import { Button } from '@/components/ui/Button'
 import NumberInput from '@/components/ui/NumberInput'
 import { ProgressBar } from '../ProgressBar'
-
-interface MonthlyGoal {
-  id: number
-  month: string
-  incomeTarget: number
-  expenseLimit: number
-  savingsTarget: number
-  notes: string | null
-}
-
-interface FinanceSummary {
-  income: { total: number }
-  expenses: { total: number }
-  netProfit: number
-}
+import type { MonthlyGoal, FinanceSummary } from '@/types'
 
 interface MetasTabProps {
   summary: FinanceSummary | null

@@ -10,7 +10,10 @@ async function ensureSettingsExist() {
   })
 
   if (!settings) {
-    const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123'
+    const defaultPassword = process.env.ADMIN_PASSWORD
+    if (!defaultPassword) {
+      throw new Error('ADMIN_PASSWORD environment variable is required')
+    }
     const hash = await bcrypt.hash(defaultPassword, 10)
 
     settings = await prisma.adminSettings.create({

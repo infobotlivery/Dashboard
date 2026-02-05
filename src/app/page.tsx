@@ -7,65 +7,7 @@ import { WeeklyComparison } from '@/components/dashboard/WeeklyComparison'
 import { MonthlyComparison } from '@/components/dashboard/MonthlyComparison'
 import { CadenceTree } from '@/components/dashboard/CadenceTree'
 import { SalesCloseTable } from '@/components/dashboard/SalesCloseTable'
-
-interface WeeklyMetric {
-  id: number
-  weekStart: string
-  mrr: number
-  mrrComunidad: number
-  pipelineActivo: number
-  cierresSemana: number
-  contenidoPublicado: number
-  leadsEntrantes: number
-  entregasPendientes: number
-}
-
-interface MonthlyScorecard {
-  month: string
-  facturacionTotal: number
-  mrr: number
-  clientesNuevos: number
-  clientesPerdidos: number
-  enigmaVendidos: number
-  serviciosRecurrentes: number
-  leadsTotales: number
-  tasaCierre: number
-}
-
-interface DailyCheck {
-  id: number
-  date: string
-  publicoContenido: boolean
-  respondioLeads: boolean
-}
-
-interface Settings {
-  logoUrl: string | null
-  brandPrimary: string
-  brandDark: string
-}
-
-interface SalesClose {
-  id: number
-  clientName: string
-  product: string
-  customProduct: string | null
-  onboardingValue: number
-  recurringValue: number
-  contractMonths: number | null
-  status: string
-  createdAt: string
-  cancelledAt: string | null
-}
-
-interface SalesSummary {
-  mrrActivo: number
-  totalOnboardingHistorico: number
-  totalOnboardingMes: number
-  clientesActivos: number
-  clientesTotales: number
-  cierresMes: number
-}
+import type { WeeklyMetric, MonthlyScorecard, DailyCheck, Settings, SalesClose, SalesSummary } from '@/types'
 
 export default function DashboardPage() {
   const [currentMetric, setCurrentMetric] = useState<WeeklyMetric | null>(null)

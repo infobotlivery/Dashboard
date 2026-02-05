@@ -86,7 +86,11 @@ export async function POST(request: NextRequest) {
       return errorResponse('Contraseña requerida', 400)
     }
 
-    const envPassword = process.env.ADMIN_PASSWORD || 'admin123'
+    const envPassword = process.env.ADMIN_PASSWORD
+
+    if (!envPassword) {
+      return errorResponse('ADMIN_PASSWORD no configurado en el servidor', 500)
+    }
 
     // Verificar directamente contra la variable de entorno
     if (password === envPassword) {

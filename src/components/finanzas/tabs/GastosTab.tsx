@@ -8,26 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import NumberInput from '@/components/ui/NumberInput'
-
-interface Category {
-  id: number
-  name: string
-  color: string
-}
-
-interface Expense {
-  id: number
-  name: string
-  amount: number
-  type: string
-  categoryId: number
-  category: { name: string; color: string }
-  startDate: string
-  endDate: string | null
-  notes: string | null
-  billingDay: number | null
-  paidByClient: string | null
-}
+import type { Category, Expense, UpcomingPayment } from '@/types'
 
 interface NewExpense {
   name: string
@@ -37,17 +18,6 @@ interface NewExpense {
   notes: string
   billingDay: string
   paidByClient: string
-}
-
-interface UpcomingPayment {
-  id: number
-  name: string
-  amount: number
-  billingDay: number
-  paidByClient: string | null
-  category: { name: string; color: string }
-  nextPaymentDate: string
-  daysUntil: number
 }
 
 interface GastosTabProps {

@@ -1,19 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-
-interface MonthlyScorecard {
-  id: number
-  month: string
-  facturacionTotal: number
-  mrr: number
-  clientesNuevos: number
-  clientesPerdidos: number
-  enigmaVendidos: number
-  serviciosRecurrentes: number
-  leadsTotales: number
-  tasaCierre: number
-}
+import type { MonthlyScorecard } from '@/types'
 
 interface MonthlyScorecardProps {
   scorecards: MonthlyScorecard[]
