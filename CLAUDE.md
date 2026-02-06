@@ -99,9 +99,13 @@ Dashboard/
 │   │       ├── DateSelector.tsx
 │   │       └── Select.tsx              # Dropdown select
 │   │
+│   ├── types/
+│   │   └── index.ts              # Interfaces compartidas (WeeklyMetric, SalesClose, Expense, etc.)
+│   │
 │   └── lib/
 │       ├── db.ts                 # Cliente Prisma singleton
-│       └── api.ts                # Utilidades API + auth (createAuthToken, verifyAuthToken)
+│       ├── api.ts                # Utilidades API + auth (createAuthToken, verifyAuthToken)
+│       └── authFetch.ts          # Helpers para requests autenticados (authFetch, financeAuthFetch, adminAuthFetch)
 │
 ├── prisma/
 │   └── schema.prisma             # Modelos de base de datos
@@ -613,6 +617,50 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-01-27 | Seguridad APIs con middleware + fixes visuales | d81e2e0 |
 | 2026-01-27 | Rediseño visual dashboard público con glassmorphism | 329179f |
 | 2026-02-02 | Sistema de fechas de pago y próximos pagos | pendiente |
+| 2026-02-05 | Auditoría de seguridad, performance y tipos + 5 fixes | d387919 |
+| 2026-02-05 | Fix middleware Web Crypto API para Edge Runtime | 674dfde |
+| 2026-02-05 | Indexes automáticos en docker-entrypoint.sh | d520926 |
+
+### Detalle del cambio 2026-02-05 (Auditoría + Fixes):
+
+**Auditoría completa del proyecto con 3 agentes:**
+- Agente de seguridad: 20 hallazgos (4 CRÍTICOS)
+- Agente de TypeScript: 17 hallazgos (0 errores de compilación)
+- Agente de Prisma/performance: 20 hallazgos (N+1 queries, indexes faltantes)
+
+**Fix 1 - Middleware de autenticación reescrito (middleware.ts):**
+- Reescrito para usar **Web Crypto API** (`crypto.subtle`) en vez de Node.js `crypto`
+- Necesario porque Next.js middleware corre en **Edge Runtime**, no Node.js
+- Funciones: `hexToBytes()`, `bufferToHex()`, `safeCompare()` (constant-time), `verifyToken()`
+- Lógica duplicada de `src/lib/api.ts` adaptada a Web Crypto
+
+**Fix 2 - Eliminación de secretos hardcodeados:**
+- `src/lib/api.ts`: Removido fallback `'fallback-secret-change-in-production'` → `''`
+- `src/app/api/auth/route.ts`: Removido `|| 'admin123'` → retorna 500 si ADMIN_PASSWORD no está configurado
+- `src/app/api/settings/route.ts`: Removido `|| 'admin123'` → throw si no está configurado
+
+**Fix 3 - Indexes de base de datos (schema.prisma + docker-entrypoint.sh):**
+- SalesClose: `@@index([status, createdAt])`, `@@index([createdAt])`, `@@index([cancelledAt])`
+- Expense: `@@index([type, endDate])`, `@@index([startDate])`
+- Indexes se crean automáticamente en docker-entrypoint.sh con `CREATE INDEX IF NOT EXISTS`
+
+**Fix 4 - Refactor N+1 queries:**
+- `src/app/api/finance/history/route.ts`: De ~48 queries secuenciales → 5 queries paralelas con `Promise.all()`
+- `src/app/api/finance/export/route.ts`: Mismo refactor en sección de historial
+
+**Fix 5 - Tipos centralizados (src/types/index.ts):**
+- 13 interfaces compartidas extraídas: WeeklyMetric, MonthlyScorecard, DailyCheck, Settings, SalesClose, SalesSummary, FinanceSummary, MonthlyHistory, Category, Expense, UpcomingPayment, MonthlyGoal
+- 14 archivos actualizados para importar desde `@/types` en vez de definiciones locales duplicadas
+
+**Archivos creados:**
+- `src/types/index.ts` - Módulo de tipos compartidos
+- `src/lib/authFetch.ts` - Helpers para requests autenticados
+
+**Archivos modificados (20+):**
+- `src/middleware.ts`, `src/lib/api.ts`, `prisma/schema.prisma`, `scripts/docker-entrypoint.sh`
+- `src/app/api/auth/route.ts`, `src/app/api/settings/route.ts`
+- `src/app/api/finance/history/route.ts`, `src/app/api/finance/export/route.ts`
+- 14 componentes/páginas (solo cambios de imports a `@/types`)
 
 ### Detalle del cambio 2026-02-02 (Fechas de Pago):
 
@@ -781,4 +829,4 @@ model MonthlyGoal {
 
 ---
 
-*Última actualización: 2026-02-02*
+*Última actualización: 2026-02-05*
