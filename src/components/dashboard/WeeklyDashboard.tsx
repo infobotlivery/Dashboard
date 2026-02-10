@@ -27,8 +27,6 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
 
   // Metas mínimas según tu sistema
   const targets = {
-    mrr: { min: 875, goal: 1500 },
-    mrrComunidad: { min: 500, goal: 1000 },
     leadsEntrantes: { min: 5, goal: 5 },
     personasAgendadas: { min: 3, goal: 5 },
     pipelineActivo: { min: 3, goal: 5 },
@@ -75,32 +73,6 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
 
       {/* Grid de métricas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          title="MRR Clientes"
-          value={formatCurrency(metric.mrr)}
-          subtitle="Ingresos recurrentes clientes"
-          target={`${formatCurrency(targets.mrr.min)} → ${formatCurrency(targets.mrr.goal)}`}
-          trend={getTrend(metric.mrr, targets.mrr)}
-          delay={0}
-          icon={<span>💰</span>}
-          currentValue={metric.mrr}
-          targetValue={targets.mrr.goal}
-          isCurrency
-        />
-
-        <MetricCard
-          title="MRR Comunidad"
-          value={formatCurrency(metric.mrrComunidad || 0)}
-          subtitle="Ingresos recurrentes comunidad"
-          target={`${formatCurrency(targets.mrrComunidad.min)} → ${formatCurrency(targets.mrrComunidad.goal)}`}
-          trend={getTrend(metric.mrrComunidad || 0, targets.mrrComunidad)}
-          delay={0.05}
-          icon={<span>👥</span>}
-          currentValue={metric.mrrComunidad || 0}
-          targetValue={targets.mrrComunidad.goal}
-          isCurrency
-        />
-
         <MetricCard
           title="Leads Entrantes"
           value={metric.leadsEntrantes}
