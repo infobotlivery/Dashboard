@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { WeeklyDashboard } from '@/components/dashboard/WeeklyDashboard'
 import { WeeklyComparison } from '@/components/dashboard/WeeklyComparison'
 import { MonthlyComparison } from '@/components/dashboard/MonthlyComparison'
+import { MonthlyMetrics } from '@/components/dashboard/MonthlyMetrics'
 import { CadenceTree } from '@/components/dashboard/CadenceTree'
 import { SalesCloseTable } from '@/components/dashboard/SalesCloseTable'
 import type { WeeklyMetric, MonthlyScorecard, DailyCheck, Settings, SalesClose, SalesSummary } from '@/types'
@@ -177,6 +178,11 @@ export default function DashboardPage() {
         {/* Dashboard Semanal - Nivel 1 */}
         <section>
           <WeeklyDashboard metric={currentMetric} />
+        </section>
+
+        {/* Métricas Mensuales */}
+        <section>
+          <MonthlyMetrics scorecard={monthlyComparisonData.currentMonth} />
         </section>
 
         {/* Comparativa Semanal */}

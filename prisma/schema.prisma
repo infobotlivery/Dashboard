@@ -14,6 +14,7 @@ model WeeklyMetric {
   mrr                Float    @default(0) // MRR Clientes - Ingresos recurrentes de clientes
   mrrComunidad       Float    @default(0) // MRR Comunidad - Ingresos recurrentes de comunidad
   pipelineActivo     Int      @default(0) // Oportunidades en conversación (leads calientes)
+  personasAgendadas  Int      @default(0) // Personas con reunión agendada (etapa 2)
   cierresSemana      Float    @default(0) // Ventas cerradas (monto)
   contenidoPublicado Int      @default(0) // Piezas de contenido creadas
   leadsEntrantes     Int      @default(0) // Personas nuevas que preguntaron
@@ -28,6 +29,7 @@ model MonthlyScorecard {
   month                 DateTime @unique // Primer día del mes
   facturacionTotal      Float    @default(0)
   mrr                   Float    @default(0)
+  mrrComunidad          Float    @default(0) // MRR Comunidad - Ingresos recurrentes de comunidad
   clientesNuevos        Int      @default(0)
   clientesPerdidos      Int      @default(0)
   enigmaVendidos        Int      @default(0)
@@ -76,16 +78,16 @@ model SalesClose {
   @@index([cancelledAt])
 }
 
-// Log de webhooks de Kommo CRM - Auditoría de leads calificados
+// Log de webhooks de Kommo CRM - Auditoría de cambios en métricas
 model KommoWebhookLog {
-  id             Int      @id @default(autoincrement())
-  leadId         Int                                  // ID del lead en Kommo
-  leadName       String                               // Nombre del lead
-  fromStage      String?                              // Etapa anterior (puede ser null)
-  toStage        String                               // Etapa nueva (Calificado)
-  action         String                               // "increment"
-  pipelineActivo Int                                  // Valor después de la acción
-  createdAt      DateTime @default(now())             // Cuándo ocurrió
+  id         Int      @id @default(autoincrement())
+  leadId     Int                                  // ID del lead en Kommo
+  leadName   String                               // Nombre del lead
+  fromStage  String?                              // Etapa anterior (puede ser null)
+  toStage    String                               // Etapa nueva
+  metricName String                               // "leadsEntrantes" | "personasAgendadas" | "pipelineActivo"
+  newValue   Int                                  // Valor de la métrica después del cambio
+  createdAt  DateTime @default(now())             // Cuándo ocurrió
 }
 
 // =====================================================

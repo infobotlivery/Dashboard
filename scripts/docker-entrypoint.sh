@@ -55,6 +55,18 @@ else
     echo "Columna mrrComunidad ya existe"
 fi
 
+# Agregar columna personasAgendadas con SQL si no existe
+echo "Verificando si personasAgendadas existe..."
+if ! sqlite3 "$DB_PATH" "PRAGMA table_info(WeeklyMetric);" 2>/dev/null | grep -q "personasAgendadas"; then
+    echo "Columna personasAgendadas NO existe - AGREGANDO CON SQL..."
+    sqlite3 "$DB_PATH" "ALTER TABLE WeeklyMetric ADD COLUMN personasAgendadas INTEGER NOT NULL DEFAULT 0;" 2>&1 || {
+        echo "Error agregando columna personasAgendadas"
+    }
+    echo "Columna personasAgendadas agregada"
+else
+    echo "Columna personasAgendadas ya existe"
+fi
+
 # Verificar estructura final
 echo "=== Estructura final de WeeklyMetric ==="
 sqlite3 "$DB_PATH" "PRAGMA table_info(WeeklyMetric);" 2>/dev/null
@@ -105,14 +117,43 @@ if ! sqlite3 "$DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND n
         leadName TEXT NOT NULL,
         fromStage TEXT,
         toStage TEXT NOT NULL,
-        action TEXT NOT NULL,
-        pipelineActivo INTEGER NOT NULL,
+        metricName TEXT NOT NULL,
+        newValue INTEGER NOT NULL,
         createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
     " 2>&1 || echo "Error creando tabla KommoWebhookLog"
     echo "Tabla KommoWebhookLog creada"
 else
     echo "Tabla KommoWebhookLog ya existe"
+fi
+
+# Migrar campos antiguos (action, pipelineActivo) a nuevos (metricName, newValue)
+echo "Verificando migración de KommoWebhookLog..."
+if sqlite3 "$DB_PATH" "PRAGMA table_info(KommoWebhookLog);" 2>/dev/null | grep -q "action"; then
+    echo "Columnas antiguas detectadas - MIGRANDO..."
+    sqlite3 "$DB_PATH" "
+    -- Crear tabla temporal con nueva estructura
+    CREATE TABLE IF NOT EXISTS KommoWebhookLog_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        leadId INTEGER NOT NULL,
+        leadName TEXT NOT NULL,
+        fromStage TEXT,
+        toStage TEXT NOT NULL,
+        metricName TEXT NOT NULL,
+        newValue INTEGER NOT NULL,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    -- Copiar datos (mapear action='increment' → metricName='pipelineActivo', pipelineActivo → newValue)
+    INSERT INTO KommoWebhookLog_new (id, leadId, leadName, fromStage, toStage, metricName, newValue, createdAt)
+    SELECT id, leadId, leadName, fromStage, toStage, 'pipelineActivo', pipelineActivo, createdAt
+    FROM KommoWebhookLog;
+    -- Reemplazar tabla
+    DROP TABLE KommoWebhookLog;
+    ALTER TABLE KommoWebhookLog_new RENAME TO KommoWebhookLog;
+    " 2>&1 || echo "Error migrando KommoWebhookLog"
+    echo "Migración completada"
+else
+    echo "Tabla ya está en el formato correcto"
 fi
 
 echo "=== Estructura de KommoWebhookLog ==="

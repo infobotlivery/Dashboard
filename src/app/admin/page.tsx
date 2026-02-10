@@ -87,10 +87,10 @@ export default function AdminPage() {
     mrr: 0,
     mrrComunidad: 0,
     pipelineActivo: 0,
+    personasAgendadas: 0,
     cierresSemana: 0,
     contenidoPublicado: 0,
-    leadsEntrantes: 0,
-    entregasPendientes: 0
+    leadsEntrantes: 0
   })
 
   // Monthly scorecard state
@@ -98,6 +98,7 @@ export default function AdminPage() {
     month: new Date().toISOString().slice(0, 7) + '-01',
     facturacionTotal: 0,
     mrr: 0,
+    mrrComunidad: 0,
     clientesNuevos: 0,
     clientesPerdidos: 0,
     enigmaVendidos: 0,
@@ -472,7 +473,21 @@ export default function AdminPage() {
                     color="#06b6d4"
                   />
                   <NumberInput
-                    label="Pipeline Activo"
+                    label="Leads Entrantes"
+                    value={weeklyMetric.leadsEntrantes}
+                    onChange={(value) => setWeeklyMetric({ ...weeklyMetric, leadsEntrantes: value })}
+                    icon={icons.leads}
+                    color="#ec4899"
+                  />
+                  <NumberInput
+                    label="Personas Agendadas"
+                    value={weeklyMetric.personasAgendadas || 0}
+                    onChange={(value) => setWeeklyMetric({ ...weeklyMetric, personasAgendadas: value })}
+                    icon={icons.leads}
+                    color="#10b981"
+                  />
+                  <NumberInput
+                    label="Propuestas Enviadas"
                     value={weeklyMetric.pipelineActivo}
                     onChange={(value) => setWeeklyMetric({ ...weeklyMetric, pipelineActivo: value })}
                     icon={icons.pipeline}
@@ -493,20 +508,6 @@ export default function AdminPage() {
                     onChange={(value) => setWeeklyMetric({ ...weeklyMetric, contenidoPublicado: value })}
                     icon={icons.contenido}
                     color="#8b5cf6"
-                  />
-                  <NumberInput
-                    label="Leads Entrantes"
-                    value={weeklyMetric.leadsEntrantes}
-                    onChange={(value) => setWeeklyMetric({ ...weeklyMetric, leadsEntrantes: value })}
-                    icon={icons.leads}
-                    color="#ec4899"
-                  />
-                  <NumberInput
-                    label="Entregas Pendientes"
-                    value={weeklyMetric.entregasPendientes}
-                    onChange={(value) => setWeeklyMetric({ ...weeklyMetric, entregasPendientes: value })}
-                    icon={icons.entregas}
-                    color="#ef4444"
                   />
                 </div>
               </div>
@@ -554,13 +555,22 @@ export default function AdminPage() {
                     color="#10b981"
                   />
                   <NumberInput
-                    label="MRR"
+                    label="MRR Clientes"
                     value={monthlyScorecard.mrr}
                     onChange={(value) => setMonthlyScorecard({ ...monthlyScorecard, mrr: value })}
                     icon={icons.mrr}
                     prefix="$"
                     step={100}
                     color="#3b82f6"
+                  />
+                  <NumberInput
+                    label="MRR Comunidad"
+                    value={monthlyScorecard.mrrComunidad || 0}
+                    onChange={(value) => setMonthlyScorecard({ ...monthlyScorecard, mrrComunidad: value })}
+                    icon={icons.comunidad}
+                    prefix="$"
+                    step={100}
+                    color="#06b6d4"
                   />
                   <NumberInput
                     label="Clientes Nuevos"

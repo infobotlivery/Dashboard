@@ -6,6 +6,7 @@ import { GlassCard } from '../GlassCard'
 import { Button } from '@/components/ui/Button'
 import NumberInput from '@/components/ui/NumberInput'
 import { ProgressBar } from '../ProgressBar'
+import { financeAuthFetch } from '@/lib/authFetch'
 import type { MonthlyGoal, FinanceSummary } from '@/types'
 
 interface MetasTabProps {
@@ -69,7 +70,7 @@ export function MetasTab({ summary, onMessage }: MetasTabProps) {
   useEffect(() => {
     async function loadGoals() {
       try {
-        const res = await fetch('/api/finance/goals')
+        const res = await financeAuthFetch('/api/finance/goals')
         const data = await res.json()
         if (data.data) setGoals(data.data)
       } catch (err) {
@@ -106,10 +107,19 @@ export function MetasTab({ summary, onMessage }: MetasTabProps) {
   async function handleSave() {
     setSaving(true)
     try {
-      const monthDate = new Date(selectedMonth + '-01')
-      const res = await fetch('/api/finance/goals', {
+      // Validación: al menos una meta debe ser > 0
+      if (incomeTarget <= 0 && expenseLimit <= 0 && savingsTarget <= 0) {
+        onMessage('error', 'Define al menos una meta con valor mayor a 0')
+        setSaving(false)
+        return
+      }
+
+      // Fix timezone: usar Date.UTC para evitar problemas de zona horaria
+      const [year, month] = selectedMonth.split('-')
+      const monthDate = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, 1))
+
+      const res = await financeAuthFetch('/api/finance/goals', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           month: monthDate.toISOString(),
           incomeTarget,
@@ -123,7 +133,7 @@ export function MetasTab({ summary, onMessage }: MetasTabProps) {
 
       if (data.success) {
         // Recargar metas
-        const goalsRes = await fetch('/api/finance/goals')
+        const goalsRes = await financeAuthFetch('/api/finance/goals')
         const goalsData = await goalsRes.json()
         if (goalsData.data) setGoals(goalsData.data)
         onMessage('success', 'Meta guardada exitosamente')
@@ -131,7 +141,7 @@ export function MetasTab({ summary, onMessage }: MetasTabProps) {
         onMessage('error', data.error || 'Error al guardar')
       }
     } catch {
-      onMessage('error', 'Error de conexion')
+      onMessage('error', 'Error de conexión')
     } finally {
       setSaving(false)
     }

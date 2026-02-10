@@ -29,11 +29,11 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
   const targets = {
     mrr: { min: 875, goal: 1500 },
     mrrComunidad: { min: 500, goal: 1000 },
-    pipelineActivo: { min: 5, goal: 5 },
-    cierresSemana: { min: 1000, goal: 1000 },
-    contenidoPublicado: { min: 3, goal: 5 },
     leadsEntrantes: { min: 5, goal: 5 },
-    entregasPendientes: { max: 3 }
+    personasAgendadas: { min: 3, goal: 5 },
+    pipelineActivo: { min: 3, goal: 5 },
+    cierresSemana: { min: 1000, goal: 1000 },
+    contenidoPublicado: { min: 3, goal: 5 }
   }
 
   const getTrend = (value: number, target: { min?: number; max?: number; goal?: number }) => {
@@ -102,12 +102,36 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
         />
 
         <MetricCard
+          title="Leads Entrantes"
+          value={metric.leadsEntrantes}
+          subtitle="Nuevas consultas"
+          target={`${targets.leadsEntrantes.min}+/semana`}
+          trend={getTrend(metric.leadsEntrantes, targets.leadsEntrantes)}
+          delay={0.1}
+          icon={<span>📥</span>}
+          currentValue={metric.leadsEntrantes}
+          targetValue={targets.leadsEntrantes.goal}
+        />
+
+        <MetricCard
+          title="Personas Agendadas"
+          value={metric.personasAgendadas || 0}
+          subtitle="Reuniones confirmadas"
+          target={`${targets.personasAgendadas.min}+/semana`}
+          trend={getTrend(metric.personasAgendadas || 0, targets.personasAgendadas)}
+          delay={0.15}
+          icon={<span>📅</span>}
+          currentValue={metric.personasAgendadas || 0}
+          targetValue={targets.personasAgendadas.goal}
+        />
+
+        <MetricCard
           title="Propuestas Enviadas"
           value={metric.pipelineActivo}
           subtitle="Sobre la mesa"
-          target={`${targets.pipelineActivo.min}+`}
+          target={`${targets.pipelineActivo.min}+/semana`}
           trend={getTrend(metric.pipelineActivo, targets.pipelineActivo)}
-          delay={0.1}
+          delay={0.2}
           icon={<span>📨</span>}
           currentValue={metric.pipelineActivo}
           targetValue={targets.pipelineActivo.goal}
@@ -119,7 +143,7 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           subtitle="Ventas cerradas"
           target={`${formatCurrency(targets.cierresSemana.min)}+/semana`}
           trend={getTrend(metric.cierresSemana, targets.cierresSemana)}
-          delay={0.15}
+          delay={0.25}
           icon={<span>🎯</span>}
           currentValue={metric.cierresSemana}
           targetValue={targets.cierresSemana.goal}
@@ -132,34 +156,10 @@ export function WeeklyDashboard({ metric }: WeeklyDashboardProps) {
           subtitle="Piezas creadas"
           target={`${targets.contenidoPublicado.min}-${targets.contenidoPublicado.goal}/semana`}
           trend={getTrend(metric.contenidoPublicado, targets.contenidoPublicado)}
-          delay={0.2}
+          delay={0.3}
           icon={<span>📝</span>}
           currentValue={metric.contenidoPublicado}
           targetValue={targets.contenidoPublicado.goal}
-        />
-
-        <MetricCard
-          title="Leads Entrantes"
-          value={metric.leadsEntrantes}
-          subtitle="Nuevas consultas"
-          target={`${targets.leadsEntrantes.min}+/semana`}
-          trend={getTrend(metric.leadsEntrantes, targets.leadsEntrantes)}
-          delay={0.25}
-          icon={<span>📥</span>}
-          currentValue={metric.leadsEntrantes}
-          targetValue={targets.leadsEntrantes.goal}
-        />
-
-        <MetricCard
-          title="Entregas Pendientes"
-          value={metric.entregasPendientes}
-          subtitle="Proyectos sin cerrar"
-          target={`Máximo ${targets.entregasPendientes.max}`}
-          trend={getTrend(metric.entregasPendientes, targets.entregasPendientes)}
-          delay={0.3}
-          icon={<span>📦</span>}
-          currentValue={Math.max(0, targets.entregasPendientes.max - metric.entregasPendientes + 1)}
-          targetValue={targets.entregasPendientes.max + 1}
         />
       </div>
     </div>

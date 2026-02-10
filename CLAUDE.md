@@ -529,6 +529,66 @@ Content-Type: application/json
 
 ---
 
+## Skills Disponibles (Herramientas de Claude Code)
+
+Claude Code tiene acceso a skills personalizadas instaladas en `~/.claude/skills/`. Estas son herramientas especializadas que mejoran la calidad del trabajo. Se pueden usar de dos formas:
+
+### Skills Automáticas (Claude las usa cuando son relevantes)
+
+| Skill | Invocación | Cuándo se activa |
+|-------|-----------|-----------------|
+| `api-conventions` | Automática | Al diseñar o implementar endpoints REST |
+| `frontend-design` | Automática | Al crear componentes UI, páginas o estilos con Tailwind |
+| `planning-with-files` | Automática | En tareas complejas multi-paso (crea task_plan.md, findings.md, progress.md) |
+| `explain-code` | Automática | Al explicar cómo funciona el código (diagramas ASCII + analogías) |
+| `deep-research` | Automática | Al investigar arquitectura, dependencias o patrones del codebase |
+| `code-review` | Automática | Al revisar código (seguridad, rendimiento, legibilidad) |
+| `humanizer` | Automática | Al reescribir texto para que suene natural (elimina patrones IA) |
+| `security-audit` | Automática | Al auditar seguridad (OWASP Top 10, inyecciones, secretos) |
+| `git-workflow` | Automática | Al ayudar con Git avanzado (rebase, cherry-pick, bisect, conflictos) |
+| `performance-profiler` | Automática | Al analizar rendimiento (N+1 queries, re-renders, memory leaks) |
+
+### Skills Manuales (el usuario las invoca con `/comando`)
+
+| Comando | Qué hace | Ejemplo de uso |
+|---------|----------|---------------|
+| `/fix-issue [número]` | Arregla un issue de GitHub automáticamente | `/fix-issue 42` |
+| `/pr-summary [número]` | Resume un PR con diff y comentarios en vivo | `/pr-summary 15` |
+| `/smart-commit` | Genera commit con Conventional Commits (feat/fix/refactor) | `/smart-commit` |
+| `/webapp-testing [url]` | Testea app web con Playwright (screenshots + interacciones) | `/webapp-testing localhost:3000` |
+| `/codebase-visualizer` | Genera HTML interactivo con árbol visual del proyecto | `/codebase-visualizer` |
+| `/d3-visualization [tipo] [datos]` | Crea gráficos interactivos D3.js | `/d3-visualization bar ventas-mensuales` |
+| `/mcp-builder [servicio]` | Guía para crear servidor MCP de integración | `/mcp-builder kommo` |
+
+### Skills más relevantes para este proyecto
+
+- **`security-audit`**: Para auditorías como la de 2026-02-05 (middleware, secretos, N+1)
+- **`performance-profiler`**: Para detectar N+1 queries en APIs de finance/history
+- **`code-review`**: Para revisiones estructuradas antes de deploys a producción
+- **`api-conventions`**: Se activa automáticamente al trabajar con los 17 endpoints REST
+- **`frontend-design`**: Al crear componentes con glassmorphism y Tailwind
+- **`/fix-issue`**: Para arreglar issues del repo https://github.com/infobotlivery/Dashboard
+- **`/pr-summary`**: Para resumir PRs antes de merge
+- **`/smart-commit`**: Para commits consistentes con Conventional Commits
+- **`/webapp-testing`**: Para testear el dashboard en localhost:3000 con Playwright
+- **`/d3-visualization`**: Para generar gráficos de métricas o historial financiero
+
+### Cómo solicitar una skill
+
+```
+# Automáticas: solo pedir lo que necesitas
+"Hazme una auditoría de seguridad del middleware"  → activa security-audit
+"Revisa el código de finance/summary"              → activa code-review
+"Analiza el rendimiento de las queries"            → activa performance-profiler
+
+# Manuales: usar el comando /
+/fix-issue 23
+/smart-commit
+/webapp-testing http://localhost:3000/finanzas
+```
+
+---
+
 ## REGLAS DE DESARROLLO (IMPORTANTE)
 
 ### Regla #1: No romper lo que funciona

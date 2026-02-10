@@ -11,10 +11,10 @@ export interface WeeklyMetric {
   mrr: number
   mrrComunidad: number
   pipelineActivo: number
+  personasAgendadas?: number
   cierresSemana: number
   contenidoPublicado: number
   leadsEntrantes: number
-  entregasPendientes: number
 }
 
 export interface MonthlyScorecard {
@@ -22,6 +22,7 @@ export interface MonthlyScorecard {
   month: string
   facturacionTotal: number
   mrr: number
+  mrrComunidad?: number
   clientesNuevos: number
   clientesPerdidos: number
   enigmaVendidos: number
