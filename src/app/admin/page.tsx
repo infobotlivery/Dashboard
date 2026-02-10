@@ -455,24 +455,6 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <NumberInput
-                    label="MRR Clientes"
-                    value={weeklyMetric.mrr}
-                    onChange={(value) => setWeeklyMetric({ ...weeklyMetric, mrr: value })}
-                    icon={icons.mrr}
-                    prefix="$"
-                    step={100}
-                    color="#10b981"
-                  />
-                  <NumberInput
-                    label="MRR Comunidad"
-                    value={weeklyMetric.mrrComunidad}
-                    onChange={(value) => setWeeklyMetric({ ...weeklyMetric, mrrComunidad: value })}
-                    icon={icons.comunidad}
-                    prefix="$"
-                    step={100}
-                    color="#06b6d4"
-                  />
-                  <NumberInput
                     label="Leads Entrantes"
                     value={weeklyMetric.leadsEntrantes}
                     onChange={(value) => setWeeklyMetric({ ...weeklyMetric, leadsEntrantes: value })}
