@@ -6,14 +6,14 @@ import { verifyApiKey, errorResponse, successResponse, getWeekStart } from '@/li
 // TRIPLE INTEGRACIÓN KOMMO CRM
 // ============================================================
 // Este webhook recibe notificaciones de 3 etapas diferentes:
-// 1. Etapa "Calificado" (42923938) → Incrementa leadsEntrantes
-// 2. Etapa "Reunión Agendada" (42923942) → Incrementa personasAgendadas
-// 3. Etapa "Propuesta Enviada" (42923946) → Incrementa pipelineActivo
+// 1. Etapa "EN PROCESO DE AGENDA" (64363955) → Incrementa leadsEntrantes
+// 2. Etapa "SE LE ENVIÓ EL LINK DE AGENDA" (90652680) → Incrementa personasAgendadas
+// 3. Etapa "SE LE ENVIO PROPUESTA" (87360808) → Incrementa pipelineActivo
 
 const STAGE_MAPPING = {
-  '42923938': { metric: 'leadsEntrantes', label: 'Leads Entrantes' },
-  '42923942': { metric: 'personasAgendadas', label: 'Personas Agendadas' },
-  '42923946': { metric: 'pipelineActivo', label: 'Propuestas Enviadas' }
+  '64363955': { metric: 'leadsEntrantes', label: 'Leads Entrantes' },
+  '90652680': { metric: 'personasAgendadas', label: 'Personas Agendadas' },
+  '87360808': { metric: 'pipelineActivo', label: 'Propuestas Enviadas' }
 } as const
 
 type MetricName = 'leadsEntrantes' | 'personasAgendadas' | 'pipelineActivo'
