@@ -114,9 +114,10 @@ model Expense {
   startDate    DateTime         @default(now())       // Cuándo empezó
   endDate      DateTime?                              // Si terminó (para recurrentes cancelados)
   notes        String?
-  billingDay   Int?                                   // Día del mes (1-31), null = sin fecha definida
-  paidByClient String?                               // Nombre del cliente que paga, null = lo pagas tú
-  createdAt    DateTime         @default(now())
+  billingDay       Int?                                   // Día del mes (1-31), null = sin fecha definida
+  paidByClient     String?                               // Nombre del cliente que paga, null = lo pagas tú
+  lastPaymentDate  DateTime?                             // Última fecha en que se registró el pago
+  createdAt        DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
   @@index([type, endDate])

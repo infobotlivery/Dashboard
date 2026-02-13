@@ -105,6 +105,24 @@ export async function GET() {
     // 4. Clientes activos
     const activeClientsCount = activeSales.length
 
+    // 5. Calcular gastos del mes anterior para comparativa
+    const prevMonthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1)
+    const prevMonthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth(), 0, 23, 59, 59, 999)
+
+    const prevActiveExpenses = await prisma.expense.findMany({
+      where: {
+        OR: [
+          { endDate: null },
+          { endDate: { gte: prevMonthEnd } }
+        ],
+        startDate: { lte: prevMonthEnd }
+      }
+    })
+
+    const prevTotalExpenses = prevActiveExpenses.reduce((sum, e) => sum + e.amount, 0)
+    const prevFixedExpenses = prevActiveExpenses.filter(e => e.type === 'fixed').reduce((sum, e) => sum + e.amount, 0)
+    const prevRecurringExpenses = prevActiveExpenses.filter(e => e.type === 'recurring').reduce((sum, e) => sum + e.amount, 0)
+
     const summary = {
       month: monthStart.toISOString(),
       income: {
@@ -125,6 +143,11 @@ export async function GET() {
           category: e.category.name,
           categoryColor: e.category.color
         }))
+      },
+      previousMonth: {
+        totalExpenses: prevTotalExpenses,
+        fixedExpenses: prevFixedExpenses,
+        recurringExpenses: prevRecurringExpenses
       },
       netProfit,
       activeClients: activeClientsCount

@@ -38,7 +38,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, amount, type, categoryId, startDate, notes, billingDay, paidByClient } = body
+    const { name, amount, type, categoryId, startDate, notes, billingDay, paidByClient, lastPaymentDate } = body
 
     if (!name || !amount || !categoryId) {
       return NextResponse.json(
@@ -67,7 +67,8 @@ export async function POST(request: Request) {
         startDate: startDate ? new Date(startDate) : new Date(),
         notes: notes || null,
         billingDay: billingDay ? parseInt(billingDay) : null,
-        paidByClient: paidByClient?.trim() || null
+        paidByClient: paidByClient?.trim() || null,
+        lastPaymentDate: lastPaymentDate ? new Date(lastPaymentDate) : null
       },
       include: {
         category: true
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { id, name, amount, type, categoryId, startDate, endDate, notes, billingDay, paidByClient } = body
+    const { id, name, amount, type, categoryId, startDate, endDate, notes, billingDay, paidByClient, lastPaymentDate } = body
 
     if (!id) {
       return NextResponse.json(
@@ -119,7 +120,8 @@ export async function PUT(request: Request) {
         ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
         ...(notes !== undefined && { notes: notes || null }),
         ...(billingDay !== undefined && { billingDay: billingDay ? parseInt(billingDay) : null }),
-        ...(paidByClient !== undefined && { paidByClient: paidByClient?.trim() || null })
+        ...(paidByClient !== undefined && { paidByClient: paidByClient?.trim() || null }),
+        ...(lastPaymentDate !== undefined && { lastPaymentDate: lastPaymentDate ? new Date(lastPaymentDate) : null })
       },
       include: {
         category: true
@@ -131,6 +133,39 @@ export async function PUT(request: Request) {
     console.error('Error updating expense:', error)
     return NextResponse.json(
       { success: false, error: 'Error al actualizar gasto' },
+      { status: 500 }
+    )
+  }
+}
+
+// PATCH - Marcar como pagado (acción rápida)
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json()
+    const { id } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'ID requerido' },
+        { status: 400 }
+      )
+    }
+
+    const expense = await prisma.expense.update({
+      where: { id: parseInt(id) },
+      data: {
+        lastPaymentDate: new Date()
+      },
+      include: {
+        category: true
+      }
+    })
+
+    return NextResponse.json({ success: true, data: expense })
+  } catch (error) {
+    console.error('Error marking expense as paid:', error)
+    return NextResponse.json(
+      { success: false, error: 'Error al marcar como pagado' },
       { status: 500 }
     )
   }

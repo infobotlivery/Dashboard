@@ -92,6 +92,11 @@ export interface FinanceSummary {
     byCategory: Record<string, { total: number; color: string; items: { name: string; amount: number }[] }>
     list?: { id: number; name: string; amount: number; type: string; category: string; categoryColor: string }[]
   }
+  previousMonth?: {
+    totalExpenses: number
+    fixedExpenses: number
+    recurringExpenses: number
+  }
   netProfit: number
   activeClients: number
 }
@@ -114,6 +119,8 @@ export interface Category {
   _count: { expenses: number }
 }
 
+export type PaymentStatus = 'expired' | 'paid' | 'upcoming' | 'no_date'
+
 export interface Expense {
   id: number
   name: string
@@ -126,6 +133,7 @@ export interface Expense {
   notes: string | null
   billingDay: number | null
   paidByClient: string | null
+  lastPaymentDate: string | null
 }
 
 export interface UpcomingPayment {

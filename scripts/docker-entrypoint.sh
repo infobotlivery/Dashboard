@@ -247,6 +247,16 @@ else
     echo "Columna paidByClient ya existe"
 fi
 
+# Verificar y agregar columna lastPaymentDate a Expense si no existe
+echo "=== Verificando columna lastPaymentDate en Expense ==="
+if ! sqlite3 "$DB_PATH" "PRAGMA table_info(Expense);" 2>/dev/null | grep -q "lastPaymentDate"; then
+    echo "Columna lastPaymentDate NO existe - AGREGANDO..."
+    sqlite3 "$DB_PATH" "ALTER TABLE Expense ADD COLUMN lastPaymentDate DATETIME;" 2>&1 || echo "Error agregando lastPaymentDate"
+    echo "Columna lastPaymentDate agregada"
+else
+    echo "Columna lastPaymentDate ya existe"
+fi
+
 # Verificar y crear tabla MonthlyGoal si no existe
 echo "=== Verificando tabla MonthlyGoal ==="
 if ! sqlite3 "$DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND name='MonthlyGoal';" 2>/dev/null | grep -q "MonthlyGoal"; then
@@ -268,6 +278,25 @@ else
     echo "Tabla MonthlyGoal ya existe"
 fi
 
+# =====================================================
+# SEED CATEGORÍAS PREDEFINIDAS
+# =====================================================
+echo "=== Verificando categorías predefinidas ==="
+CATEGORY_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM ExpenseCategory;" 2>/dev/null || echo "0")
+if [ "$CATEGORY_COUNT" = "0" ]; then
+    echo "No hay categorías - INSERTANDO predefinidas..."
+    sqlite3 "$DB_PATH" "
+    INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Software y Herramientas', '#8B5CF6', datetime('now'));
+    INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Mercadeo y Publicidad', '#F97316', datetime('now'));
+    INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Nómina y Colaboradores', '#06B6D4', datetime('now'));
+    INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Servicios Operativos', '#10B981', datetime('now'));
+    INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Otros', '#6B7280', datetime('now'));
+    " 2>&1 || echo "Error insertando categorías predefinidas"
+    echo "Categorías predefinidas insertadas"
+else
+    echo "Ya hay $CATEGORY_COUNT categorías en la base de datos"
+fi
+
 echo "=== Estructura de tablas financieras ==="
 sqlite3 "$DB_PATH" "PRAGMA table_info(ExpenseCategory);" 2>/dev/null || echo "No se pudo leer ExpenseCategory"
 sqlite3 "$DB_PATH" "PRAGMA table_info(Expense);" 2>/dev/null || echo "No se pudo leer Expense"
@@ -283,6 +312,7 @@ sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS SalesClose_createdAt_idx ON Sales
 sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS SalesClose_cancelledAt_idx ON SalesClose(cancelledAt);" 2>&1 || echo "Error creando index SalesClose_cancelledAt"
 sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS Expense_type_endDate_idx ON Expense(type, endDate);" 2>&1 || echo "Error creando index Expense_type_endDate"
 sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS Expense_startDate_idx ON Expense(startDate);" 2>&1 || echo "Error creando index Expense_startDate"
+sqlite3 "$DB_PATH" "CREATE INDEX IF NOT EXISTS Expense_lastPaymentDate_idx ON Expense(lastPaymentDate);" 2>&1 || echo "Error creando index Expense_lastPaymentDate"
 echo "Indexes verificados"
 
 # Asegurar permisos de archivos de base de datos

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import NumberInput from '@/components/ui/NumberInput'
-import type { Category, Expense, UpcomingPayment } from '@/types'
+import type { Category, Expense, UpcomingPayment, PaymentStatus, FinanceSummary } from '@/types'
 
 interface NewExpense {
   name: string
@@ -29,13 +29,15 @@ interface GastosTabProps {
   setEditingExpenseId: (id: number | null) => void
   onSave: () => void
   onDelete: (id: number) => void
+  onMarkPaid: (id: number) => void
   saving: boolean
   upcomingPayments: UpcomingPayment[]
   upcomingTotal: number
   upcomingLoading: boolean
+  summary: FinanceSummary | null
 }
 
-// Iconos para categorías
+// Iconos para categorias
 const categoryIcons: Record<string, string> = {
   'herramientas': '🛠️',
   'marketing': '📣',
@@ -52,6 +54,12 @@ const categoryIcons: Record<string, string> = {
   'impuestos': '📋',
   'legal': '⚖️',
   'hosting': '☁️',
+  'mercadeo': '📣',
+  'publicidad': '📢',
+  'nomina': '👥',
+  'colaboradores': '🤝',
+  'operativos': '⚙️',
+  'otros': '📁',
   'default': '📁'
 }
 
@@ -66,6 +74,95 @@ function getCategoryIcon(name: string): string {
 type FilterType = 'all' | 'recurring' | 'fixed'
 type FilterStatus = 'all' | 'active' | 'cancelled'
 type ViewMode = 'cards' | 'list'
+type SubTab = 'all' | 'fixed' | 'variable'
+
+const MONTHS = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+]
+
+function getPaymentStatus(expense: Expense): { status: PaymentStatus; daysRemaining: number | null } {
+  if (!expense.billingDay) {
+    return { status: 'no_date', daysRemaining: null }
+  }
+
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth()
+  const today = now.getDate()
+
+  // Check if lastPaymentDate is in the current billing cycle
+  if (expense.lastPaymentDate) {
+    const lastPaid = new Date(expense.lastPaymentDate)
+    const billingDay = expense.billingDay
+
+    // Current cycle: from previous billingDay to next billingDay
+    let cycleStart: Date
+    let cycleEnd: Date
+
+    if (today >= billingDay) {
+      // We're past billing day this month, cycle is this month's billingDay to next month's
+      cycleStart = new Date(currentYear, currentMonth, billingDay)
+      cycleEnd = new Date(currentYear, currentMonth + 1, billingDay)
+    } else {
+      // We haven't reached billing day, cycle is last month's billingDay to this month's
+      cycleStart = new Date(currentYear, currentMonth - 1, billingDay)
+      cycleEnd = new Date(currentYear, currentMonth, billingDay)
+    }
+
+    if (lastPaid >= cycleStart && lastPaid < cycleEnd) {
+      return { status: 'paid', daysRemaining: null }
+    }
+  }
+
+  // Not paid this cycle
+  const billingDay = expense.billingDay
+  if (today > billingDay) {
+    // Billing day already passed this month and not paid
+    return { status: 'expired', daysRemaining: 0 }
+  } else {
+    // Billing day hasn't arrived yet
+    const daysRemaining = billingDay - today
+    return { status: 'upcoming', daysRemaining }
+  }
+}
+
+function getPaymentStatusBadge(status: PaymentStatus, daysRemaining: number | null) {
+  switch (status) {
+    case 'paid':
+      return { label: 'Pagado', bgClass: 'bg-green-500/20', textClass: 'text-green-400' }
+    case 'expired':
+      return { label: 'Expirado', bgClass: 'bg-red-500/20', textClass: 'text-red-400' }
+    case 'upcoming':
+      return { label: `${daysRemaining}d restantes`, bgClass: 'bg-blue-500/20', textClass: 'text-blue-400' }
+    case 'no_date':
+    default:
+      return null
+  }
+}
+
+function formatPaymentDate(billingDay: number | null): string {
+  if (!billingDay) return '-'
+  const now = new Date()
+  const month = now.toLocaleDateString('es-ES', { month: 'short' })
+  const year = now.getFullYear()
+  return `${String(billingDay).padStart(2, '0')}, ${month} ${year}`
+}
+
+function formatLastPaymentDate(dateStr: string | null): string {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = d.toLocaleDateString('es-ES', { month: 'short' })
+  const year = d.getFullYear()
+  return `${day}, ${month} ${year}`
+}
+
+function calcPercentChange(current: number, previous: number): { value: number; increased: boolean } {
+  if (previous === 0) return { value: 0, increased: false }
+  const change = ((current - previous) / previous) * 100
+  return { value: Math.abs(change), increased: change > 0 }
+}
 
 export function GastosTab({
   expenses,
@@ -76,16 +173,21 @@ export function GastosTab({
   setEditingExpenseId,
   onSave,
   onDelete,
+  onMarkPaid,
   saving,
   upcomingPayments,
   upcomingTotal,
-  upcomingLoading
+  upcomingLoading,
+  summary
 }: GastosTabProps) {
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterType, setFilterType] = useState<FilterType>('all')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [showForm, setShowForm] = useState(false)
+  const [subTab, setSubTab] = useState<SubTab>('all')
+  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth())
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear())
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-MX', {
@@ -101,11 +203,23 @@ export function GastosTab({
       if (filterType !== 'all' && expense.type !== filterType) return false
       if (filterStatus === 'active' && expense.endDate) return false
       if (filterStatus === 'cancelled' && !expense.endDate) return false
+
+      // Sub-tab filter
+      if (subTab === 'fixed' && expense.type !== 'recurring') return false
+      if (subTab === 'variable' && expense.type !== 'fixed') return false
+
+      // Month/Year filter: check if expense was active in the selected month
+      const selectedStart = new Date(filterYear, filterMonth, 1)
+      const selectedEnd = new Date(filterYear, filterMonth + 1, 0, 23, 59, 59, 999)
+      const expStart = new Date(expense.startDate)
+      if (expStart > selectedEnd) return false
+      if (expense.endDate && new Date(expense.endDate) < selectedStart) return false
+
       return true
     })
-  }, [expenses, filterCategory, filterType, filterStatus])
+  }, [expenses, filterCategory, filterType, filterStatus, subTab, filterMonth, filterYear])
 
-  // Estadísticas
+  // Estadisticas
   const stats = useMemo(() => {
     const active = expenses.filter(e => !e.endDate)
     const recurring = active.filter(e => e.type === 'recurring')
@@ -119,6 +233,12 @@ export function GastosTab({
       cancelled: expenses.filter(e => e.endDate).length
     }
   }, [expenses])
+
+  // % change calculations
+  const prevMonth = summary?.previousMonth
+  const totalChange = calcPercentChange(stats.totalAmount, prevMonth?.totalExpenses ?? 0)
+  const fixedChange = calcPercentChange(stats.recurringAmount, prevMonth?.recurringExpenses ?? 0)
+  const variableChange = calcPercentChange(stats.fixedAmount, prevMonth?.fixedExpenses ?? 0)
 
   const handleEdit = (expense: Expense) => {
     setEditingExpenseId(expense.id)
@@ -150,14 +270,98 @@ export function GastosTab({
 
   return (
     <div className="space-y-6">
-      {/* Próximos Pagos */}
+      {/* Proximos Pagos */}
       <UpcomingPayments
         payments={upcomingPayments}
         total={upcomingTotal}
         loading={upcomingLoading}
       />
 
-      {/* Estadísticas rápidas */}
+      {/* 3 Tarjetas resumen estilo Fina Partner */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Gastos Totales */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="glass-card p-5"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-400">Gastos Totales</p>
+            {prevMonth && prevMonth.totalExpenses > 0 ? (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                totalChange.increased
+                  ? 'bg-red-500/20 text-red-400'
+                  : 'bg-green-500/20 text-green-400'
+              }`}>
+                {totalChange.increased ? '▲' : '▼'} {totalChange.value.toFixed(1)}%
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400">
+                -- 0.00
+              </span>
+            )}
+          </div>
+          <p className="text-3xl font-bold text-red-400">{formatCurrency(stats.totalAmount)}</p>
+          <p className="text-xs text-gray-500 mt-1">vs mes anterior</p>
+        </motion.div>
+
+        {/* Gastos Fijos (type=recurring) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="glass-card p-5"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-400">Gastos Fijos</p>
+            {prevMonth && prevMonth.recurringExpenses > 0 ? (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                fixedChange.increased
+                  ? 'bg-red-500/20 text-red-400'
+                  : 'bg-green-500/20 text-green-400'
+              }`}>
+                {fixedChange.increased ? '▲' : '▼'} {fixedChange.value.toFixed(1)}%
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400">
+                -- 0.00
+              </span>
+            )}
+          </div>
+          <p className="text-3xl font-bold text-purple-400">{formatCurrency(stats.recurringAmount)}</p>
+          <p className="text-xs text-gray-500 mt-1">Mensuales recurrentes</p>
+        </motion.div>
+
+        {/* Gastos Variables (type=fixed) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="glass-card p-5"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-400">Gastos Variables</p>
+            {prevMonth && prevMonth.fixedExpenses > 0 ? (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                variableChange.increased
+                  ? 'bg-red-500/20 text-red-400'
+                  : 'bg-green-500/20 text-green-400'
+              }`}>
+                {variableChange.increased ? '▲' : '▼'} {variableChange.value.toFixed(1)}%
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400">
+                -- 0.00
+              </span>
+            )}
+          </div>
+          <p className="text-3xl font-bold text-orange-400">{formatCurrency(stats.fixedAmount)}</p>
+          <p className="text-xs text-gray-500 mt-1">Pagos unicos</p>
+        </motion.div>
+      </div>
+
+      {/* 4 Estadisticas rapidas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -188,7 +392,7 @@ export function GastosTab({
             </div>
             <div>
               <p className="text-2xl font-bold text-purple-500">{formatCurrency(stats.recurringAmount)}</p>
-              <p className="text-xs text-gray-400">Recurrentes</p>
+              <p className="text-xs text-gray-400">Fijos</p>
             </div>
           </div>
         </motion.div>
@@ -205,7 +409,7 @@ export function GastosTab({
             </div>
             <div>
               <p className="text-2xl font-bold text-orange-500">{formatCurrency(stats.fixedAmount)}</p>
-              <p className="text-xs text-gray-400">Fijos</p>
+              <p className="text-xs text-gray-400">Variables</p>
             </div>
           </div>
         </motion.div>
@@ -228,7 +432,28 @@ export function GastosTab({
         </motion.div>
       </div>
 
-      {/* Botón agregar y filtros */}
+      {/* Sub-tabs: Gastos fijos / Gastos variables */}
+      <div className="flex gap-2 border-b border-white/10 pb-0">
+        {[
+          { key: 'all' as SubTab, label: 'Todos' },
+          { key: 'fixed' as SubTab, label: 'Gastos fijos' },
+          { key: 'variable' as SubTab, label: 'Gastos variables' }
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setSubTab(tab.key)}
+            className={`px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-[1px] ${
+              subTab === tab.key
+                ? 'border-[#44e1fc] text-[#44e1fc]'
+                : 'border-transparent text-gray-400 hover:text-white'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Boton agregar y filtros */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <motion.button
           whileHover={{ scale: 1.02 }}
@@ -245,7 +470,29 @@ export function GastosTab({
         </motion.button>
 
         <div className="flex flex-wrap gap-2">
-          {/* Filtro categoría */}
+          {/* Filtro mes */}
+          <select
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(parseInt(e.target.value))}
+            className="dark-select px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none cursor-pointer"
+          >
+            {MONTHS.map((m, i) => (
+              <option key={i} value={i}>{m}</option>
+            ))}
+          </select>
+
+          {/* Filtro anio */}
+          <select
+            value={filterYear}
+            onChange={(e) => setFilterYear(parseInt(e.target.value))}
+            className="dark-select px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none cursor-pointer"
+          >
+            {[2025, 2026, 2027].map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+
+          {/* Filtro categoria */}
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
@@ -264,8 +511,8 @@ export function GastosTab({
             className="dark-select px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none cursor-pointer"
           >
             <option value="all">Todos los tipos</option>
-            <option value="recurring">Recurrentes</option>
-            <option value="fixed">Fijos</option>
+            <option value="recurring">Fijos</option>
+            <option value="fixed">Variables</option>
           </select>
 
           {/* Filtro estado */}
@@ -377,8 +624,8 @@ export function GastosTab({
                       value={newExpense.type}
                       onChange={(value) => setNewExpense({ ...newExpense, type: value })}
                       options={[
-                        { value: 'recurring', label: '🔄 Recurrente (mensual)' },
-                        { value: 'fixed', label: '📌 Fijo (pago único)' }
+                        { value: 'recurring', label: 'Fijo (mensual)' },
+                        { value: 'fixed', label: 'Variable (pago unico)' }
                       ]}
                     />
                   </div>
@@ -430,214 +677,244 @@ export function GastosTab({
           /* Vista Cards */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <AnimatePresence>
-              {filteredExpenses.map((expense, index) => (
-                <motion.div
-                  key={expense.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: index * 0.03 }}
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  className="relative group"
-                >
-                  {/* Glow */}
-                  <div
-                    className="absolute inset-0 rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity"
-                    style={{ backgroundColor: expense.category.color }}
-                  />
+              {filteredExpenses.map((expense, index) => {
+                const { status, daysRemaining } = getPaymentStatus(expense)
+                const badge = getPaymentStatusBadge(status, daysRemaining)
 
-                  <div
-                    className={`relative rounded-2xl p-5 border transition-all ${
-                      expense.endDate ? 'opacity-60' : ''
-                    }`}
-                    style={{
-                      backgroundColor: `${expense.category.color}10`,
-                      borderColor: `${expense.category.color}30`
-                    }}
+                return (
+                  <motion.div
+                    key={expense.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: index * 0.03 }}
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    className="relative group"
                   >
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-11 h-11 rounded-xl flex items-center justify-center text-xl"
-                          style={{ backgroundColor: `${expense.category.color}25` }}
-                        >
-                          {getCategoryIcon(expense.category.name)}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-white">{expense.name}</p>
-                          <p className="text-xs text-gray-400">{expense.category.name}</p>
-                        </div>
-                      </div>
-                      {expense.endDate && (
-                        <span className="px-2 py-1 rounded-lg bg-red-500/20 text-red-400 text-xs">
-                          Cancelado
-                        </span>
-                      )}
-                    </div>
+                    {/* Glow */}
+                    <div
+                      className="absolute inset-0 rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity"
+                      style={{ backgroundColor: expense.category.color }}
+                    />
 
-                    {/* Monto */}
-                    <div className="flex items-baseline gap-2 mb-3">
-                      <span className="text-2xl font-bold text-red-400">
-                        {formatCurrency(expense.amount)}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {expense.type === 'recurring' ? '/mes' : 'único'}
-                      </span>
-                    </div>
-
-                    {/* Tags */}
-                    <div className="flex flex-wrap items-center gap-2 mb-4">
-                      <span className={`px-2 py-1 rounded-lg text-xs ${
-                        expense.type === 'recurring'
-                          ? 'bg-purple-500/20 text-purple-400'
-                          : 'bg-orange-500/20 text-orange-400'
-                      }`}>
-                        {expense.type === 'recurring' ? '🔄 Recurrente' : '📌 Fijo'}
-                      </span>
-                      {!expense.endDate && (
-                        <span className="px-2 py-1 rounded-lg bg-green-500/20 text-green-400 text-xs">
-                          ✓ Activo
-                        </span>
-                      )}
-                      {expense.billingDay && (
-                        <span className="px-2 py-1 rounded-lg bg-blue-500/20 text-blue-400 text-xs">
-                          📅 Dia {expense.billingDay}
-                        </span>
-                      )}
-                      {expense.paidByClient && (
-                        <span className="px-2 py-1 rounded-lg bg-yellow-500/20 text-yellow-400 text-xs">
-                          👤 {expense.paidByClient}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Acciones */}
-                    <div className="flex gap-2 pt-3 border-t border-white/5">
-                      <button
-                        onClick={() => handleEdit(expense)}
-                        className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-gray-300 hover:text-white transition-all"
-                      >
-                        ✏️ Editar
-                      </button>
-                      <button
-                        onClick={() => onDelete(expense.id)}
-                        className="flex-1 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-sm text-red-400 hover:text-red-300 transition-all"
-                      >
-                        🗑️ Eliminar
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        ) : (
-          /* Vista Lista */
-          <GlassCard>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-3 px-4 text-gray-400 font-medium text-sm">Gasto</th>
-                    <th className="text-left py-3 px-4 text-gray-400 font-medium text-sm">Categoria</th>
-                    <th className="text-right py-3 px-4 text-gray-400 font-medium text-sm">Monto</th>
-                    <th className="text-center py-3 px-4 text-gray-400 font-medium text-sm">Tipo</th>
-                    <th className="text-center py-3 px-4 text-gray-400 font-medium text-sm">Estado</th>
-                    <th className="text-center py-3 px-4 text-gray-400 font-medium text-sm">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredExpenses.map((expense, index) => (
-                    <motion.tr
-                      key={expense.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.03 }}
-                      className={`border-b border-white/5 hover:bg-white/5 transition-colors ${
+                    <div
+                      className={`relative rounded-2xl p-5 border transition-all ${
                         expense.endDate ? 'opacity-60' : ''
                       }`}
+                      style={{
+                        backgroundColor: `${expense.category.color}10`,
+                        borderColor: `${expense.category.color}30`
+                      }}
                     >
-                      <td className="py-4 px-4">
+                      {/* Header */}
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
+                            className="w-11 h-11 rounded-xl flex items-center justify-center text-xl"
                             style={{ backgroundColor: `${expense.category.color}25` }}
                           >
                             {getCategoryIcon(expense.category.name)}
                           </div>
                           <div>
-                            <span className="font-medium">{expense.name}</span>
-                            <div className="flex items-center gap-1 mt-1">
-                              {expense.billingDay && (
-                                <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs">
-                                  📅 {expense.billingDay}
-                                </span>
-                              )}
-                              {expense.paidByClient && (
-                                <span className="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-xs">
-                                  👤 {expense.paidByClient}
-                                </span>
-                              )}
-                            </div>
+                            <p className="font-semibold text-white">{expense.name}</p>
+                            <p className="text-xs text-gray-400">{expense.category.name}</p>
                           </div>
                         </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="flex items-center gap-2">
-                          <div
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: expense.category.color }}
-                          />
-                          {expense.category.name}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <span className="text-red-400 font-semibold">
+                        {expense.endDate && (
+                          <span className="px-2 py-1 rounded-lg bg-red-500/20 text-red-400 text-xs">
+                            Cancelado
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Monto */}
+                      <div className="flex items-baseline gap-2 mb-3">
+                        <span className="text-2xl font-bold text-red-400">
                           {formatCurrency(expense.amount)}
                         </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
+                        <span className="text-xs text-gray-500">
+                          {expense.type === 'recurring' ? '/mes' : 'unico'}
+                        </span>
+                      </div>
+
+                      {/* Tags */}
+                      <div className="flex flex-wrap items-center gap-2 mb-4">
                         <span className={`px-2 py-1 rounded-lg text-xs ${
                           expense.type === 'recurring'
                             ? 'bg-purple-500/20 text-purple-400'
                             : 'bg-orange-500/20 text-orange-400'
                         }`}>
-                          {expense.type === 'recurring' ? 'Mensual' : 'Único'}
+                          {expense.type === 'recurring' ? 'Fijo' : 'Variable'}
                         </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className={`px-2 py-1 rounded-lg text-xs ${
-                          expense.endDate
-                            ? 'bg-red-500/20 text-red-400'
-                            : 'bg-green-500/20 text-green-400'
-                        }`}>
-                          {expense.endDate ? 'Cancelado' : 'Activo'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
+                        {!expense.endDate && (
+                          <span className="px-2 py-1 rounded-lg bg-green-500/20 text-green-400 text-xs">
+                            ✓ Activo
+                          </span>
+                        )}
+                        {badge && (
+                          <span className={`px-2 py-1 rounded-lg text-xs ${badge.bgClass} ${badge.textClass}`}>
+                            {badge.label}
+                          </span>
+                        )}
+                        {expense.billingDay && (
+                          <span className="px-2 py-1 rounded-lg bg-blue-500/20 text-blue-400 text-xs">
+                            Dia {expense.billingDay}
+                          </span>
+                        )}
+                        {expense.paidByClient && (
+                          <span className="px-2 py-1 rounded-lg bg-yellow-500/20 text-yellow-400 text-xs">
+                            {expense.paidByClient}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Acciones */}
+                      <div className="flex gap-2 pt-3 border-t border-white/5">
                         <button
                           onClick={() => handleEdit(expense)}
-                          className="text-[#44e1fc] hover:text-white text-sm mr-3 transition-colors"
+                          className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-gray-300 hover:text-white transition-all"
                         >
                           Editar
                         </button>
+                        {expense.billingDay && !expense.endDate && status !== 'paid' && (
+                          <button
+                            onClick={() => onMarkPaid(expense.id)}
+                            className="flex-1 py-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-sm text-green-400 hover:text-green-300 transition-all"
+                          >
+                            Pagado
+                          </button>
+                        )}
                         <button
                           onClick={() => onDelete(expense.id)}
-                          className="text-red-400 hover:text-red-300 text-sm transition-colors"
+                          className="flex-1 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-sm text-red-400 hover:text-red-300 transition-all"
                         >
                           Eliminar
                         </button>
-                      </td>
-                    </motion.tr>
-                  ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+        ) : (
+          /* Vista Lista - Tabla actualizada */
+          <GlassCard>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-3 px-4 text-gray-400 font-medium text-sm">Nombre</th>
+                    <th className="text-left py-3 px-4 text-gray-400 font-medium text-sm">Categoria</th>
+                    <th className="text-right py-3 px-4 text-gray-400 font-medium text-sm">Monto</th>
+                    <th className="text-center py-3 px-4 text-gray-400 font-medium text-sm">Fecha de pago</th>
+                    <th className="text-center py-3 px-4 text-gray-400 font-medium text-sm">Ultimo pago</th>
+                    <th className="text-center py-3 px-4 text-gray-400 font-medium text-sm">Dias rest.</th>
+                    <th className="text-center py-3 px-4 text-gray-400 font-medium text-sm">Status</th>
+                    <th className="text-center py-3 px-4 text-gray-400 font-medium text-sm">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredExpenses.map((expense, index) => {
+                    const { status, daysRemaining } = getPaymentStatus(expense)
+                    const badge = getPaymentStatusBadge(status, daysRemaining)
+
+                    return (
+                      <motion.tr
+                        key={expense.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className={`border-b border-white/5 hover:bg-white/5 transition-colors ${
+                          expense.endDate ? 'opacity-60' : ''
+                        }`}
+                      >
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm"
+                              style={{ backgroundColor: `${expense.category.color}25` }}
+                            >
+                              {getCategoryIcon(expense.category.name)}
+                            </div>
+                            <span className="font-medium">{expense.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="flex items-center gap-2">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: expense.category.color }}
+                            />
+                            {expense.category.name}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <span className="text-red-400 font-semibold">
+                            {formatCurrency(expense.amount)}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-center text-sm text-gray-300">
+                          {formatPaymentDate(expense.billingDay)}
+                        </td>
+                        <td className="py-4 px-4 text-center text-sm text-gray-300">
+                          {formatLastPaymentDate(expense.lastPaymentDate)}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          {status === 'upcoming' && daysRemaining !== null ? (
+                            <span className="text-blue-400 font-medium">{daysRemaining}</span>
+                          ) : status === 'expired' ? (
+                            <span className="text-red-400 font-medium text-xs">Expirado</span>
+                          ) : (
+                            <span className="text-gray-500">-</span>
+                          )}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          {badge ? (
+                            <span className={`px-2 py-1 rounded-lg text-xs ${badge.bgClass} ${badge.textClass}`}>
+                              {badge.label}
+                            </span>
+                          ) : (
+                            <span className="text-gray-500 text-xs">-</span>
+                          )}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => handleEdit(expense)}
+                              className="text-[#44e1fc] hover:text-white text-sm transition-colors px-1"
+                              title="Editar"
+                            >
+                              ✏️
+                            </button>
+                            {expense.billingDay && !expense.endDate && status !== 'paid' && (
+                              <button
+                                onClick={() => onMarkPaid(expense.id)}
+                                className="text-green-400 hover:text-green-300 text-sm transition-colors px-1"
+                                title="Marcar pagado"
+                              >
+                                ✅
+                              </button>
+                            )}
+                            <button
+                              onClick={() => onDelete(expense.id)}
+                              className="text-red-400 hover:text-red-300 text-sm transition-colors px-1"
+                              title="Eliminar"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
           </GlassCard>
         )
       ) : (
-        /* Estado vacío */
+        /* Estado vacio */
         <GlassCard>
           <div className="text-center py-12">
             <motion.div
@@ -662,7 +939,7 @@ export function GastosTab({
               className="text-gray-400 max-w-md mx-auto"
             >
               {expenses.length === 0
-                ? 'Registra tus gastos recurrentes y fijos para llevar un control de tus finanzas.'
+                ? 'Registra tus gastos fijos y variables para llevar un control de tus finanzas.'
                 : 'Intenta cambiar los filtros para ver otros gastos.'}
             </motion.p>
             {expenses.length === 0 && (

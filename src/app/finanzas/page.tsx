@@ -228,6 +228,29 @@ export default function FinanzasPage() {
     }
   }
 
+  // Marcar gasto como pagado
+  async function handleMarkPaid(id: number) {
+    try {
+      const res = await financeAuthFetch('/api/finance/expenses', {
+        method: 'PATCH',
+        body: JSON.stringify({ id })
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        // Update expense in local state
+        setExpenses(expenses.map(e =>
+          e.id === id ? { ...e, lastPaymentDate: new Date().toISOString() } : e
+        ))
+        showMessage('success', 'Gasto marcado como pagado')
+      } else {
+        showMessage('error', data.error)
+      }
+    } catch {
+      showMessage('error', 'Error al marcar como pagado')
+    }
+  }
+
   // Eliminar gasto
   async function handleDeleteExpense(id: number) {
     if (!confirm('Eliminar este gasto?')) return
@@ -343,10 +366,12 @@ export default function FinanzasPage() {
                     setEditingExpenseId={setEditingExpenseId}
                     onSave={handleSaveExpense}
                     onDelete={handleDeleteExpense}
+                    onMarkPaid={handleMarkPaid}
                     saving={saving}
                     upcomingPayments={upcomingPayments}
                     upcomingTotal={upcomingTotal}
                     upcomingLoading={upcomingLoading}
+                    summary={summary}
                   />
                 )}
 
