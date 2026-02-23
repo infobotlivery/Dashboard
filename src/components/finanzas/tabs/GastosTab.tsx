@@ -71,7 +71,6 @@ function getCategoryIcon(name: string): string {
   return categoryIcons.default
 }
 
-type FilterType = 'all' | 'recurring' | 'fixed'
 type FilterStatus = 'all' | 'active' | 'cancelled'
 type ViewMode = 'cards' | 'list'
 type SubTab = 'all' | 'fixed' | 'variable'
@@ -181,7 +180,6 @@ export function GastosTab({
   summary
 }: GastosTabProps) {
   const [filterCategory, setFilterCategory] = useState<string>('all')
-  const [filterType, setFilterType] = useState<FilterType>('all')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [showForm, setShowForm] = useState(false)
@@ -200,7 +198,6 @@ export function GastosTab({
   const filteredExpenses = useMemo(() => {
     return expenses.filter(expense => {
       if (filterCategory !== 'all' && String(expense.categoryId) !== filterCategory) return false
-      if (filterType !== 'all' && expense.type !== filterType) return false
       if (filterStatus === 'active' && expense.endDate) return false
       if (filterStatus === 'cancelled' && !expense.endDate) return false
 
@@ -217,7 +214,7 @@ export function GastosTab({
 
       return true
     })
-  }, [expenses, filterCategory, filterType, filterStatus, subTab, filterMonth, filterYear])
+  }, [expenses, filterCategory, filterStatus, subTab, filterMonth, filterYear])
 
   // Estadisticas
   const stats = useMemo(() => {
@@ -361,77 +358,6 @@ export function GastosTab({
         </motion.div>
       </div>
 
-      {/* 4 Estadisticas rapidas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="glass-card p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
-              <span className="text-xl">💸</span>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-red-500">{formatCurrency(stats.totalAmount)}</p>
-              <p className="text-xs text-gray-400">Total mensual</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="glass-card p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-              <span className="text-xl">🔄</span>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-purple-500">{formatCurrency(stats.recurringAmount)}</p>
-              <p className="text-xs text-gray-400">Fijos</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="glass-card p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
-              <span className="text-xl">📌</span>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-orange-500">{formatCurrency(stats.fixedAmount)}</p>
-              <p className="text-xs text-gray-400">Variables</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="glass-card p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
-              <span className="text-xl">✅</span>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-green-500">{stats.totalActive}</p>
-              <p className="text-xs text-gray-400">Gastos activos</p>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
       {/* Sub-tabs: Gastos fijos / Gastos variables */}
       <div className="flex gap-2 border-b border-white/10 pb-0">
         {[
@@ -453,7 +379,7 @@ export function GastosTab({
         ))}
       </div>
 
-      {/* Boton agregar y filtros */}
+      {/* Fila 1: Boton agregar + Mes/Anio */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <motion.button
           whileHover={{ scale: 1.02 }}
@@ -491,61 +417,58 @@ export function GastosTab({
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-
-          {/* Filtro categoria */}
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="dark-select px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none cursor-pointer"
-          >
-            <option value="all">Todas las categorias</option>
-            {categories.map(cat => (
-              <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
-            ))}
-          </select>
-
-          {/* Filtro tipo */}
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value as FilterType)}
-            className="dark-select px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none cursor-pointer"
-          >
-            <option value="all">Todos los tipos</option>
-            <option value="recurring">Fijos</option>
-            <option value="fixed">Variables</option>
-          </select>
-
-          {/* Filtro estado */}
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
-            className="dark-select px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none cursor-pointer"
-          >
-            <option value="all">Todos</option>
-            <option value="active">Activos</option>
-            <option value="cancelled">Cancelados</option>
-          </select>
-
-          {/* Toggle vista */}
-          <div className="flex rounded-lg bg-white/5 border border-white/10 overflow-hidden">
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`px-3 py-2 text-sm transition-all ${
-                viewMode === 'cards' ? 'bg-[#44e1fc] text-black' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              ▦
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`px-3 py-2 text-sm transition-all ${
-                viewMode === 'list' ? 'bg-[#44e1fc] text-black' : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              ☰
-            </button>
-          </div>
         </div>
+      </div>
+
+      {/* Fila 2: Filtros de contenido */}
+      <div className="flex flex-wrap gap-2 items-center">
+        {/* Filtro categoria */}
+        <select
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value)}
+          className="dark-select px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none cursor-pointer"
+        >
+          <option value="all">Todas las categorias</option>
+          {categories.map(cat => (
+            <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
+          ))}
+        </select>
+
+        {/* Filtro estado */}
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
+          className="dark-select px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white focus:border-[#44e1fc] focus:outline-none cursor-pointer"
+        >
+          <option value="all">Todos</option>
+          <option value="active">Activos</option>
+          <option value="cancelled">Cancelados</option>
+        </select>
+
+        {/* Toggle vista */}
+        <div className="flex rounded-lg bg-white/5 border border-white/10 overflow-hidden">
+          <button
+            onClick={() => setViewMode('cards')}
+            className={`px-3 py-2 text-sm transition-all ${
+              viewMode === 'cards' ? 'bg-[#44e1fc] text-black' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            ▦
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`px-3 py-2 text-sm transition-all ${
+              viewMode === 'list' ? 'bg-[#44e1fc] text-black' : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            ☰
+          </button>
+        </div>
+
+        {/* Badge gastos activos */}
+        <span className="px-3 py-1.5 rounded-full bg-green-500/15 text-green-400 text-xs font-medium">
+          {stats.totalActive} gastos activos
+        </span>
       </div>
 
       {/* Modal del formulario */}
