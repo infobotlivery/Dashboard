@@ -303,6 +303,31 @@ sqlite3 "$DB_PATH" "PRAGMA table_info(Expense);" 2>/dev/null || echo "No se pudo
 sqlite3 "$DB_PATH" "PRAGMA table_info(MonthlyFinance);" 2>/dev/null || echo "No se pudo leer MonthlyFinance"
 sqlite3 "$DB_PATH" "PRAGMA table_info(MonthlyGoal);" 2>/dev/null || echo "No se pudo leer MonthlyGoal"
 
+# Verificar y crear tabla Proposal si no existe
+echo "=== Verificando tabla Proposal ==="
+if ! sqlite3 "$DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND name='Proposal';" 2>/dev/null | grep -q "Proposal"; then
+    echo "Tabla Proposal NO existe - CREANDO..."
+    sqlite3 "$DB_PATH" "
+    CREATE TABLE IF NOT EXISTS \"Proposal\" (
+        \"id\" INTEGER PRIMARY KEY AUTOINCREMENT,
+        \"clientName\" TEXT NOT NULL,
+        \"company\" TEXT NOT NULL DEFAULT '',
+        \"service\" TEXT NOT NULL DEFAULT '',
+        \"amount\" REAL NOT NULL DEFAULT 0,
+        \"date\" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \"status\" TEXT NOT NULL DEFAULT 'por_aprobacion',
+        \"notes\" TEXT,
+        \"createdAt\" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \"updatedAt\" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS \"Proposal_status_idx\" ON \"Proposal\"(\"status\");
+    CREATE INDEX IF NOT EXISTS \"Proposal_date_idx\" ON \"Proposal\"(\"date\");
+    " 2>&1 || echo "Error creando tabla Proposal"
+    echo "Tabla Proposal creada"
+else
+    echo "Tabla Proposal ya existe"
+fi
+
 # =====================================================
 # INDEXES - Asegurar que existan para performance
 # =====================================================

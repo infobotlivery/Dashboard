@@ -14,16 +14,18 @@ import {
   GastosTab,
   CategoriasTab,
   HistorialTab,
-  MetasTab
+  MetasTab,
+  ClientesTab
 } from '@/components/finanzas/tabs'
-import type { FinanceSummary, MonthlyHistory, Category, Expense, UpcomingPayment, MonthlyGoal } from '@/types'
+import type { FinanceSummary, MonthlyHistory, Category, Expense, UpcomingPayment, MonthlyGoal, SalesClose, SalesSummary } from '@/types'
 
 const tabTitles: Record<FinanceTab, string> = {
   resumen: 'Resumen Financiero',
   gastos: 'Gestion de Gastos',
   categorias: 'Categorias de Gastos',
   historial: 'Historial Mensual',
-  metas: 'Metas Mensuales'
+  metas: 'Metas Mensuales',
+  clientes: 'Clientes'
 }
 
 export default function FinanzasPage() {
@@ -43,6 +45,11 @@ export default function FinanzasPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [currentGoal, setCurrentGoal] = useState<MonthlyGoal | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Clientes (sales) data
+  const [salesCloses, setSalesCloses] = useState<SalesClose[]>([])
+  const [salesSummary, setSalesSummary] = useState<SalesSummary | null>(null)
+  const [selectedFinanceMonth, setSelectedFinanceMonth] = useState<string>('')
 
   // Form states
   const [newCategory, setNewCategory] = useState({ name: '', color: '#44e1fc' })
@@ -103,20 +110,24 @@ export default function FinanzasPage() {
       setLoading(true)
       setUpcomingLoading(true)
       try {
-        const [summaryRes, historyRes, categoriesRes, expensesRes, upcomingRes] = await Promise.all([
+        const [summaryRes, historyRes, categoriesRes, expensesRes, upcomingRes, salesRes, salesSummaryRes] = await Promise.all([
           financeAuthFetch('/api/finance/summary'),
           financeAuthFetch('/api/finance/history'),
           financeAuthFetch('/api/finance/categories'),
           financeAuthFetch('/api/finance/expenses'),
-          financeAuthFetch('/api/finance/expenses/upcoming')
+          financeAuthFetch('/api/finance/expenses/upcoming'),
+          financeAuthFetch('/api/sales'),
+          financeAuthFetch('/api/sales?summary=true')
         ])
 
-        const [summaryData, historyData, categoriesData, expensesData, upcomingData] = await Promise.all([
+        const [summaryData, historyData, categoriesData, expensesData, upcomingData, salesData, salesSummaryData] = await Promise.all([
           summaryRes.json(),
           historyRes.json(),
           categoriesRes.json(),
           expensesRes.json(),
-          upcomingRes.json()
+          upcomingRes.json(),
+          salesRes.json(),
+          salesSummaryRes.json()
         ])
 
         if (summaryData.data) setSummary(summaryData.data)
@@ -127,6 +138,8 @@ export default function FinanzasPage() {
           setUpcomingPayments(upcomingData.data.payments)
           setUpcomingTotal(upcomingData.data.total)
         }
+        if (salesData.data) setSalesCloses(salesData.data)
+        if (salesSummaryData.data) setSalesSummary(salesSummaryData.data)
 
         // Cargar meta del mes actual
         const now = new Date()
@@ -391,6 +404,15 @@ export default function FinanzasPage() {
 
                 {activeTab === 'metas' && (
                   <MetasTab summary={summary} onMessage={showMessage} />
+                )}
+
+                {activeTab === 'clientes' && (
+                  <ClientesTab
+                    sales={salesCloses}
+                    summary={salesSummary}
+                    selectedMonth={selectedFinanceMonth}
+                    onMonthChange={setSelectedFinanceMonth}
+                  />
                 )}
               </motion.div>
             </AnimatePresence>

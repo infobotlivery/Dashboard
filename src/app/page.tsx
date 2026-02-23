@@ -2,81 +2,78 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { WeeklyDashboard } from '@/components/dashboard/WeeklyDashboard'
-import { WeeklyComparison } from '@/components/dashboard/WeeklyComparison'
-import { MonthlyComparison } from '@/components/dashboard/MonthlyComparison'
 import { MonthlyMetrics } from '@/components/dashboard/MonthlyMetrics'
 import { CadenceTree } from '@/components/dashboard/CadenceTree'
-import { SalesCloseTable } from '@/components/dashboard/SalesCloseTable'
-import type { WeeklyMetric, MonthlyScorecard, DailyCheck, Settings, SalesClose, SalesSummary } from '@/types'
+import { BillingMetrics } from '@/components/dashboard/BillingMetrics'
+import { UpcomingClientPayments } from '@/components/dashboard/UpcomingClientPayments'
+import { ProposalsTable } from '@/components/dashboard/ProposalsTable'
+import type {
+  MonthlyScorecard,
+  DailyCheck,
+  Settings,
+  FinanceSummary,
+  MonthlyGoal,
+  UpcomingClientPayment,
+  Proposal
+} from '@/types'
 
 export default function DashboardPage() {
-  const [currentMetric, setCurrentMetric] = useState<WeeklyMetric | null>(null)
-  const [comparisonData, setComparisonData] = useState<{ currentWeek: WeeklyMetric | null; previousWeek: WeeklyMetric | null }>({ currentWeek: null, previousWeek: null })
   const [monthlyComparisonData, setMonthlyComparisonData] = useState<{ currentMonth: MonthlyScorecard | null; previousMonth: MonthlyScorecard | null }>({ currentMonth: null, previousMonth: null })
   const [dailyChecks, setDailyChecks] = useState<DailyCheck[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
-  const [salesCloses, setSalesCloses] = useState<SalesClose[]>([])
-  const [salesSummary, setSalesSummary] = useState<SalesSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Finance / proposals state
+  const [selectedMonth, setSelectedMonth] = useState<string>('')
+  const [billingSummary, setBillingSummary] = useState<FinanceSummary | null>(null)
+  const [billingGoal, setBillingGoal] = useState<MonthlyGoal | null>(null)
+  const [upcomingClients, setUpcomingClients] = useState<UpcomingClientPayment[]>([])
+  const [proposals, setProposals] = useState<Proposal[]>([])
 
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true)
 
-        // Fetch all data in parallel
-        const [metricsRes, comparisonRes, monthlyComparisonRes, dailyRes, settingsRes, salesRes, salesSummaryRes] = await Promise.all([
-          fetch('/api/metrics/current'),
-          fetch('/api/metrics/comparison'),
+        const [monthlyComparisonRes, dailyRes, settingsRes, upcomingRes, proposalsRes] = await Promise.all([
           fetch('/api/scorecard/comparison'),
           fetch('/api/daily?limit=30'),
           fetch('/api/settings'),
-          fetch('/api/sales'),
-          fetch('/api/sales?summary=true')
+          fetch('/api/sales/upcoming'),
+          fetch('/api/proposals')
         ])
 
-        if (metricsRes.ok) {
-          const metricsData = await metricsRes.json()
-          setCurrentMetric(metricsData.data)
-        }
-
-        if (comparisonRes.ok) {
-          const comparisonDataRes = await comparisonRes.json()
-          setComparisonData({
-            currentWeek: comparisonDataRes.data?.currentWeek || null,
-            previousWeek: comparisonDataRes.data?.previousWeek || null
-          })
-        }
-
         if (monthlyComparisonRes.ok) {
-          const monthlyComparisonDataRes = await monthlyComparisonRes.json()
+          const d = await monthlyComparisonRes.json()
           setMonthlyComparisonData({
-            currentMonth: monthlyComparisonDataRes.data?.currentMonth || null,
-            previousMonth: monthlyComparisonDataRes.data?.previousMonth || null
+            currentMonth: d.data?.currentMonth || null,
+            previousMonth: d.data?.previousMonth || null
           })
         }
 
         if (dailyRes.ok) {
-          const dailyData = await dailyRes.json()
-          setDailyChecks(dailyData.data || [])
+          const d = await dailyRes.json()
+          setDailyChecks(d.data || [])
         }
 
         if (settingsRes.ok) {
-          const settingsData = await settingsRes.json()
-          setSettings(settingsData.data)
+          const d = await settingsRes.json()
+          setSettings(d.data)
         }
 
-        if (salesRes.ok) {
-          const salesData = await salesRes.json()
-          setSalesCloses(salesData.data || [])
+        if (upcomingRes.ok) {
+          const d = await upcomingRes.json()
+          setUpcomingClients(d.data || [])
         }
 
-        if (salesSummaryRes.ok) {
-          const summaryData = await salesSummaryRes.json()
-          setSalesSummary(summaryData.data || null)
+        if (proposalsRes.ok) {
+          const d = await proposalsRes.json()
+          setProposals(d.data || [])
         }
+
+        // Cargar finance summary + goal para mes actual
+        await fetchBillingData('')
       } catch (err) {
         console.error('Error fetching data:', err)
         setError('Error al cargar los datos')
@@ -87,6 +84,37 @@ export default function DashboardPage() {
 
     fetchData()
   }, [])
+
+  // Recargar billing cuando cambia el mes seleccionado
+  useEffect(() => {
+    if (!loading) {
+      fetchBillingData(selectedMonth)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth])
+
+  async function fetchBillingData(month: string) {
+    try {
+      const monthParam = month ? `?month=${month}` : ''
+      const [summaryRes, goalRes] = await Promise.all([
+        fetch(`/api/finance/summary${monthParam}`),
+        fetch(`/api/finance/goals${monthParam ? `?month=${month}-01` : `?month=${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`}`)
+      ])
+
+      if (summaryRes.ok) {
+        const d = await summaryRes.json()
+        if (d.data) setBillingSummary(d.data)
+      }
+
+      if (goalRes.ok) {
+        const d = await goalRes.json()
+        if (d.data) setBillingGoal(d.data)
+        else setBillingGoal(null)
+      }
+    } catch (err) {
+      console.error('Error fetching billing data:', err)
+    }
+  }
 
   if (loading) {
     return (
@@ -175,35 +203,29 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
-        {/* Dashboard Semanal - Nivel 1 */}
+        {/* Finanzas del Mes */}
         <section>
-          <WeeklyDashboard metric={currentMetric} />
+          <BillingMetrics
+            summary={billingSummary}
+            goal={billingGoal}
+            selectedMonth={selectedMonth}
+            onMonthChange={setSelectedMonth}
+          />
         </section>
 
-        {/* Métricas Mensuales */}
+        {/* Cobros esta semana */}
+        <section>
+          <UpcomingClientPayments payments={upcomingClients} />
+        </section>
+
+        {/* Métricas Mensuales (Scorecard) */}
         <section>
           <MonthlyMetrics scorecard={monthlyComparisonData.currentMonth} />
         </section>
 
-        {/* Comparativa Semanal */}
+        {/* Propuestas (read-only) */}
         <section>
-          <WeeklyComparison
-            currentWeek={comparisonData.currentWeek}
-            previousWeek={comparisonData.previousWeek}
-          />
-        </section>
-
-        {/* Comparativa Mensual */}
-        <section>
-          <MonthlyComparison
-            currentMonth={monthlyComparisonData.currentMonth}
-            previousMonth={monthlyComparisonData.previousMonth}
-          />
-        </section>
-
-        {/* Registro de Cierres */}
-        <section>
-          <SalesCloseTable sales={salesCloses} summary={salesSummary} />
+          <ProposalsTable proposals={proposals} />
         </section>
 
         {/* Cadencia de Revisión */}

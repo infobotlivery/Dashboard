@@ -149,3 +149,20 @@ model MonthlyGoal {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+// Propuestas de ventas
+model Proposal {
+  id          Int      @id @default(autoincrement())
+  clientName  String
+  company     String   @default("")
+  service     String   @default("")
+  amount      Float    @default(0)
+  date        DateTime @default(now())
+  status      String   @default("por_aprobacion") // por_aprobacion | aprobada | no_cerrada
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([date])
+}

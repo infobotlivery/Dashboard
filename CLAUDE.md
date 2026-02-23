@@ -47,6 +47,7 @@ Dashboard/
 │   │   ├── globals.css           # Estilos globales
 │   │   └── api/
 │   │       ├── auth/route.ts     # Autenticación admin
+│   │       ├── proposals/route.ts      # CRUD propuestas (GET público)
 │   │       ├── metrics/
 │   │       │   ├── route.ts      # CRUD métricas semanales
 │   │       │   ├── current/route.ts    # Métrica semana actual
@@ -62,12 +63,16 @@ Dashboard/
 │   │       ├── scorecard/route.ts      # CRUD scorecard mensual
 │   │       ├── daily/route.ts          # CRUD checks diarios
 │   │       ├── sales/route.ts          # CRUD cierres de ventas
+│   │       ├── sales/upcoming/route.ts # Cobros próximos 7 días (GET público)
 │   │       ├── settings/route.ts       # Configuración y branding
 │   │       └── webhooks/
 │   │           └── kommo/route.ts      # Webhook para Kommo CRM
 │   │
 │   ├── components/
 │   │   ├── dashboard/
+│   │   │   ├── BillingMetrics.tsx      # Facturación + utilidad del mes (público, con selector de mes)
+│   │   │   ├── UpcomingClientPayments.tsx # Cobros de clientes próximos 7 días
+│   │   │   ├── ProposalsTable.tsx      # Tabla de propuestas (read-only, con filtros)
 │   │   │   ├── WeeklyDashboard.tsx     # Grid de 7 métricas semanales
 │   │   │   ├── WeeklyComparison.tsx    # Tabla comparativa semanal
 │   │   │   ├── MetricCard.tsx          # Card individual de métrica
@@ -89,7 +94,8 @@ Dashboard/
 │   │   │       ├── GastosTab.tsx       # Tab gestión gastos
 │   │   │       ├── CategoriasTab.tsx   # Tab categorías
 │   │   │       ├── HistorialTab.tsx    # Tab historial mensual
-│   │   │       └── MetasTab.tsx        # Tab metas mensuales
+│   │   │       ├── MetasTab.tsx        # Tab metas mensuales
+│   │   │       └── ClientesTab.tsx     # Tab clientes (registro de ventas + filtros)
 │   │   └── ui/
 │   │       ├── Button.tsx
 │   │       ├── Card.tsx
@@ -278,6 +284,25 @@ model MonthlyFinance {
 }
 ```
 
+### Proposal
+Propuestas de ventas para el pipeline.
+```prisma
+model Proposal {
+  id          Int      @id @default(autoincrement())
+  clientName  String
+  company     String   @default("")
+  service     String   @default("")
+  amount      Float    @default(0)
+  date        DateTime @default(now())
+  status      String   @default("por_aprobacion") // por_aprobacion | aprobada | no_cerrada
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+```
+
+**Estados:** `por_aprobacion` (amarillo) | `aprobada` (verde) | `no_cerrada` (rojo)
+
 ---
 
 ## Variables de Entorno
@@ -317,9 +342,10 @@ NEXT_PUBLIC_APP_URL="https://dashboard.elraperomarketero.com"
 ## Páginas y Funcionalidades
 
 ### Dashboard Público (`/`)
-- **WeeklyDashboard:** 7 cards con métricas de la semana actual
-- **WeeklyComparison:** Tabla comparativa semana actual vs anterior
-- **MonthlyScorecard:** Tabla con últimos 6 meses
+- **BillingMetrics:** Facturación y utilidad del mes con selector de mes (público, sin login)
+- **UpcomingClientPayments:** Clientes con cobros próximos en 7 días
+- **MonthlyMetrics (Scorecard):** Scorecard mensual del negocio
+- **ProposalsTable:** Tabla read-only de propuestas con filtros (sin botones de edición)
 - **CadenceTree:** Árbol visual de cadencias de revisión
 
 ### Panel Admin (`/admin`)
@@ -328,6 +354,7 @@ NEXT_PUBLIC_APP_URL="https://dashboard.elraperomarketero.com"
 - **Tab Mensual:** Editar scorecard de cualquier mes
 - **Tab Diario:** Registrar checks diarios
 - **Tab Cierres:** Registrar y editar cierres de ventas
+- **Tab Propuestas:** CRUD completo de propuestas (crear/editar/eliminar, filtros por estado y mes)
 - **Tab Configuración:** Colores de marca, logo, cambiar contraseña
 
 ### Dashboard Financiero (`/finanzas`)
@@ -341,6 +368,8 @@ NEXT_PUBLIC_APP_URL="https://dashboard.elraperomarketero.com"
   - Marcar como cancelado (endDate)
 - **Tab Categorías:** Gestión de categorías personalizadas con colores
 - **Tab Historial:** Tabla de últimos 6 meses con tendencias
+- **Tab Metas:** Metas mensuales de ingresos/gastos/ahorro
+- **Tab Clientes:** Registro de cierres de ventas con filtro por mes y estado
 
 **Cálculo automático de ingresos:**
 - Onboarding = SUM(SalesClose.onboardingValue) del mes actual
@@ -531,60 +560,62 @@ Content-Type: application/json
 
 ## Skills Disponibles (Herramientas de Claude Code)
 
-Claude Code tiene acceso a skills personalizadas instaladas en `~/.claude/skills/`. Estas son herramientas especializadas que mejoran la calidad del trabajo. Se pueden usar de dos formas:
+Claude Code tiene acceso a skills personalizadas instaladas en `~/.claude/skills/` y `.claude/skills/`. Estas son herramientas especializadas que mejoran la calidad del trabajo. Se pueden usar de dos formas:
 
 ### Skills Automáticas (Claude las usa cuando son relevantes)
 
-| Skill | Invocación | Cuándo se activa |
-|-------|-----------|-----------------|
-| `api-conventions` | Automática | Al diseñar o implementar endpoints REST |
-| `frontend-design` | Automática | Al crear componentes UI, páginas o estilos con Tailwind |
-| `planning-with-files` | Automática | En tareas complejas multi-paso (crea task_plan.md, findings.md, progress.md) |
-| `explain-code` | Automática | Al explicar cómo funciona el código (diagramas ASCII + analogías) |
-| `deep-research` | Automática | Al investigar arquitectura, dependencias o patrones del codebase |
-| `code-review` | Automática | Al revisar código (seguridad, rendimiento, legibilidad) |
-| `humanizer` | Automática | Al reescribir texto para que suene natural (elimina patrones IA) |
-| `security-audit` | Automática | Al auditar seguridad (OWASP Top 10, inyecciones, secretos) |
-| `git-workflow` | Automática | Al ayudar con Git avanzado (rebase, cherry-pick, bisect, conflictos) |
-| `performance-profiler` | Automática | Al analizar rendimiento (N+1 queries, re-renders, memory leaks) |
+| Skill | Nombre instalado | Cuándo se activa |
+|-------|-----------------|-----------------|
+| API Design | `api-patterns` | Al diseñar o implementar endpoints REST/GraphQL/tRPC |
+| Frontend Design | `frontend-design` | Al crear componentes UI, páginas o estilos con Tailwind |
+| Planificación | `planning-with-files` | En tareas complejas multi-paso (crea task_plan.md, findings.md, progress.md) |
+| Diagramas | `mermaid-diagrams` | Al explicar código, visualizar arquitectura, flujos o ERDs |
+| Investigación | `research-engineer` | Al investigar arquitectura, dependencias o patrones del codebase |
+| Code Review | `code-review` | Al revisar código (seguridad, rendimiento, legibilidad) |
+| Humanizer | `humanizer` | Al reescribir texto para que suene natural (elimina patrones IA) |
+| Security Audit | `security-compliance` | Al auditar seguridad (OWASP Top 10, SOC2, GDPR, threat modeling) |
+| Security Review | `cc-skill-security-review` | Al agregar auth, manejar inputs, secretos o endpoints sensibles |
+| Git Helper | `git-commit-helper` | Al ayudar con mensajes de commit descriptivos |
+| Performance | `performance-profiling` | Al analizar rendimiento (N+1 queries, re-renders, memory leaks) |
+| Error Resolver | `error-resolver` | Al diagnosticar errores, stack traces o comportamiento inesperado |
 
 ### Skills Manuales (el usuario las invoca con `/comando`)
 
-| Comando | Qué hace | Ejemplo de uso |
-|---------|----------|---------------|
-| `/fix-issue [número]` | Arregla un issue de GitHub automáticamente | `/fix-issue 42` |
-| `/pr-summary [número]` | Resume un PR con diff y comentarios en vivo | `/pr-summary 15` |
-| `/smart-commit` | Genera commit con Conventional Commits (feat/fix/refactor) | `/smart-commit` |
-| `/webapp-testing [url]` | Testea app web con Playwright (screenshots + interacciones) | `/webapp-testing localhost:3000` |
-| `/codebase-visualizer` | Genera HTML interactivo con árbol visual del proyecto | `/codebase-visualizer` |
-| `/d3-visualization [tipo] [datos]` | Crea gráficos interactivos D3.js | `/d3-visualization bar ventas-mensuales` |
-| `/mcp-builder [servicio]` | Guía para crear servidor MCP de integración | `/mcp-builder kommo` |
+| Comando | Skill instalada | Qué hace | Ejemplo |
+|---------|----------------|----------|---------|
+| `/commit-work` | `commit-work` | Genera commits con Conventional Commits (feat/fix/refactor) | `/commit-work` |
+| `/gh-address-comments` | `gh-address-comments` | Responde comentarios de review en PRs de GitHub | `/gh-address-comments` |
+| `/webapp-testing [url]` | `webapp-testing` | Testea app web con Playwright (screenshots + interacciones) | `/webapp-testing localhost:3000` |
+| `/claude-d3js-skill [tipo]` | `claude-d3js-skill` | Crea gráficos interactivos D3.js (bar, line, donut, etc.) | `/claude-d3js-skill bar` |
+| `/mcp-builder [servicio]` | `mcp-builder` | Guía para crear servidor MCP de integración | `/mcp-builder kommo` |
+| `/mermaid-diagrams` | `mermaid-diagrams` | Genera diagramas visuales del proyecto (C4, ERD, flowcharts) | `/mermaid-diagrams` |
 
 ### Skills más relevantes para este proyecto
 
-- **`security-audit`**: Para auditorías como la de 2026-02-05 (middleware, secretos, N+1)
-- **`performance-profiler`**: Para detectar N+1 queries en APIs de finance/history
+- **`security-compliance`** + **`cc-skill-security-review`**: Para auditorías como la de 2026-02-05 (middleware, secretos, N+1)
+- **`performance-profiling`**: Para detectar N+1 queries en APIs de finance/history
 - **`code-review`**: Para revisiones estructuradas antes de deploys a producción
-- **`api-conventions`**: Se activa automáticamente al trabajar con los 17 endpoints REST
+- **`api-patterns`**: Se activa automáticamente al trabajar con los 17 endpoints REST
 - **`frontend-design`**: Al crear componentes con glassmorphism y Tailwind
-- **`/fix-issue`**: Para arreglar issues del repo https://github.com/infobotlivery/Dashboard
-- **`/pr-summary`**: Para resumir PRs antes de merge
-- **`/smart-commit`**: Para commits consistentes con Conventional Commits
+- **`error-resolver`**: Para diagnosticar y resolver errores del repo
+- **`/commit-work`**: Para commits consistentes con Conventional Commits
+- **`/gh-address-comments`**: Para responder comentarios de PR en GitHub
 - **`/webapp-testing`**: Para testear el dashboard en localhost:3000 con Playwright
-- **`/d3-visualization`**: Para generar gráficos de métricas o historial financiero
+- **`/claude-d3js-skill`**: Para generar gráficos de métricas o historial financiero
 
 ### Cómo solicitar una skill
 
 ```
 # Automáticas: solo pedir lo que necesitas
-"Hazme una auditoría de seguridad del middleware"  → activa security-audit
+"Hazme una auditoría de seguridad del middleware"  → activa security-compliance
 "Revisa el código de finance/summary"              → activa code-review
-"Analiza el rendimiento de las queries"            → activa performance-profiler
+"Analiza el rendimiento de las queries"            → activa performance-profiling
+"Diagnostica este error"                           → activa error-resolver
 
 # Manuales: usar el comando /
-/fix-issue 23
-/smart-commit
+/commit-work
 /webapp-testing http://localhost:3000/finanzas
+/claude-d3js-skill bar
 ```
 
 ---
@@ -680,6 +711,38 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-02-05 | Auditoría de seguridad, performance y tipos + 5 fixes | d387919 |
 | 2026-02-05 | Fix middleware Web Crypto API para Edge Runtime | 674dfde |
 | 2026-02-05 | Indexes automáticos en docker-entrypoint.sh | d520926 |
+| 2026-02-23 | Rediseño Dashboard Principal + Mejoras Finanzas | pendiente |
+
+### Detalle del cambio 2026-02-23 (Rediseño Dashboard + Finanzas):
+
+**Resumen:** Nuevo dashboard con métricas financieras en la portada, propuestas de ventas, y tab Clientes en Finanzas.
+
+**Nuevo modelo Prisma:**
+- `Proposal`: propuestas de ventas (clientName, company, service, amount, date, status, notes)
+
+**Nuevas APIs:**
+- `GET/POST/PUT/DELETE /api/proposals` — CRUD propuestas (GET público sin auth)
+- `GET /api/sales/upcoming` — clientes activos con cobros próximos 7 días (GET público)
+- `GET /api/finance/summary?month=YYYY-MM` — acepta filtro de mes (antes solo mes actual)
+
+**Nuevos componentes:**
+- `BillingMetrics.tsx` — Facturación + utilidad del mes con selector de mes (navegación prev/next)
+- `UpcomingClientPayments.tsx` — Tabla de cobros de clientes próximos 7 días
+- `ProposalsTable.tsx` — Tabla read-only de propuestas con filtros por status y mes, total de posible facturación
+- `ClientesTab.tsx` — Tab de Finanzas con SalesCloseTable + filtros por mes y status
+
+**Modificaciones:**
+- `page.tsx` — Reemplaza WeeklyDashboard/WeeklyComparison/SalesCloseTable con BillingMetrics/UpcomingClientPayments/ProposalsTable
+- `admin/page.tsx` — Nuevo tab "Propuestas" con CRUD completo
+- `finanzas/page.tsx` — Nuevo tab "Clientes" con SalesCloseTable + filtros
+- `FinanceSidebar.tsx` — Agrega tab 'clientes' a FinanceTab type
+- `middleware.ts` — Agrega /api/proposals, /api/finance/summary, /api/finance/goals como GET públicas
+- `docker-entrypoint.sh` — CREATE TABLE Proposal con indexes
+- `prisma/schema.prisma` — Modelo Proposal
+
+**Tipos nuevos en src/types/index.ts:**
+- `Proposal` — interfaz para propuestas
+- `UpcomingClientPayment` — interfaz para cobros próximos de clientes
 
 ### Detalle del cambio 2026-02-05 (Auditoría + Fixes):
 
@@ -889,4 +952,4 @@ model MonthlyGoal {
 
 ---
 
-*Última actualización: 2026-02-05*
+*Última actualización: 2026-02-23*

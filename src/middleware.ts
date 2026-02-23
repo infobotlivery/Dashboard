@@ -6,7 +6,16 @@ const AUTH_SECRET = process.env.API_SECRET_KEY
 const PUBLIC_ROUTES = ['/api/auth', '/api/webhooks']
 
 // Routes where GET is public but POST/PUT/DELETE need auth
-const PUBLIC_GET_ROUTES = ['/api/metrics', '/api/scorecard', '/api/sales', '/api/daily', '/api/settings']
+const PUBLIC_GET_ROUTES = [
+  '/api/metrics',
+  '/api/scorecard',
+  '/api/sales',
+  '/api/daily',
+  '/api/settings',
+  '/api/proposals',
+  '/api/finance/summary',
+  '/api/finance/goals'
+]
 
 // Convert hex string to Uint8Array
 function hexToBytes(hex: string): Uint8Array {

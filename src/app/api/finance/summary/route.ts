@@ -1,21 +1,31 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 
-// Calcular el primer día del mes actual
+// Calcular el primer día de un mes
 function getFirstDayOfMonth(date: Date = new Date()): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1)
 }
 
-// Calcular el último día del mes actual
+// Calcular el último día de un mes
 function getLastDayOfMonth(date: Date = new Date()): Date {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999)
 }
 
-// GET - Resumen financiero del mes actual
-export async function GET() {
+// Parsear 'YYYY-MM' o 'YYYY-MM-DD' a Date local
+function parseMonthParam(month: string): Date {
+  const parts = month.split('-').map(Number)
+  return new Date(parts[0], parts[1] - 1, 1)
+}
+
+// GET - Resumen financiero del mes (acepta ?month=YYYY-MM o YYYY-MM-DD)
+export async function GET(request: NextRequest) {
   try {
-    const monthStart = getFirstDayOfMonth()
-    const monthEnd = getLastDayOfMonth()
+    const { searchParams } = new URL(request.url)
+    const monthParam = searchParams.get('month')
+
+    const referenceDate = monthParam ? parseMonthParam(monthParam) : new Date()
+    const monthStart = getFirstDayOfMonth(referenceDate)
+    const monthEnd = getLastDayOfMonth(referenceDate)
 
     // 1. Calcular ingresos del mes
     // Onboarding: SalesClose creados este mes

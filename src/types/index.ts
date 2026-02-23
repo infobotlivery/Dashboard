@@ -155,3 +155,25 @@ export interface MonthlyGoal {
   savingsTarget: number
   notes: string | null
 }
+
+export interface Proposal {
+  id: number
+  clientName: string
+  company: string
+  service: string
+  amount: number
+  date: string
+  status: 'por_aprobacion' | 'aprobada' | 'no_cerrada'
+  notes?: string | null
+  createdAt: string
+}
+
+export interface UpcomingClientPayment {
+  id: number
+  clientName: string
+  product: string
+  recurringValue: number
+  billingDay: number
+  nextPaymentDate: string
+  daysUntil: number
+}
