@@ -23,8 +23,8 @@ export async function GET() {
     const earliestStart = months[months.length - 1].start
     const latestEnd = months[0].end
 
-    // 2. Bulk fetch all data in parallel (5 queries total instead of ~48)
-    const [snapshots, allSalesInRange, activeSales, weeklyMetrics, expenses] = await Promise.all([
+    // 2. Bulk fetch all data in parallel (4 queries total)
+    const [snapshots, allSalesInRange, activeSales, expenses] = await Promise.all([
       prisma.monthlyFinance.findMany({
         where: { month: { gte: earliestStart, lte: latestEnd } }
       }),
@@ -34,11 +34,7 @@ export async function GET() {
       }),
       prisma.salesClose.findMany({
         where: { status: 'active' },
-        select: { recurringValue: true, createdAt: true }
-      }),
-      prisma.weeklyMetric.findMany({
-        where: { weekStart: { gte: earliestStart, lte: latestEnd } },
-        select: { weekStart: true, mrrComunidad: true }
+        select: { recurringValue: true, createdAt: true, product: true }
       }),
       prisma.expense.findMany({
         where: {
@@ -81,13 +77,12 @@ export async function GET() {
         .reduce((sum, s) => sum + s.onboardingValue, 0)
 
       const totalMrrServices = activeSales
-        .filter(s => s.createdAt <= monthEnd)
+        .filter(s => s.createdAt <= monthEnd && s.product !== 'Comunidad')
         .reduce((sum, s) => sum + s.recurringValue, 0)
 
-      const monthWeeklyMetrics = weeklyMetrics
-        .filter(w => w.weekStart >= monthStart && w.weekStart <= monthEnd)
-        .sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime())
-      const totalMrrCommunity = monthWeeklyMetrics.length > 0 ? monthWeeklyMetrics[0].mrrComunidad : 0
+      const totalMrrCommunity = activeSales
+        .filter(s => s.createdAt <= monthEnd && s.product === 'Comunidad')
+        .reduce((sum, s) => sum + s.recurringValue, 0)
 
       const totalIncome = totalOnboarding + totalMrrServices + totalMrrCommunity
 

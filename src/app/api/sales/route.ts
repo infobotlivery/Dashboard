@@ -102,37 +102,24 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-
-    const { id, ...updateData } = body
+    const { id, clientName, product, customProduct, onboardingValue, recurringValue, contractMonths, status } = body
 
     if (!id) {
       return errorResponse('ID es requerido', 400)
     }
 
-    // Si se cambia a cancelled, registrar fecha de cancelación
-    if (updateData.status === 'cancelled') {
-      updateData.cancelledAt = new Date()
-    }
-
-    // Limpiar customProduct si el producto no es "Otro"
-    if (updateData.product && updateData.product !== 'Otro') {
-      updateData.customProduct = null
-    }
-
-    // Convertir valores numéricos
-    if (updateData.onboardingValue !== undefined) {
-      updateData.onboardingValue = Number(updateData.onboardingValue) || 0
-    }
-    if (updateData.recurringValue !== undefined) {
-      updateData.recurringValue = Number(updateData.recurringValue) || 0
-    }
-    if (updateData.contractMonths !== undefined) {
-      updateData.contractMonths = updateData.contractMonths ? Number(updateData.contractMonths) : null
-    }
-
     const sale = await prisma.salesClose.update({
       where: { id: Number(id) },
-      data: updateData
+      data: {
+        clientName,
+        product,
+        customProduct: product && product !== 'Otro' ? null : (customProduct || null),
+        onboardingValue: Number(onboardingValue) || 0,
+        recurringValue: Number(recurringValue) || 0,
+        contractMonths: contractMonths ? Number(contractMonths) : null,
+        status: status || 'active',
+        cancelledAt: status === 'cancelled' ? new Date() : null
+      }
     })
 
     return successResponse(sale)

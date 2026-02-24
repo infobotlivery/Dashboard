@@ -753,6 +753,7 @@ export default function AdminPage() {
                         { value: 'CRM', label: 'CRM', icon: '📊' },
                         { value: 'Agente IA', label: 'Agente IA', icon: '🤖' },
                         { value: 'Enigma', label: 'Enigma', icon: '🎯' },
+                        { value: 'Comunidad', label: 'Comunidad', icon: '👥' },
                         { value: 'Asesoría', label: 'Asesoría', icon: '💡' },
                         { value: 'Otro', label: 'Otro', icon: '📦' }
                       ]}
@@ -791,16 +792,18 @@ export default function AdminPage() {
                       max={60}
                       color="#8b5cf6"
                     />
-                    <Select
-                      label="Estado"
-                      value={salesClose.status}
-                      onChange={(value) => setSalesClose({ ...salesClose, status: value as SalesClose['status'] })}
-                      options={[
-                        { value: 'active', label: 'Activo', icon: '🟢' },
-                        { value: 'cancelled', label: 'Cancelado', icon: '🔴' },
-                        { value: 'completed', label: 'Completado', icon: '✅' }
-                      ]}
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-brand-muted mb-2">Estado</label>
+                      <select
+                        value={salesClose.status}
+                        onChange={(e) => setSalesClose({ ...salesClose, status: e.target.value as SalesClose['status'] })}
+                        className="dark-select w-full"
+                      >
+                        <option value="active">🟢 Activo</option>
+                        <option value="cancelled">🔴 Cancelado</option>
+                        <option value="completed">✅ Completado</option>
+                      </select>
+                    </div>
                   </div>
                   {editingSaleId && (
                     <div className="mt-4">

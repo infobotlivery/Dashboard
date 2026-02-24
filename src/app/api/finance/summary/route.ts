@@ -43,31 +43,20 @@ export async function GET(request: NextRequest) {
       0
     )
 
-    // MRR Servicios: SalesClose con status 'active'
+    // MRR desde clientes activos
     const activeSales = await prisma.salesClose.findMany({
       where: { status: 'active' }
     })
 
-    const totalMrrServices = activeSales.reduce(
-      (sum, sale) => sum + sale.recurringValue,
-      0
-    )
+    // MRR Servicios: clientes activos con producto distinto a 'Comunidad'
+    const totalMrrServices = activeSales
+      .filter(sale => sale.product !== 'Comunidad')
+      .reduce((sum, sale) => sum + sale.recurringValue, 0)
 
-    // MRR Comunidad: promedio de WeeklyMetric.mrrComunidad del mes
-    const weeklyMetrics = await prisma.weeklyMetric.findMany({
-      where: {
-        weekStart: {
-          gte: monthStart,
-          lte: monthEnd
-        }
-      },
-      orderBy: { weekStart: 'desc' },
-      take: 1
-    })
-
-    const totalMrrCommunity = weeklyMetrics.length > 0
-      ? weeklyMetrics[0].mrrComunidad
-      : 0
+    // MRR Comunidad: clientes activos con producto 'Comunidad'
+    const totalMrrCommunity = activeSales
+      .filter(sale => sale.product === 'Comunidad')
+      .reduce((sum, sale) => sum + sale.recurringValue, 0)
 
     // Total ingresos
     const totalIncome = totalOnboarding + totalMrrServices + totalMrrCommunity
