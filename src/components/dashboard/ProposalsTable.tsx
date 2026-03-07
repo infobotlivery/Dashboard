@@ -17,14 +17,33 @@ const statusConfig = {
   no_cerrada: { label: 'No Cerrada', bg: 'bg-red-400/10', text: 'text-red-400' }
 }
 
+const MONTH_NAMES = [
+  'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+  'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+]
+
 function getCurrentYYYYMM(): string {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
+// Genera los últimos N meses (incluyendo el actual) en orden desc
+function getRecentMonths(n = 12): { value: string; label: string }[] {
+  const results = []
+  const now = new Date()
+  for (let i = 0; i < n; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
+    results.push({ value, label })
+  }
+  return results
+}
+
 export function ProposalsTable({ proposals }: ProposalsTableProps) {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('todas')
   const [filterMonth, setFilterMonth] = useState<string>('')
+  const monthOptions = getRecentMonths(12)
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(v)
@@ -94,14 +113,16 @@ export function ProposalsTable({ proposals }: ProposalsTableProps) {
             </button>
           ))}
         </div>
-        <input
-          type="month"
+        <select
           value={filterMonth}
           onChange={e => setFilterMonth(e.target.value)}
-          max={getCurrentYYYYMM()}
-          className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-brand-primary/50"
-          style={{ colorScheme: 'dark' }}
-        />
+          className="dark-select bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-brand-primary/50 cursor-pointer"
+        >
+          <option value="">Todos los meses</option>
+          {monthOptions.map(m => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
       </div>
 
       {filtered.length === 0 ? (
