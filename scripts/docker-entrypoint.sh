@@ -279,23 +279,22 @@ else
 fi
 
 # =====================================================
-# SEED CATEGORÍAS PREDEFINIDAS
+# SEED CATEGORÍAS PREDEFINIDAS (INSERT OR IGNORE - seguro de correr siempre)
 # =====================================================
-echo "=== Verificando categorías predefinidas ==="
-CATEGORY_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM ExpenseCategory;" 2>/dev/null || echo "0")
-if [ "$CATEGORY_COUNT" = "0" ]; then
-    echo "No hay categorías - INSERTANDO predefinidas..."
-    sqlite3 "$DB_PATH" "
-    INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Software y Herramientas', '#8B5CF6', datetime('now'));
-    INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Mercadeo y Publicidad', '#F97316', datetime('now'));
-    INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Nómina y Colaboradores', '#06B6D4', datetime('now'));
-    INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Servicios Operativos', '#10B981', datetime('now'));
-    INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Otros', '#6B7280', datetime('now'));
-    " 2>&1 || echo "Error insertando categorías predefinidas"
-    echo "Categorías predefinidas insertadas"
-else
-    echo "Ya hay $CATEGORY_COUNT categorías en la base de datos"
-fi
+echo "=== Insertando categorías predefinidas ==="
+sqlite3 "$DB_PATH" "
+INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Alquiler', '#f59e0b', datetime('now'));
+INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Compra De Productos E Insumos', '#22c55e', datetime('now'));
+INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Gastos Administrativos', '#44e1fc', datetime('now'));
+INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Mantenimiento Y Reparaciones', '#f97316', datetime('now'));
+INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Mercadeo Y Publicidad', '#ec4899', datetime('now'));
+INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Muebles, Equipos O Maquinaria', '#8b5cf6', datetime('now'));
+INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Nómina', '#06b6d4', datetime('now'));
+INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Servicios Públicos', '#14b8a6', datetime('now'));
+INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Transporte, Domicilios Y Logistica', '#6366f1', datetime('now'));
+INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('Otros', '#64748b', datetime('now'));
+" 2>&1 || echo "Error insertando categorías predefinidas"
+echo "Categorías predefinidas procesadas (INSERT OR IGNORE)"
 
 echo "=== Estructura de tablas financieras ==="
 sqlite3 "$DB_PATH" "PRAGMA table_info(ExpenseCategory);" 2>/dev/null || echo "No se pudo leer ExpenseCategory"
