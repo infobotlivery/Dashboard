@@ -106,6 +106,17 @@ if (!dbInitialized) {
   console.log('Intentando continuar de todos modos...');
 }
 
+// Seed de categorías por defecto (upsert → seguro de ejecutar siempre)
+console.log('\nSeed de categorías de gastos...');
+try {
+  execSync('node scripts/seed-categories.js', {
+    stdio: 'inherit',
+    env: { ...process.env, DATABASE_URL }
+  });
+} catch (seedError) {
+  console.log(`Advertencia: falló el seed de categorías: ${seedError.message}`);
+}
+
 // Verificar contenido del directorio de datos
 try {
   console.log(`\nContenido de ${DATA_DIR}:`);
