@@ -106,15 +106,35 @@ if (!dbInitialized) {
   console.log('Intentando continuar de todos modos...');
 }
 
-// Seed de categorías por defecto (upsert → seguro de ejecutar siempre)
+// Seed de categorías por defecto usando sqlite3 directamente
 console.log('\nSeed de categorías de gastos...');
-try {
-  execSync('node scripts/seed-categories.js', {
-    stdio: 'inherit',
-    env: { ...process.env, DATABASE_URL }
-  });
-} catch (seedError) {
-  console.log(`Advertencia: falló el seed de categorías: ${seedError.message}`);
+const DEFAULT_CATEGORIES = [
+  { name: 'Alquiler',                          color: '#f59e0b' },
+  { name: 'Compra De Productos E Insumos',      color: '#22c55e' },
+  { name: 'Gastos Administrativos',             color: '#44e1fc' },
+  { name: 'Mantenimiento Y Reparaciones',       color: '#f97316' },
+  { name: 'Mercadeo Y Publicidad',              color: '#ec4899' },
+  { name: 'Muebles, Equipos O Maquinaria',      color: '#8b5cf6' },
+  { name: 'Nómina',                             color: '#06b6d4' },
+  { name: 'Servicios Públicos',                 color: '#14b8a6' },
+  { name: 'Transporte, Domicilios Y Logistica', color: '#6366f1' },
+  { name: 'Otros',                              color: '#64748b' },
+];
+
+if (fs.existsSync(DB_PATH)) {
+  try {
+    const now = new Date().toISOString();
+    for (const cat of DEFAULT_CATEGORIES) {
+      const sql = `INSERT OR IGNORE INTO ExpenseCategory (name, color, createdAt) VALUES ('${cat.name.replace(/'/g, "''")}', '${cat.color}', '${now}');`;
+      execSync(`sqlite3 "${DB_PATH}" "${sql}"`, { stdio: 'inherit' });
+      console.log(`  ✓ ${cat.name}`);
+    }
+    console.log('Seed de categorías completado.');
+  } catch (seedError) {
+    console.log(`Advertencia: falló el seed de categorías: ${seedError.message}`);
+  }
+} else {
+  console.log('Base de datos no encontrada aún, seed se omite.');
 }
 
 // Verificar contenido del directorio de datos
