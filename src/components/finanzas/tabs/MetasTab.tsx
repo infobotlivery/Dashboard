@@ -14,6 +14,13 @@ interface MetasTabProps {
   onMessage: (type: 'success' | 'error', text: string) => void
 }
 
+// Deriva "YYYY-MM" de una meta usando UTC para evitar que el timezone local
+// desplace el mes (metas se guardan como primer día del mes en UTC).
+function getGoalMonthKey(month: Date | string): string {
+  const d = new Date(month)
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
 export function MetasTab({ summary, onMessage }: MetasTabProps) {
   const [goals, setGoals] = useState<MonthlyGoal[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,11 +42,7 @@ export function MetasTab({ summary, onMessage }: MetasTabProps) {
   }, [])
 
   const currentGoal = useMemo(() => {
-    return goals.find((g) => {
-      const goalDate = new Date(g.month)
-      const goalKey = `${goalDate.getFullYear()}-${String(goalDate.getMonth() + 1).padStart(2, '0')}`
-      return goalKey === currentMonthKey
-    })
+    return goals.find((g) => getGoalMonthKey(g.month) === currentMonthKey)
   }, [goals, currentMonthKey])
 
   // Estadísticas de metas
@@ -84,11 +87,7 @@ export function MetasTab({ summary, onMessage }: MetasTabProps) {
 
   // Cargar meta al cambiar mes seleccionado
   useEffect(() => {
-    const existingGoal = goals.find((g) => {
-      const goalDate = new Date(g.month)
-      const goalKey = `${goalDate.getFullYear()}-${String(goalDate.getMonth() + 1).padStart(2, '0')}`
-      return goalKey === selectedMonth
-    })
+    const existingGoal = goals.find((g) => getGoalMonthKey(g.month) === selectedMonth)
 
     if (existingGoal) {
       setIncomeTarget(existingGoal.incomeTarget)
@@ -129,18 +128,35 @@ export function MetasTab({ summary, onMessage }: MetasTabProps) {
         })
       })
 
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
 
-      if (data.success) {
-        // Recargar metas
-        const goalsRes = await financeAuthFetch('/api/finance/goals')
-        const goalsData = await goalsRes.json()
-        if (goalsData.data) setGoals(goalsData.data)
-        onMessage('success', 'Meta guardada exitosamente')
-      } else {
-        onMessage('error', data.error || 'Error al guardar')
+      if (!res.ok || !data.success) {
+        const msg = res.status === 401
+          ? 'Sesión expirada. Vuelve a iniciar sesión.'
+          : data.error || `Error al guardar (HTTP ${res.status})`
+        onMessage('error', msg)
+        return
       }
-    } catch {
+
+      // Optimistic: insertar/actualizar en estado local antes de refetch
+      if (data.data) {
+        setGoals((prev) => {
+          const key = getGoalMonthKey(data.data.month)
+          const without = prev.filter((g) => getGoalMonthKey(g.month) !== key)
+          return [data.data, ...without].sort(
+            (a, b) => new Date(b.month).getTime() - new Date(a.month).getTime()
+          )
+        })
+      }
+
+      // Refetch autoritativo
+      const goalsRes = await financeAuthFetch('/api/finance/goals')
+      const goalsData = await goalsRes.json().catch(() => ({}))
+      if (goalsRes.ok && goalsData.data) setGoals(goalsData.data)
+
+      onMessage('success', 'Meta guardada exitosamente')
+    } catch (err) {
+      console.error('Error saving goal:', err)
       onMessage('error', 'Error de conexión')
     } finally {
       setSaving(false)
@@ -585,9 +601,9 @@ export function MetasTab({ summary, onMessage }: MetasTabProps) {
               <AnimatePresence>
                 {goals.map((goal, index) => {
                   const goalDate = new Date(goal.month)
-                  const goalKey = `${goalDate.getFullYear()}-${String(goalDate.getMonth() + 1).padStart(2, '0')}`
+                  const goalKey = getGoalMonthKey(goal.month)
                   const isCurrent = goalKey === currentMonthKey
-                  const isPast = new Date(goal.month) < new Date(currentMonthKey + '-01')
+                  const isPast = goalKey < currentMonthKey
 
                   return (
                     <motion.div
@@ -632,7 +648,8 @@ export function MetasTab({ summary, onMessage }: MetasTabProps) {
                               <p className="font-semibold text-white capitalize">
                                 {goalDate.toLocaleDateString('es-ES', {
                                   month: 'long',
-                                  year: 'numeric'
+                                  year: 'numeric',
+                                  timeZone: 'UTC'
                                 })}
                               </p>
                               <p className={`text-xs ${

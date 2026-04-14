@@ -124,6 +124,8 @@ export default function AdminPage() {
   const [newPassword, setNewPassword] = useState('')
 
   // Sales close state
+  // createdAt se maneja como "YYYY-MM-DD" (hora local) igual que weeklyMetric.weekStart.
+  // En submit se convierte a Date con parseLocalDate; al editar, se pobla desde el ISO del servidor.
   const [salesClose, setSalesClose] = useState<SalesClose>({
     clientName: '',
     product: 'CRM',
@@ -132,7 +134,7 @@ export default function AdminPage() {
     recurringValue: 0,
     contractMonths: null,
     status: 'active',
-    createdAt: '',
+    createdAt: formatLocalDate(new Date()),
     cancelledAt: null
   })
   const [salesList, setSalesList] = useState<(SalesClose & { id: number })[]>([])
@@ -283,9 +285,13 @@ export default function AdminPage() {
         body = dailyCheck
       } else if (activeTab === 'sales') {
         endpoint = '/api/sales'
-        body = salesClose
+        // Convertir createdAt local "YYYY-MM-DD" a ISO para el API
+        const createdAtIso = salesClose.createdAt
+          ? parseLocalDate(salesClose.createdAt).toISOString()
+          : undefined
+        body = { ...salesClose, createdAt: createdAtIso }
         if (editingSaleId) {
-          body = { ...salesClose, id: editingSaleId }
+          body = { ...body, id: editingSaleId }
         }
       } else if (activeTab === 'settings') {
         endpoint = '/api/settings'
@@ -315,7 +321,7 @@ export default function AdminPage() {
             recurringValue: 0,
             contractMonths: null,
             status: 'active',
-            createdAt: '',
+            createdAt: formatLocalDate(new Date()),
             cancelledAt: null
           })
           setEditingSaleId(null)
@@ -804,6 +810,11 @@ export default function AdminPage() {
                         <option value="completed">✅ Completado</option>
                       </select>
                     </div>
+                    <DateSelector
+                      label="Fecha del Cierre"
+                      value={salesClose.createdAt ? parseLocalDate(salesClose.createdAt) : new Date()}
+                      onChange={(date) => setSalesClose({ ...salesClose, createdAt: formatLocalDate(date) })}
+                    />
                   </div>
                   {editingSaleId && (
                     <div className="mt-4">
@@ -818,7 +829,7 @@ export default function AdminPage() {
                             recurringValue: 0,
                             contractMonths: null,
                             status: 'active',
-                            createdAt: '',
+                            createdAt: formatLocalDate(new Date()),
                             cancelledAt: null
                           })
                         }}
@@ -892,9 +903,12 @@ export default function AdminPage() {
                                       recurringValue: sale.recurringValue,
                                       contractMonths: sale.contractMonths,
                                       status: sale.status,
-                                      createdAt: sale.createdAt,
+                                      createdAt: sale.createdAt
+                                        ? formatLocalDate(new Date(sale.createdAt))
+                                        : formatLocalDate(new Date()),
                                       cancelledAt: sale.cancelledAt
                                     })
+                                    window.scrollTo({ top: 0, behavior: 'smooth' })
                                   }}
                                   className="text-brand-primary hover:text-white text-sm mr-2"
                                 >

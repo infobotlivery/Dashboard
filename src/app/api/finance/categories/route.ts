@@ -2,13 +2,21 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 
 // GET - Lista de categorías
+// _count.expenses cuenta solo gastos activos (endDate = null), replicando la
+// convención de GastosTab (componente) que considera "activo" a !expense.endDate.
+// Antes este endpoint contaba TODO (incluidos los cancelados con endDate en el
+// pasado), provocando que Categorías mostrara más gastos que Gastos.
 export async function GET() {
   try {
     const categories = await prisma.expenseCategory.findMany({
       orderBy: { name: 'asc' },
       include: {
         _count: {
-          select: { expenses: true }
+          select: {
+            expenses: {
+              where: { endDate: null }
+            }
+          }
         }
       }
     })

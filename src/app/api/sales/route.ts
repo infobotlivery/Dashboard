@@ -59,6 +59,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Parse una fecha opcional del body. Devuelve undefined si no se envió,
+// null si es inválida (para que el caller decida qué hacer).
+function parseOptionalDate(value: unknown): Date | undefined | null {
+  if (value === undefined || value === null || value === '') return undefined
+  const d = new Date(value as string)
+  return isNaN(d.getTime()) ? null : d
+}
+
 // POST /api/sales - Crear nuevo cierre
 export async function POST(request: NextRequest) {
   try {
@@ -71,12 +79,18 @@ export async function POST(request: NextRequest) {
       onboardingValue,
       recurringValue,
       contractMonths,
-      status
+      status,
+      createdAt
     } = body
 
     // Validación básica
     if (!clientName || !product) {
       return errorResponse('Nombre de cliente y producto son requeridos', 400)
+    }
+
+    const parsedCreatedAt = parseOptionalDate(createdAt)
+    if (parsedCreatedAt === null) {
+      return errorResponse('Fecha de cierre inválida', 400)
     }
 
     const sale = await prisma.salesClose.create({
@@ -87,7 +101,8 @@ export async function POST(request: NextRequest) {
         onboardingValue: Number(onboardingValue) || 0,
         recurringValue: Number(recurringValue) || 0,
         contractMonths: contractMonths ? Number(contractMonths) : null,
-        status: status || 'active'
+        status: status || 'active',
+        ...(parsedCreatedAt && { createdAt: parsedCreatedAt })
       }
     })
 
@@ -102,10 +117,25 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, clientName, product, customProduct, onboardingValue, recurringValue, contractMonths, status } = body
+    const {
+      id,
+      clientName,
+      product,
+      customProduct,
+      onboardingValue,
+      recurringValue,
+      contractMonths,
+      status,
+      createdAt
+    } = body
 
     if (!id) {
       return errorResponse('ID es requerido', 400)
+    }
+
+    const parsedCreatedAt = parseOptionalDate(createdAt)
+    if (parsedCreatedAt === null) {
+      return errorResponse('Fecha de cierre inválida', 400)
     }
 
     const sale = await prisma.salesClose.update({
@@ -118,7 +148,8 @@ export async function PUT(request: NextRequest) {
         recurringValue: Number(recurringValue) || 0,
         contractMonths: contractMonths ? Number(contractMonths) : null,
         status: status || 'active',
-        cancelledAt: status === 'cancelled' ? new Date() : null
+        cancelledAt: status === 'cancelled' ? new Date() : null,
+        ...(parsedCreatedAt && { createdAt: parsedCreatedAt })
       }
     })
 
