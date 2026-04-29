@@ -43,28 +43,19 @@ export async function GET(request: NextRequest) {
       0
     )
 
-    // MRR desde clientes que estaban activos DURANTE el mes seleccionado:
-    // - firmaron antes o durante el mes (createdAt <= monthEnd)
-    // - no cancelados antes de que empezara el mes
+    // MRR: solo de clientes que firmaron EN este mes (no acumula meses anteriores)
+    const totalMrrServices = salesThisMonth
+      .filter(sale => sale.product !== 'Comunidad' && sale.status !== 'cancelled')
+      .reduce((sum, sale) => sum + sale.recurringValue, 0)
+
+    const totalMrrCommunity = salesThisMonth
+      .filter(sale => sale.product === 'Comunidad' && sale.status !== 'cancelled')
+      .reduce((sum, sale) => sum + sale.recurringValue, 0)
+
+    // Clientes activos totales (para el contador, usa todos los activos)
     const activeSales = await prisma.salesClose.findMany({
-      where: {
-        createdAt: { lte: monthEnd },
-        OR: [
-          { status: 'active' },
-          { status: 'cancelled', cancelledAt: { gte: monthStart } }
-        ]
-      }
+      where: { status: 'active' }
     })
-
-    // MRR Servicios: clientes activos ese mes con producto distinto a 'Comunidad'
-    const totalMrrServices = activeSales
-      .filter(sale => sale.product !== 'Comunidad')
-      .reduce((sum, sale) => sum + sale.recurringValue, 0)
-
-    // MRR Comunidad: clientes activos ese mes con producto 'Comunidad'
-    const totalMrrCommunity = activeSales
-      .filter(sale => sale.product === 'Comunidad')
-      .reduce((sum, sale) => sum + sale.recurringValue, 0)
 
     // Total ingresos
     const totalIncome = totalOnboarding + totalMrrServices + totalMrrCommunity
