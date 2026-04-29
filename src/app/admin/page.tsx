@@ -745,6 +745,11 @@ export default function AdminPage() {
                     {editingSaleId ? 'Editar Cierre' : 'Nuevo Cierre de Venta'}
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <DateSelector
+                      label="📅 Fecha del Cierre"
+                      value={salesClose.createdAt ? parseLocalDate(salesClose.createdAt) : new Date()}
+                      onChange={(date) => setSalesClose({ ...salesClose, createdAt: formatLocalDate(date) })}
+                    />
                     <Input
                       label="Nombre del Cliente"
                       value={salesClose.clientName}
@@ -810,11 +815,6 @@ export default function AdminPage() {
                         <option value="completed">✅ Completado</option>
                       </select>
                     </div>
-                    <DateSelector
-                      label="Fecha del Cierre"
-                      value={salesClose.createdAt ? parseLocalDate(salesClose.createdAt) : new Date()}
-                      onChange={(date) => setSalesClose({ ...salesClose, createdAt: formatLocalDate(date) })}
-                    />
                   </div>
                   {editingSaleId && (
                     <div className="mt-4">

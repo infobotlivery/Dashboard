@@ -43,17 +43,25 @@ export async function GET(request: NextRequest) {
       0
     )
 
-    // MRR desde clientes activos
+    // MRR desde clientes que estaban activos DURANTE el mes seleccionado:
+    // - firmaron antes o durante el mes (createdAt <= monthEnd)
+    // - no cancelados antes de que empezara el mes
     const activeSales = await prisma.salesClose.findMany({
-      where: { status: 'active' }
+      where: {
+        createdAt: { lte: monthEnd },
+        OR: [
+          { status: 'active' },
+          { status: 'cancelled', cancelledAt: { gte: monthStart } }
+        ]
+      }
     })
 
-    // MRR Servicios: clientes activos con producto distinto a 'Comunidad'
+    // MRR Servicios: clientes activos ese mes con producto distinto a 'Comunidad'
     const totalMrrServices = activeSales
       .filter(sale => sale.product !== 'Comunidad')
       .reduce((sum, sale) => sum + sale.recurringValue, 0)
 
-    // MRR Comunidad: clientes activos con producto 'Comunidad'
+    // MRR Comunidad: clientes activos ese mes con producto 'Comunidad'
     const totalMrrCommunity = activeSales
       .filter(sale => sale.product === 'Comunidad')
       .reduce((sum, sale) => sum + sale.recurringValue, 0)
