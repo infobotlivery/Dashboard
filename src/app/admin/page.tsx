@@ -10,6 +10,7 @@ import NumberInput from '@/components/ui/NumberInput'
 import DateSelector from '@/components/ui/DateSelector'
 import { Select } from '@/components/ui/Select'
 import { apiFetch } from '@/lib/apiFetch'
+import { SalesCsvImport } from '@/components/finanzas/SalesCsvImport'
 import type { WeeklyMetric, MonthlyScorecard, Settings, SalesClose, Proposal } from '@/types'
 
 type Tab = 'weekly' | 'monthly' | 'daily' | 'sales' | 'settings' | 'proposals'
@@ -170,6 +171,12 @@ export default function AdminPage() {
   function parseLocalDate(dateStr: string): Date {
     const [year, month, day] = dateStr.split('-').map(Number)
     return new Date(year, month - 1, day)
+  }
+
+  async function reloadSales() {
+    const res = await apiFetch('/api/sales')
+    const data = await res.json()
+    if (data.data) setSalesList(data.data)
   }
 
   // Cargar datos al cambiar de tab
@@ -740,6 +747,8 @@ export default function AdminPage() {
                     </div>
                   )}
                 </Card>
+
+                <SalesCsvImport onImported={reloadSales} />
 
                 {/* Lista de cierres existentes */}
                 {salesList.length > 0 && (

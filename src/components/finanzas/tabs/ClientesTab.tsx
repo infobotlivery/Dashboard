@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { GlassCard } from '@/components/finanzas/GlassCard'
 import { AnimatedNumber } from '@/components/finanzas/AnimatedNumber'
+import { SalesCsvImport } from '@/components/finanzas/SalesCsvImport'
 import type { SalesClose, SalesSummary } from '@/types'
 
 interface ClientesTabProps {
@@ -11,6 +12,7 @@ interface ClientesTabProps {
   summary: SalesSummary | null
   selectedMonth: string
   onMonthChange: (m: string) => void
+  onImported?: () => void
 }
 
 function getCurrentYYYYMM(): string {
@@ -66,7 +68,7 @@ function getStatusBadge(status: string) {
   }
 }
 
-export function ClientesTab({ sales, summary, selectedMonth, onMonthChange }: ClientesTabProps) {
+export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onImported }: ClientesTabProps) {
   const [filterStatus, setFilterStatus] = useState<string>('todos')
   const currentYM = getCurrentYYYYMM()
 
@@ -110,6 +112,8 @@ export function ClientesTab({ sales, summary, selectedMonth, onMonthChange }: Cl
 
   return (
     <div className="space-y-6">
+      <SalesCsvImport onImported={onImported} />
+
       {/* Filtros */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="flex gap-1">

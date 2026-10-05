@@ -254,6 +254,21 @@ export default function FinanzasPage() {
     }
   }
 
+  async function reloadSales() {
+    try {
+      const [salesRes, salesSummaryRes] = await Promise.all([
+        apiFetch('/api/sales'),
+        apiFetch('/api/sales?summary=true')
+      ])
+      const [salesData, salesSummaryData] = await Promise.all([salesRes.json(), salesSummaryRes.json()])
+      if (salesData.data) setSalesCloses(salesData.data)
+      if (salesSummaryData.data) setSalesSummary(salesSummaryData.data)
+    } catch {
+      // se actualizará en la próxima carga
+    }
+    await refreshSummary()
+  }
+
   async function refreshSummary() {
     try {
       const res = await apiFetch('/api/finance/summary')
@@ -368,6 +383,7 @@ export default function FinanzasPage() {
                     summary={salesSummary}
                     selectedMonth={selectedFinanceMonth}
                     onMonthChange={setSelectedFinanceMonth}
+                    onImported={reloadSales}
                   />
                 )}
               </motion.div>
