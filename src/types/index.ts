@@ -97,8 +97,31 @@ export interface FinanceSummary {
     fixedExpenses: number
     recurringExpenses: number
   }
+  accounts?: {
+    receivable: AccountsTotals
+    payable: AccountsTotals
+    projectedBalance: number
+  }
   netProfit: number
   activeClients: number
+}
+
+export interface AccountsTotals {
+  pending: number
+  overdue: number
+  count: number
+}
+
+export interface AccountEntry {
+  id: number
+  kind: 'receivable' | 'payable'
+  concept: string
+  counterparty: string
+  amount: number
+  dueDate: string
+  status: 'pending' | 'paid'
+  paidAt: string | null
+  notes: string | null
 }
 
 export interface MonthlyHistory {

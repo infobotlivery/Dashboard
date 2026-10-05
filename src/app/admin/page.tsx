@@ -8,8 +8,10 @@ import { Card } from '@/components/ui/Card'
 import Toggle from '@/components/ui/Toggle'
 import NumberInput from '@/components/ui/NumberInput'
 import DateSelector from '@/components/ui/DateSelector'
-import { Select } from '@/components/ui/Select'
-import { adminAuthFetch } from '@/lib/authFetch'
+import { apiFetch } from '@/lib/apiFetch'
+import { SalesTab } from '@/components/admin/SalesTab'
+import { ProposalsTab } from '@/components/admin/ProposalsTab'
+import { formatLocalDate, parseLocalDate, getMonday } from '@/lib/dates'
 import type { WeeklyMetric, MonthlyScorecard, Settings, SalesClose, Proposal } from '@/types'
 
 type Tab = 'weekly' | 'monthly' | 'daily' | 'sales' | 'settings' | 'proposals'
@@ -72,10 +74,6 @@ const icons = {
 }
 
 export default function AdminPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [password, setPassword] = useState('')
-  const [authError, setAuthError] = useState('')
-  const [authLoading, setAuthLoading] = useState(false)
 
   const [activeTab, setActiveTab] = useState<Tab>('weekly')
   const [saving, setSaving] = useState(false)
@@ -121,98 +119,13 @@ export default function AdminPage() {
     brandDark: '#171717',
     logoUrl: null
   })
-  const [newPassword, setNewPassword] = useState('')
-
-  // Sales close state
-  // createdAt se maneja como "YYYY-MM-DD" (hora local) igual que weeklyMetric.weekStart.
-  // En submit se convierte a Date con parseLocalDate; al editar, se pobla desde el ISO del servidor.
-  const [salesClose, setSalesClose] = useState<SalesClose>({
-    clientName: '',
-    product: 'CRM',
-    customProduct: '',
-    onboardingValue: 0,
-    recurringValue: 0,
-    contractMonths: null,
-    status: 'active',
-    createdAt: formatLocalDate(new Date()),
-    cancelledAt: null
-  })
-  const [salesList, setSalesList] = useState<(SalesClose & { id: number })[]>([])
-  const [editingSaleId, setEditingSaleId] = useState<number | null>(null)
-
-  // Proposals state
-  const [proposalList, setProposalList] = useState<Proposal[]>([])
-  const [proposalForm, setProposalForm] = useState({
-    clientName: '',
-    company: '',
-    service: '',
-    amount: 0,
-    date: formatLocalDate(new Date()),
-    status: 'por_aprobacion' as Proposal['status'],
-    notes: ''
-  })
-  const [editingProposalId, setEditingProposalId] = useState<number | null>(null)
-  const [proposalFilterStatus, setProposalFilterStatus] = useState<string>('todas')
-  const [proposalFilterMonth, setProposalFilterMonth] = useState<string>('')
-
-  function getMonday(date: Date) {
-    const d = new Date(date)
-    const day = d.getDay()
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-    d.setDate(diff)
-    return d
-  }
-
-  // Formatear fecha local como YYYY-MM-DD (sin conversión a UTC)
-  function formatLocalDate(date: Date): string {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
-  // Parsear fecha YYYY-MM-DD como hora local (no UTC)
-  function parseLocalDate(dateStr: string): Date {
-    const [year, month, day] = dateStr.split('-').map(Number)
-    return new Date(year, month - 1, day)
-  }
-
-  // Autenticación
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setAuthLoading(true)
-    setAuthError('')
-
-    try {
-      const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        setIsAuthenticated(true)
-        localStorage.setItem('admin_token', data.data.token)
-      } else {
-        setAuthError(data.error || 'Contraseña incorrecta')
-      }
-    } catch {
-      setAuthError('Error de conexión')
-    } finally {
-      setAuthLoading(false)
-    }
-  }
 
   // Cargar datos al cambiar de tab
   useEffect(() => {
-    if (!isAuthenticated) return
-
     async function loadData() {
       try {
         if (activeTab === 'weekly') {
-          const res = await adminAuthFetch('/api/metrics/current')
+          const res = await apiFetch('/api/metrics/current')
           const data = await res.json()
           if (data.data) {
             setWeeklyMetric({
@@ -222,7 +135,7 @@ export default function AdminPage() {
           }
         } else if (activeTab === 'monthly') {
           // Cargar scorecard del mes actual con métricas calculadas
-          const res = await adminAuthFetch('/api/scorecard?current=true')
+          const res = await apiFetch('/api/scorecard?current=true')
           const data = await res.json()
           if (data.data) {
             setMonthlyScorecard({
@@ -231,7 +144,7 @@ export default function AdminPage() {
             })
           }
         } else if (activeTab === 'daily') {
-          const res = await adminAuthFetch('/api/daily?today=true')
+          const res = await apiFetch('/api/daily?today=true')
           const data = await res.json()
           if (data.data) {
             setDailyCheck({
@@ -240,22 +153,12 @@ export default function AdminPage() {
               notas: data.data.notas || ''
             })
           }
-        } else if (activeTab === 'sales') {
-          const res = await adminAuthFetch('/api/sales')
-          const data = await res.json()
-          if (data.data) {
-            setSalesList(data.data)
-          }
         } else if (activeTab === 'settings') {
-          const res = await adminAuthFetch('/api/settings')
+          const res = await apiFetch('/api/settings')
           const data = await res.json()
           if (data.data) {
             setSettings(data.data)
           }
-        } else if (activeTab === 'proposals') {
-          const res = await fetch('/api/proposals')
-          const data = await res.json()
-          if (data.data) setProposalList(data.data)
         }
       } catch (err) {
         console.error('Error loading data:', err)
@@ -263,7 +166,7 @@ export default function AdminPage() {
     }
 
     loadData()
-  }, [activeTab, isAuthenticated])
+  }, [activeTab])
 
   // Guardar datos
   async function handleSave() {
@@ -283,23 +186,13 @@ export default function AdminPage() {
       } else if (activeTab === 'daily') {
         endpoint = '/api/daily'
         body = dailyCheck
-      } else if (activeTab === 'sales') {
-        endpoint = '/api/sales'
-        // Convertir createdAt local "YYYY-MM-DD" a ISO para el API
-        const createdAtIso = salesClose.createdAt
-          ? parseLocalDate(salesClose.createdAt).toISOString()
-          : undefined
-        body = { ...salesClose, createdAt: createdAtIso }
-        if (editingSaleId) {
-          body = { ...body, id: editingSaleId }
-        }
       } else if (activeTab === 'settings') {
         endpoint = '/api/settings'
-        body = { ...settings, newPassword: newPassword || undefined }
+        body = { ...settings }
       }
 
-      const res = await adminAuthFetch(endpoint, {
-        method: activeTab === 'sales' && editingSaleId ? 'PUT' : 'POST',
+      const res = await apiFetch(endpoint, {
+        method: 'POST',
         body: JSON.stringify(body)
       })
 
@@ -307,25 +200,6 @@ export default function AdminPage() {
 
       if (data.success) {
         setMessage({ type: 'success', text: 'Guardado correctamente' })
-        if (activeTab === 'settings') setNewPassword('')
-        if (activeTab === 'sales') {
-          // Recargar lista y limpiar formulario
-          const salesRes = await adminAuthFetch('/api/sales')
-          const salesData = await salesRes.json()
-          if (salesData.data) setSalesList(salesData.data)
-          setSalesClose({
-            clientName: '',
-            product: 'CRM',
-            customProduct: '',
-            onboardingValue: 0,
-            recurringValue: 0,
-            contractMonths: null,
-            status: 'active',
-            createdAt: formatLocalDate(new Date()),
-            cancelledAt: null
-          })
-          setEditingSaleId(null)
-        }
       } else {
         setMessage({ type: 'error', text: data.error || 'Error al guardar' })
       }
@@ -337,124 +211,9 @@ export default function AdminPage() {
     }
   }
 
-  // CRUD Propuestas
-  async function handleSaveProposal() {
-    if (!proposalForm.clientName.trim()) {
-      setMessage({ type: 'error', text: 'El nombre del cliente es requerido' })
-      setTimeout(() => setMessage(null), 3000)
-      return
-    }
-    setSaving(true)
-    try {
-      const body = editingProposalId
-        ? { ...proposalForm, id: editingProposalId }
-        : proposalForm
-      const method = editingProposalId ? 'PUT' : 'POST'
-      const res = await adminAuthFetch('/api/proposals', {
-        method,
-        body: JSON.stringify(body)
-      })
-      const data = await res.json()
-      if (data.success) {
-        const listRes = await fetch('/api/proposals')
-        const listData = await listRes.json()
-        if (listData.data) setProposalList(listData.data)
-        setProposalForm({ clientName: '', company: '', service: '', amount: 0, date: formatLocalDate(new Date()), status: 'por_aprobacion', notes: '' })
-        setEditingProposalId(null)
-        setMessage({ type: 'success', text: editingProposalId ? 'Propuesta actualizada' : 'Propuesta creada' })
-      } else {
-        setMessage({ type: 'error', text: data.error || 'Error al guardar' })
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Error de conexión' })
-    } finally {
-      setSaving(false)
-      setTimeout(() => setMessage(null), 3000)
-    }
-  }
-
-  async function handleDeleteProposal(id: number) {
-    if (!confirm('¿Eliminar esta propuesta?')) return
-    try {
-      const res = await adminAuthFetch(`/api/proposals?id=${id}`, { method: 'DELETE' })
-      const data = await res.json()
-      if (data.success) {
-        setProposalList(proposalList.filter(p => p.id !== id))
-        setMessage({ type: 'success', text: 'Propuesta eliminada' })
-        setTimeout(() => setMessage(null), 3000)
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Error al eliminar' })
-      setTimeout(() => setMessage(null), 3000)
-    }
-  }
-
-  function startEditProposal(p: Proposal) {
-    setProposalForm({
-      clientName: p.clientName,
-      company: p.company,
-      service: p.service,
-      amount: p.amount,
-      date: p.date.split('T')[0],
-      status: p.status,
-      notes: p.notes || ''
-    })
-    setEditingProposalId(p.id)
-  }
-
-  // Pantalla de login
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-md"
-        >
-          <Card>
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-brand-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-brand-primary" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <h1 className="text-2xl font-bold">Panel de Administración</h1>
-              <p className="text-brand-muted mt-2">Ingresa tu contraseña para continuar</p>
-            </div>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <Input
-                type="password"
-                placeholder="Contraseña"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoFocus
-              />
-
-              {authError && (
-                <motion.p
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-red-400 text-sm text-center bg-red-400/10 py-2 px-4 rounded-lg"
-                >
-                  {authError}
-                </motion.p>
-              )}
-
-              <Button type="submit" className="w-full" loading={authLoading}>
-                Ingresar
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <a href="/" className="text-brand-muted hover:text-brand-primary text-sm transition-colors">
-                ← Volver al Dashboard
-              </a>
-            </div>
-          </Card>
-        </motion.div>
-      </div>
-    )
+  function showMessage(type: 'success' | 'error', text: string) {
+    setMessage({ type, text })
+    setTimeout(() => setMessage(null), 3000)
   }
 
   // Panel de admin
@@ -472,15 +231,6 @@ export default function AdminPage() {
               <a href="/" className="btn-secondary text-sm">
                 Ver Dashboard
               </a>
-              <button
-                onClick={() => {
-                  localStorage.removeItem('admin_token')
-                  setIsAuthenticated(false)
-                }}
-                className="btn-secondary text-sm"
-              >
-                Cerrar Sesión
-              </button>
             </div>
           </div>
         </div>
@@ -597,7 +347,7 @@ export default function AdminPage() {
                       const monthStr = formatLocalDate(date)
                       // Cargar datos del mes seleccionado
                       try {
-                        const res = await adminAuthFetch(`/api/scorecard?month=${monthStr}`)
+                        const res = await apiFetch(`/api/scorecard?month=${monthStr}`)
                         const data = await res.json()
                         if (data.data) {
                           setMonthlyScorecard({
@@ -738,192 +488,7 @@ export default function AdminPage() {
             )}
 
             {/* Sales Tab */}
-            {activeTab === 'sales' && (
-              <div className="space-y-6">
-                <Card>
-                  <h2 className="text-lg font-semibold mb-4">
-                    {editingSaleId ? 'Editar Cierre' : 'Nuevo Cierre de Venta'}
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <DateSelector
-                      label="📅 Fecha del Cierre"
-                      value={salesClose.createdAt ? parseLocalDate(salesClose.createdAt) : new Date()}
-                      onChange={(date) => setSalesClose({ ...salesClose, createdAt: formatLocalDate(date) })}
-                    />
-                    <Input
-                      label="Nombre del Cliente"
-                      value={salesClose.clientName}
-                      onChange={(e) => setSalesClose({ ...salesClose, clientName: e.target.value })}
-                      placeholder="Ej: Juan Pérez"
-                    />
-                    <Select
-                      label="Producto"
-                      value={salesClose.product}
-                      onChange={(value) => setSalesClose({ ...salesClose, product: value })}
-                      options={[
-                        { value: 'CRM', label: 'CRM', icon: '📊' },
-                        { value: 'Agente IA', label: 'Agente IA', icon: '🤖' },
-                        { value: 'Enigma', label: 'Enigma', icon: '🎯' },
-                        { value: 'Comunidad', label: 'Comunidad', icon: '👥' },
-                        { value: 'Asesoría', label: 'Asesoría', icon: '💡' },
-                        { value: 'Otro', label: 'Otro', icon: '📦' }
-                      ]}
-                    />
-                    {salesClose.product === 'Otro' && (
-                      <Input
-                        label="Producto Personalizado"
-                        value={salesClose.customProduct || ''}
-                        onChange={(e) => setSalesClose({ ...salesClose, customProduct: e.target.value })}
-                        placeholder="Especifica el producto"
-                      />
-                    )}
-                    <NumberInput
-                      label="Valor Onboarding"
-                      value={salesClose.onboardingValue}
-                      onChange={(value) => setSalesClose({ ...salesClose, onboardingValue: value })}
-                      prefix="$"
-                      step={100}
-                      color="#10b981"
-                    />
-                    <NumberInput
-                      label="Valor Recurrente (mensual)"
-                      value={salesClose.recurringValue}
-                      onChange={(value) => setSalesClose({ ...salesClose, recurringValue: value })}
-                      prefix="$"
-                      suffix="/mes"
-                      step={50}
-                      color="#3b82f6"
-                    />
-                    <NumberInput
-                      label="Duración Contrato (meses)"
-                      value={salesClose.contractMonths || 0}
-                      onChange={(value) => setSalesClose({ ...salesClose, contractMonths: value || null })}
-                      suffix="meses"
-                      min={0}
-                      max={60}
-                      color="#8b5cf6"
-                    />
-                    <div>
-                      <label className="block text-sm font-medium text-brand-muted mb-2">Estado</label>
-                      <select
-                        value={salesClose.status}
-                        onChange={(e) => setSalesClose({ ...salesClose, status: e.target.value as SalesClose['status'] })}
-                        className="dark-select w-full"
-                      >
-                        <option value="active">🟢 Activo</option>
-                        <option value="cancelled">🔴 Cancelado</option>
-                        <option value="completed">✅ Completado</option>
-                      </select>
-                    </div>
-                  </div>
-                  {editingSaleId && (
-                    <div className="mt-4">
-                      <button
-                        onClick={() => {
-                          setEditingSaleId(null)
-                          setSalesClose({
-                            clientName: '',
-                            product: 'CRM',
-                            customProduct: '',
-                            onboardingValue: 0,
-                            recurringValue: 0,
-                            contractMonths: null,
-                            status: 'active',
-                            createdAt: formatLocalDate(new Date()),
-                            cancelledAt: null
-                          })
-                        }}
-                        className="text-brand-muted hover:text-white text-sm"
-                      >
-                        Cancelar edición
-                      </button>
-                    </div>
-                  )}
-                </Card>
-
-                {/* Lista de cierres existentes */}
-                {salesList.length > 0 && (
-                  <Card>
-                    <h2 className="text-lg font-semibold mb-4">Cierres Registrados</h2>
-                    <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr>
-                            <th className="text-left py-2 px-3 text-brand-muted font-medium text-sm">Fecha</th>
-                            <th className="text-left py-2 px-3 text-brand-muted font-medium text-sm">Cliente</th>
-                            <th className="text-left py-2 px-3 text-brand-muted font-medium text-sm">Producto</th>
-                            <th className="text-right py-2 px-3 text-brand-muted font-medium text-sm">Onboarding</th>
-                            <th className="text-right py-2 px-3 text-brand-muted font-medium text-sm">Recurrente</th>
-                            <th className="text-center py-2 px-3 text-brand-muted font-medium text-sm">Estado</th>
-                            <th className="text-center py-2 px-3 text-brand-muted font-medium text-sm">Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {salesList.map((sale) => (
-                            <tr key={sale.id} className="border-t border-brand-border">
-                              <td className="py-3 px-3 text-brand-muted text-sm">
-                                {sale.createdAt ? new Date(sale.createdAt).toLocaleDateString('es-ES', {
-                                  day: '2-digit',
-                                  month: 'short',
-                                  year: 'numeric'
-                                }) : '-'}
-                              </td>
-                              <td className="py-3 px-3">{sale.clientName}</td>
-                              <td className="py-3 px-3 text-brand-muted">
-                                {sale.product === 'Otro' ? sale.customProduct : sale.product}
-                              </td>
-                              <td className="py-3 px-3 text-right text-green-400">
-                                ${sale.onboardingValue.toLocaleString()}
-                              </td>
-                              <td className="py-3 px-3 text-right text-brand-primary">
-                                ${sale.recurringValue.toLocaleString()}/mes
-                              </td>
-                              <td className="py-3 px-3 text-center">
-                                <span className={`inline-flex items-center gap-1 text-sm ${
-                                  sale.status === 'active' ? 'text-green-400' :
-                                  sale.status === 'cancelled' ? 'text-red-400' : 'text-brand-primary'
-                                }`}>
-                                  <span className={`w-2 h-2 rounded-full ${
-                                    sale.status === 'active' ? 'bg-green-400' :
-                                    sale.status === 'cancelled' ? 'bg-red-400' : 'bg-brand-primary'
-                                  }`}></span>
-                                  {sale.status === 'active' ? 'Activo' :
-                                   sale.status === 'cancelled' ? 'Cancelado' : 'Completado'}
-                                </span>
-                              </td>
-                              <td className="py-3 px-3 text-center">
-                                <button
-                                  onClick={() => {
-                                    setEditingSaleId(sale.id)
-                                    setSalesClose({
-                                      clientName: sale.clientName,
-                                      product: sale.product,
-                                      customProduct: sale.customProduct || '',
-                                      onboardingValue: sale.onboardingValue,
-                                      recurringValue: sale.recurringValue,
-                                      contractMonths: sale.contractMonths,
-                                      status: sale.status,
-                                      createdAt: sale.createdAt
-                                        ? formatLocalDate(new Date(sale.createdAt))
-                                        : formatLocalDate(new Date()),
-                                      cancelledAt: sale.cancelledAt
-                                    })
-                                    window.scrollTo({ top: 0, behavior: 'smooth' })
-                                  }}
-                                  className="text-brand-primary hover:text-white text-sm mr-2"
-                                >
-                                  Editar
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </Card>
-                )}
-              </div>
-            )}
+            {activeTab === 'sales' && <SalesTab onMessage={showMessage} />}
 
             {/* Settings Tab */}
             {activeTab === 'settings' && (
@@ -1006,217 +571,16 @@ export default function AdminPage() {
                   )}
                 </Card>
 
-                <Card>
-                  <h2 className="text-lg font-semibold mb-4">Cambiar Contraseña</h2>
-                  <Input
-                    type="password"
-                    label="Nueva Contraseña"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Dejar vacío para no cambiar"
-                  />
-                </Card>
               </div>
             )}
             {/* Proposals Tab */}
-            {activeTab === 'proposals' && (() => {
-              const proposalStatusConfig = {
-                por_aprobacion: { label: 'Por Aprobación', bg: 'bg-yellow-400/10', text: 'text-yellow-400' },
-                aprobada: { label: 'Aprobada', bg: 'bg-green-400/10', text: 'text-green-400' },
-                no_cerrada: { label: 'No Cerrada', bg: 'bg-red-400/10', text: 'text-red-400' }
-              } as const
-
-              const filtered = proposalList.filter(p => {
-                if (proposalFilterStatus !== 'todas' && p.status !== proposalFilterStatus) return false
-                if (proposalFilterMonth) {
-                  const d = new Date(p.date)
-                  const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-                  if (ym !== proposalFilterMonth) return false
-                }
-                return true
-              })
-              const totalAmount = filtered.reduce((s, p) => s + p.amount, 0)
-              const formatCurrency = (v: number) =>
-                new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(v)
-
-              return (
-                <div className="space-y-6">
-                  {/* Formulario */}
-                  <Card>
-                    <h2 className="text-lg font-semibold mb-4">
-                      {editingProposalId ? 'Editar Propuesta' : 'Nueva Propuesta'}
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input
-                        label="Cliente"
-                        value={proposalForm.clientName}
-                        onChange={e => setProposalForm({ ...proposalForm, clientName: e.target.value })}
-                        placeholder="Nombre del cliente"
-                      />
-                      <Input
-                        label="Empresa"
-                        value={proposalForm.company}
-                        onChange={e => setProposalForm({ ...proposalForm, company: e.target.value })}
-                        placeholder="Nombre de la empresa"
-                      />
-                      <Input
-                        label="Servicio"
-                        value={proposalForm.service}
-                        onChange={e => setProposalForm({ ...proposalForm, service: e.target.value })}
-                        placeholder="Servicio ofrecido"
-                      />
-                      <Input
-                        label="Monto (USD)"
-                        type="number"
-                        value={String(proposalForm.amount)}
-                        onChange={e => setProposalForm({ ...proposalForm, amount: Number(e.target.value) })}
-                        placeholder="0"
-                      />
-                      <Input
-                        label="Fecha"
-                        type="date"
-                        value={proposalForm.date}
-                        onChange={e => setProposalForm({ ...proposalForm, date: e.target.value })}
-                      />
-                      <div>
-                        <label className="block text-sm font-medium text-brand-muted mb-1">Estado</label>
-                        <select
-                          value={proposalForm.status}
-                          onChange={e => setProposalForm({ ...proposalForm, status: e.target.value as Proposal['status'] })}
-                          className="dark-select w-full"
-                        >
-                          <option value="por_aprobacion">Por Aprobación</option>
-                          <option value="aprobada">Aprobada</option>
-                          <option value="no_cerrada">No Cerrada</option>
-                        </select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <Input
-                          label="Notas (opcional)"
-                          value={proposalForm.notes}
-                          onChange={e => setProposalForm({ ...proposalForm, notes: e.target.value })}
-                          placeholder="Observaciones adicionales"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-2 mt-4">
-                      <Button onClick={handleSaveProposal} loading={saving}>
-                        {editingProposalId ? 'Actualizar' : 'Crear Propuesta'}
-                      </Button>
-                      {editingProposalId && (
-                        <button
-                          onClick={() => {
-                            setProposalForm({ clientName: '', company: '', service: '', amount: 0, date: formatLocalDate(new Date()), status: 'por_aprobacion', notes: '' })
-                            setEditingProposalId(null)
-                          }}
-                          className="btn-secondary"
-                        >
-                          Cancelar
-                        </button>
-                      )}
-                    </div>
-                  </Card>
-
-                  {/* Filtros */}
-                  <div className="flex flex-wrap gap-2 items-center">
-                    {['todas', 'por_aprobacion', 'aprobada', 'no_cerrada'].map(f => (
-                      <button
-                        key={f}
-                        onClick={() => setProposalFilterStatus(f)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                          proposalFilterStatus === f
-                            ? 'bg-brand-primary/10 text-brand-primary border border-brand-primary/20'
-                            : 'text-brand-muted hover:text-white hover:bg-white/5'
-                        }`}
-                      >
-                        {f === 'todas' ? 'Todas' : proposalStatusConfig[f as keyof typeof proposalStatusConfig].label}
-                      </button>
-                    ))}
-                    <input
-                      type="month"
-                      value={proposalFilterMonth}
-                      onChange={e => setProposalFilterMonth(e.target.value)}
-                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-brand-primary/50"
-                      style={{ colorScheme: 'dark' }}
-                    />
-                  </div>
-
-                  {/* Monto total visible */}
-                  {filtered.length > 0 && (
-                    <div className="glass-card flex items-center justify-between py-3">
-                      <span className="text-brand-muted text-sm">Monto de posible facturación ({filtered.length} propuesta{filtered.length !== 1 ? 's' : ''})</span>
-                      <span className="text-xl font-bold text-green-400">{formatCurrency(totalAmount)}</span>
-                    </div>
-                  )}
-
-                  {/* Tabla */}
-                  {filtered.length === 0 ? (
-                    <div className="text-center py-8 text-brand-muted">No hay propuestas</div>
-                  ) : (
-                    <div className="glass-card overflow-hidden p-0">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-white/10">
-                              <th className="text-left py-3 px-4 text-brand-muted text-sm">Cliente</th>
-                              <th className="text-left py-3 px-4 text-brand-muted text-sm hidden md:table-cell">Empresa</th>
-                              <th className="text-left py-3 px-4 text-brand-muted text-sm hidden sm:table-cell">Servicio</th>
-                              <th className="text-right py-3 px-4 text-brand-muted text-sm">Monto</th>
-                              <th className="text-center py-3 px-4 text-brand-muted text-sm hidden sm:table-cell">Fecha</th>
-                              <th className="text-center py-3 px-4 text-brand-muted text-sm">Estado</th>
-                              <th className="text-center py-3 px-4 text-brand-muted text-sm">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filtered.map(p => {
-                              const sc = proposalStatusConfig[p.status]
-                              return (
-                                <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
-                                  <td className="py-3 px-4 font-medium text-white">{p.clientName}</td>
-                                  <td className="py-3 px-4 text-brand-muted hidden md:table-cell">{p.company || '-'}</td>
-                                  <td className="py-3 px-4 text-brand-muted hidden sm:table-cell">{p.service || '-'}</td>
-                                  <td className="py-3 px-4 text-right font-semibold text-green-400">{formatCurrency(p.amount)}</td>
-                                  <td className="py-3 px-4 text-center text-brand-muted text-sm hidden sm:table-cell">
-                                    {new Date(p.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                  </td>
-                                  <td className="py-3 px-4 text-center">
-                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
-                                      {sc.label}
-                                    </span>
-                                  </td>
-                                  <td className="py-3 px-4 text-center">
-                                    <div className="flex justify-center gap-2">
-                                      <button
-                                        onClick={() => startEditProposal(p)}
-                                        className="text-brand-primary hover:text-white text-sm px-2 py-1 rounded hover:bg-white/5"
-                                      >
-                                        Editar
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteProposal(p.id)}
-                                        className="text-red-400 hover:text-red-300 text-sm px-2 py-1 rounded hover:bg-red-500/10"
-                                      >
-                                        Eliminar
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
+            {activeTab === 'proposals' && <ProposalsTab onMessage={showMessage} />}
           </motion.div>
         </AnimatePresence>
 
         {/* Save Button & Message */}
         <div className="mt-8 flex items-center gap-4">
-          <Button onClick={handleSave} loading={saving} size="lg" className={activeTab === 'proposals' ? 'hidden' : ''}>
+          <Button onClick={handleSave} loading={saving} size="lg" className={activeTab === 'sales' || activeTab === 'proposals' ? 'hidden' : ''}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>

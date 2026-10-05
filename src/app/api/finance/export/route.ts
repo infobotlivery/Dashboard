@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
+import { sumMrr, expenseAppliesToMonth } from '@/lib/finance'
 
 // GET - Exportar datos financieros a CSV
 export async function GET(request: NextRequest) {
@@ -66,18 +67,14 @@ export async function GET(request: NextRequest) {
         const latestEnd = months[0].end
 
         // 2. Bulk fetch all data in parallel (4 queries instead of ~48)
-        const [allSalesInRange, activeSales, weeklyMetrics, expensesData] = await Promise.all([
+        const [allSalesInRange, recurringSales, expensesData] = await Promise.all([
           prisma.salesClose.findMany({
             where: { createdAt: { gte: earliestStart, lte: latestEnd } },
             select: { onboardingValue: true, createdAt: true }
           }),
           prisma.salesClose.findMany({
-            where: { status: 'active' },
-            select: { recurringValue: true, createdAt: true }
-          }),
-          prisma.weeklyMetric.findMany({
-            where: { weekStart: { gte: earliestStart, lte: latestEnd } },
-            select: { weekStart: true, mrrComunidad: true }
+            where: { recurringValue: { gt: 0 } },
+            select: { recurringValue: true, createdAt: true, product: true, status: true, cancelledAt: true }
           }),
           prisma.expense.findMany({
             where: {
@@ -87,7 +84,7 @@ export async function GET(request: NextRequest) {
                 { endDate: { gte: earliestStart } }
               ]
             },
-            select: { amount: true, startDate: true, endDate: true }
+            select: { amount: true, type: true, startDate: true, endDate: true }
           })
         ])
 
@@ -97,19 +94,14 @@ export async function GET(request: NextRequest) {
             .filter(s => s.createdAt >= monthStart && s.createdAt <= monthEnd)
             .reduce((sum, s) => sum + s.onboardingValue, 0)
 
-          const totalMrrServices = activeSales
-            .filter(s => s.createdAt <= monthEnd)
-            .reduce((sum, s) => sum + s.recurringValue, 0)
-
-          const monthWeeklyMetrics = weeklyMetrics
-            .filter(w => w.weekStart >= monthStart && w.weekStart <= monthEnd)
-            .sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime())
-          const totalMrrCommunity = monthWeeklyMetrics.length > 0 ? monthWeeklyMetrics[0].mrrComunidad : 0
+          const mrr = sumMrr(recurringSales, monthEnd)
+          const totalMrrServices = mrr.services
+          const totalMrrCommunity = mrr.community
 
           const totalIncome = totalOnboarding + totalMrrServices + totalMrrCommunity
 
           const totalExpenses = expensesData
-            .filter(e => e.startDate <= monthEnd && (!e.endDate || e.endDate >= monthStart))
+            .filter(e => expenseAppliesToMonth(e, { start: monthStart, end: monthEnd }))
             .reduce((sum, e) => sum + e.amount, 0)
 
           history.push({

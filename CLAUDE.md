@@ -29,7 +29,6 @@
 | Tailwind CSS | 3.4.19 | Estilos |
 | Framer Motion | 12.27.0 | Animaciones |
 | Docker | Alpine | Containerización |
-| bcryptjs | 3.0.3 | Hash de contraseñas |
 
 ---
 
@@ -38,7 +37,6 @@
 ```
 Dashboard/
 ├── src/
-│   ├── middleware.ts             # Middleware de autenticación para APIs
 │   ├── app/
 │   │   ├── page.tsx              # Dashboard público principal
 │   │   ├── admin/page.tsx        # Panel de administración (protegido)
@@ -46,7 +44,6 @@ Dashboard/
 │   │   ├── layout.tsx            # Layout principal
 │   │   ├── globals.css           # Estilos globales
 │   │   └── api/
-│   │       ├── auth/route.ts     # Autenticación admin
 │   │       ├── proposals/route.ts      # CRUD propuestas (GET público)
 │   │       ├── metrics/
 │   │       │   ├── route.ts      # CRUD métricas semanales
@@ -59,10 +56,12 @@ Dashboard/
 │   │       │   ├── expenses/upcoming/route.ts # Próximos 5 pagos
 │   │       │   ├── categories/route.ts # CRUD categorías de gastos
 │   │       │   ├── goals/route.ts      # CRUD metas mensuales
+│   │       │   ├── accounts/route.ts   # CRUD cuentas por cobrar / por pagar
 │   │       │   └── export/route.ts     # Exportar CSV
 │   │       ├── scorecard/route.ts      # CRUD scorecard mensual
 │   │       ├── daily/route.ts          # CRUD checks diarios
 │   │       ├── sales/route.ts          # CRUD cierres de ventas
+│   │       ├── sales/import/route.ts   # Importar cierres desde CSV (preview + confirmar) / plantilla
 │   │       ├── sales/upcoming/route.ts # Cobros próximos 7 días (GET público)
 │   │       ├── settings/route.ts       # Configuración y branding
 │   │       └── webhooks/
@@ -85,7 +84,8 @@ Dashboard/
 │   │   │   ├── AnimatedNumber.tsx      # Números animados
 │   │   │   ├── ProgressBar.tsx         # Barra de progreso para metas
 │   │   │   ├── FinanceSidebar.tsx      # Sidebar lateral + mobile nav
-│   │   │   ├── LoginScreen.tsx         # Pantalla de login
+│   │   │   ├── CuentasPanel.tsx        # Cuentas por cobrar / por pagar (en tab Gastos)
+│   │   │   ├── SalesCsvImport.tsx      # Subir CSV de ventas (vista previa + confirmar)
 │   │   │   ├── ExportButton.tsx        # Botón exportar CSV
 │   │   │   ├── UpcomingPayments.tsx    # Tabla de próximos 5 pagos
 │   │   │   └── tabs/
@@ -96,6 +96,9 @@ Dashboard/
 │   │   │       ├── HistorialTab.tsx    # Tab historial mensual
 │   │   │       ├── MetasTab.tsx        # Tab metas mensuales
 │   │   │       └── ClientesTab.tsx     # Tab clientes (registro de ventas + filtros)
+│   │   ├── admin/
+│   │   │   ├── SalesTab.tsx            # Tab Cierres del admin (autocontenido)
+│   │   │   └── ProposalsTab.tsx        # Tab Propuestas del admin (autocontenido)
 │   │   └── ui/
 │   │       ├── Button.tsx
 │   │       ├── Card.tsx
@@ -110,8 +113,11 @@ Dashboard/
 │   │
 │   └── lib/
 │       ├── db.ts                 # Cliente Prisma singleton
-│       ├── api.ts                # Utilidades API + auth (createAuthToken, verifyAuthToken)
-│       └── authFetch.ts          # Helpers para requests autenticados (authFetch, financeAuthFetch, adminAuthFetch)
+│       ├── api.ts                # Utilidades API + verifyApiKey (webhooks)
+│       ├── apiFetch.ts           # fetch con JSON por defecto (sin auth)
+│       ├── dates.ts              # formatLocalDate, parseLocalDate, getMonday
+│       ├── finance.ts            # Reglas de MRR/gastos por mes (summary, history, export)
+│       └── salesCsv.ts           # Parser/validador del CSV de ventas
 │
 ├── prisma/
 │   └── schema.prisma             # Modelos de base de datos
@@ -284,6 +290,16 @@ model MonthlyFinance {
 }
 ```
 
+### AccountEntry
+Cuentas por cobrar (`receivable`) y por pagar (`payable`), gestionadas en el tab Gastos.
+```prisma
+model AccountEntry {
+  id Int @id; kind String; concept String; counterparty String @default("")
+  amount Float; dueDate DateTime; status String @default("pending") // pending | paid
+  paidAt DateTime?; notes String?; createdAt DateTime; updatedAt DateTime
+}
+```
+
 ### Proposal
 Propuestas de ventas para el pipeline.
 ```prisma
@@ -312,10 +328,7 @@ model Proposal {
 DATABASE_URL="file:/app/data/metrics.db"  # Producción Docker
 DATABASE_URL="file:./prisma/dev.db"       # Desarrollo local
 
-# Contraseña de admin (IMPORTANTE: cambiar en producción)
-ADMIN_PASSWORD="tu-contraseña-segura"
-
-# API Key para integraciones externas (N8N)
+# API Key solo para webhooks/integraciones externas (N8N, Kommo)
 API_SECRET_KEY="clave-aleatoria-larga"
 
 # URL base de la aplicación
@@ -349,17 +362,16 @@ NEXT_PUBLIC_APP_URL="https://dashboard.elraperomarketero.com"
 - **CadenceTree:** Árbol visual de cadencias de revisión
 
 ### Panel Admin (`/admin`)
-- Protegido con contraseña (bcrypt)
+- Acceso directo, sin contraseña
 - **Tab Semanal:** Editar métricas de cualquier semana
 - **Tab Mensual:** Editar scorecard de cualquier mes
 - **Tab Diario:** Registrar checks diarios
 - **Tab Cierres:** Registrar y editar cierres de ventas
 - **Tab Propuestas:** CRUD completo de propuestas (crear/editar/eliminar, filtros por estado y mes)
-- **Tab Configuración:** Colores de marca, logo, cambiar contraseña
+- **Tab Configuración:** Colores de marca y logo
 
 ### Dashboard Financiero (`/finanzas`)
-- Protegido con la misma contraseña del admin
-- URL separada y privada para control de finanzas
+- Acceso directo, sin contraseña (URL separada para control de finanzas)
 - **Tab Resumen:** Balance general del mes (ingresos vs gastos vs utilidad)
   - Desglose de ingresos: Onboarding, MRR Servicios, MRR Comunidad
   - Desglose de gastos por categoría
@@ -369,15 +381,20 @@ NEXT_PUBLIC_APP_URL="https://dashboard.elraperomarketero.com"
 - **Tab Categorías:** Gestión de categorías personalizadas con colores
 - **Tab Historial:** Tabla de últimos 6 meses con tendencias
 - **Tab Metas:** Metas mensuales de ingresos/gastos/ahorro
-- **Tab Clientes:** Registro de cierres de ventas con filtro por mes y estado
+- **Tab Clientes:** Registro de cierres de ventas con filtro por mes y estado + importación CSV
 
-**Cálculo automático de ingresos:**
-- Onboarding = SUM(SalesClose.onboardingValue) del mes actual
-- MRR Servicios = SUM(SalesClose.recurringValue) donde status='active'
-- MRR Comunidad = WeeklyMetric.mrrComunidad más reciente
+**Cálculo automático de ingresos (src/lib/finance.ts):**
+- Onboarding = SUM(SalesClose.onboardingValue) de cierres firmados en el mes
+- MRR del mes = SUM(recurringValue) de TODOS los clientes con recurrencia vigente al cierre del mes:
+  `active` siempre cuenta; `cancelled` solo hasta su `cancelledAt`; `completed` no cuenta.
+  Servicios = product ≠ 'Comunidad'; Comunidad = product 'Comunidad'.
 
 **Cálculo automático de gastos:**
-- Gastos recurrentes activos (sin endDate) + gastos fijos del mes
+- Recurrentes vigentes en el mes consultado (startDate ≤ fin de mes y sin endDate o endDate ≥ inicio)
+- Fijos solo en el mes de su startDate
+
+**Cuentas por cobrar / por pagar:** `summary.accounts` = pendientes, vencidas y
+balance proyectado (utilidad + por cobrar − por pagar).
 
 ---
 
@@ -712,6 +729,21 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-02-05 | Fix middleware Web Crypto API para Edge Runtime | 674dfde |
 | 2026-02-05 | Indexes automáticos en docker-entrypoint.sh | d520926 |
 | 2026-02-23 | Rediseño Dashboard Principal + Mejoras Finanzas | pendiente |
+| 2026-10-05 | Se elimina autenticación por contraseña (admin y finanzas) | d341521 |
+| 2026-10-05 | MRR de todos los clientes activos + cuentas por cobrar/pagar | a4618aa |
+| 2026-10-05 | Importación de ventas por CSV | ddc0799 |
+| 2026-10-05 | Admin dividido en componentes (SalesTab, ProposalsTab) | pendiente |
+
+### Detalle del cambio 2026-10-05:
+- **Sin contraseña:** se eliminaron login, `middleware.ts`, `/api/auth`, `authFetch.ts`, tokens y bcryptjs.
+  Las APIs ya no exigen sesión; solo los webhooks siguen con `X-API-Key` (comparación en tiempo constante;
+  falla si `API_SECRET_KEY` no está definida). Riesgo asumido: cualquiera con la URL puede leer/editar datos.
+  Si se quiere restringir, usar Cloudflare Access / VPN delante del dominio.
+- **MRR:** `src/lib/finance.ts` centraliza el cálculo; antes solo contaba clientes que firmaron en el mes.
+  Gastos fijos ya no se arrastran a meses posteriores y los recurrentes se evalúan contra el mes consultado.
+- **CSV:** columnas `cliente, producto, onboarding, mensual, meses_contrato, estado, fecha[, fecha_cancelacion]`;
+  fechas AAAA-MM-DD o DD/MM/AAAA; duplicados = cliente+producto+día (se omiten); plantilla en `GET /api/sales/import`.
+  Para clientes cancelados incluir `fecha_cancelacion` o su MRR no se contará en meses pasados.
 
 ### Detalle del cambio 2026-02-23 (Rediseño Dashboard + Finanzas):
 
@@ -952,4 +984,4 @@ model MonthlyGoal {
 
 ---
 
-*Última actualización: 2026-02-23*
+*Última actualización: 2026-10-05*

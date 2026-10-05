@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
-
-// Calcular el primer día de un mes
-function getFirstDayOfMonth(date: Date = new Date()): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1)
-}
-
-// Calcular el último día de un mes
-function getLastDayOfMonth(date: Date = new Date()): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999)
-}
+import { monthRange, sumMrr, isRecurringAtMonthEnd, expenseAppliesToMonth } from '@/lib/finance'
 
 // Parsear 'YYYY-MM' o 'YYYY-MM-DD' a Date local
 function parseMonthParam(month: string): Date {
@@ -24,70 +15,54 @@ export async function GET(request: NextRequest) {
     const monthParam = searchParams.get('month')
 
     const referenceDate = monthParam ? parseMonthParam(monthParam) : new Date()
-    const monthStart = getFirstDayOfMonth(referenceDate)
-    const monthEnd = getLastDayOfMonth(referenceDate)
+    const range = monthRange(referenceDate)
+    const prevRange = monthRange(new Date(range.start.getFullYear(), range.start.getMonth() - 1, 1))
+    const now = new Date()
 
-    // 1. Calcular ingresos del mes
-    // Onboarding: SalesClose creados este mes
-    const salesThisMonth = await prisma.salesClose.findMany({
-      where: {
-        createdAt: {
-          gte: monthStart,
-          lte: monthEnd
+    // Todas las consultas en paralelo
+    const [sales, expenses, accounts] = await Promise.all([
+      prisma.salesClose.findMany({
+        select: {
+          status: true,
+          createdAt: true,
+          cancelledAt: true,
+          recurringValue: true,
+          onboardingValue: true,
+          product: true
         }
-      }
-    })
+      }),
+      prisma.expense.findMany({
+        where: { startDate: { lte: range.end } },
+        include: { category: true }
+      }),
+      prisma.accountEntry.findMany({ where: { status: 'pending' } })
+    ])
 
-    const totalOnboarding = salesThisMonth.reduce(
-      (sum, sale) => sum + sale.onboardingValue,
-      0
-    )
+    // 1. Ingresos del mes
+    // Onboarding: cierres firmados en el mes
+    const totalOnboarding = sales
+      .filter(s => s.createdAt >= range.start && s.createdAt <= range.end)
+      .reduce((sum, s) => sum + s.onboardingValue, 0)
 
-    // MRR: solo de clientes que firmaron EN este mes (no acumula meses anteriores)
-    const totalMrrServices = salesThisMonth
-      .filter(sale => sale.product !== 'Comunidad' && sale.status !== 'cancelled')
-      .reduce((sum, sale) => sum + sale.recurringValue, 0)
-
-    const totalMrrCommunity = salesThisMonth
-      .filter(sale => sale.product === 'Comunidad' && sale.status !== 'cancelled')
-      .reduce((sum, sale) => sum + sale.recurringValue, 0)
-
-    // Clientes activos totales (para el contador, usa todos los activos)
-    const activeSales = await prisma.salesClose.findMany({
-      where: { status: 'active' }
-    })
-
-    // Total ingresos
+    // MRR: TODOS los clientes con recurrencia vigente al cierre del mes (no solo los nuevos)
+    const mrr = sumMrr(sales, range.end)
+    const totalMrrServices = mrr.services
+    const totalMrrCommunity = mrr.community
     const totalIncome = totalOnboarding + totalMrrServices + totalMrrCommunity
 
-    // 2. Calcular gastos del mes
-    // Gastos activos (sin endDate o con endDate >= ahora)
-    const activeExpenses = await prisma.expense.findMany({
-      where: {
-        OR: [
-          { endDate: null },
-          { endDate: { gte: new Date() } }
-        ],
-        startDate: { lte: monthEnd }
-      },
-      include: {
-        category: true
-      }
-    })
+    // Clientes activos (con recurrencia vigente al cierre del mes)
+    const activeClientsCount = sales.filter(
+      s => s.recurringValue > 0 && isRecurringAtMonthEnd(s, range.end)
+    ).length
 
-    const totalExpenses = activeExpenses.reduce(
-      (sum, expense) => sum + expense.amount,
-      0
-    )
+    // 2. Gastos del mes
+    const monthExpenses = expenses.filter(e => expenseAppliesToMonth(e, range))
+    const totalExpenses = monthExpenses.reduce((sum, e) => sum + e.amount, 0)
+    const sumBy = (type: string) =>
+      monthExpenses.filter(e => e.type === type).reduce((sum, e) => sum + e.amount, 0)
+    const expensesByType = { fixed: sumBy('fixed'), recurring: sumBy('recurring') }
 
-    // Agrupar gastos por tipo
-    const expensesByType = {
-      fixed: activeExpenses.filter(e => e.type === 'fixed').reduce((sum, e) => sum + e.amount, 0),
-      recurring: activeExpenses.filter(e => e.type === 'recurring').reduce((sum, e) => sum + e.amount, 0)
-    }
-
-    // Agrupar gastos por categoría
-    const expensesByCategory = activeExpenses.reduce((acc, expense) => {
+    const expensesByCategory = monthExpenses.reduce((acc, expense) => {
       const catName = expense.category.name
       if (!acc[catName]) {
         acc[catName] = { total: 0, color: expense.category.color, items: [] }
@@ -97,32 +72,27 @@ export async function GET(request: NextRequest) {
       return acc
     }, {} as Record<string, { total: number; color: string; items: { name: string; amount: number }[] }>)
 
-    // 3. Calcular utilidad neta
+    // 3. Mes anterior (comparativa de gastos)
+    const prevExpenses = expenses.filter(e => expenseAppliesToMonth(e, prevRange))
+    const prevSum = (type?: string) =>
+      prevExpenses.filter(e => !type || e.type === type).reduce((sum, e) => sum + e.amount, 0)
+
+    // 4. Cuentas por cobrar / por pagar (pendientes, sin importar el mes)
+    const summarize = (kind: string) => {
+      const items = accounts.filter(a => a.kind === kind)
+      return {
+        pending: items.reduce((sum, a) => sum + a.amount, 0),
+        overdue: items.filter(a => a.dueDate < now).reduce((sum, a) => sum + a.amount, 0),
+        count: items.length
+      }
+    }
+    const receivable = summarize('receivable')
+    const payable = summarize('payable')
+
     const netProfit = totalIncome - totalExpenses
 
-    // 4. Clientes activos
-    const activeClientsCount = activeSales.length
-
-    // 5. Calcular gastos del mes anterior para comparativa
-    const prevMonthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1)
-    const prevMonthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth(), 0, 23, 59, 59, 999)
-
-    const prevActiveExpenses = await prisma.expense.findMany({
-      where: {
-        OR: [
-          { endDate: null },
-          { endDate: { gte: prevMonthEnd } }
-        ],
-        startDate: { lte: prevMonthEnd }
-      }
-    })
-
-    const prevTotalExpenses = prevActiveExpenses.reduce((sum, e) => sum + e.amount, 0)
-    const prevFixedExpenses = prevActiveExpenses.filter(e => e.type === 'fixed').reduce((sum, e) => sum + e.amount, 0)
-    const prevRecurringExpenses = prevActiveExpenses.filter(e => e.type === 'recurring').reduce((sum, e) => sum + e.amount, 0)
-
     const summary = {
-      month: monthStart.toISOString(),
+      month: range.start.toISOString(),
       income: {
         total: totalIncome,
         onboarding: totalOnboarding,
@@ -133,7 +103,7 @@ export async function GET(request: NextRequest) {
         total: totalExpenses,
         byType: expensesByType,
         byCategory: expensesByCategory,
-        list: activeExpenses.map(e => ({
+        list: monthExpenses.map(e => ({
           id: e.id,
           name: e.name,
           amount: e.amount,
@@ -143,9 +113,15 @@ export async function GET(request: NextRequest) {
         }))
       },
       previousMonth: {
-        totalExpenses: prevTotalExpenses,
-        fixedExpenses: prevFixedExpenses,
-        recurringExpenses: prevRecurringExpenses
+        totalExpenses: prevSum(),
+        fixedExpenses: prevSum('fixed'),
+        recurringExpenses: prevSum('recurring')
+      },
+      accounts: {
+        receivable,
+        payable,
+        // Utilidad del mes ajustada por lo que falta cobrar y pagar
+        projectedBalance: netProfit + receivable.pending - payable.pending
       },
       netProfit,
       activeClients: activeClientsCount

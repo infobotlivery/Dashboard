@@ -8,7 +8,6 @@ export type FinanceTab = 'resumen' | 'gastos' | 'categorias' | 'historial' | 'me
 interface FinanceSidebarProps {
   activeTab: FinanceTab
   onTabChange: (tab: FinanceTab) => void
-  onLogout: () => void
 }
 
 const tabs = [
@@ -20,7 +19,7 @@ const tabs = [
   { id: 'clientes' as FinanceTab, label: 'Clientes', icon: '👥' }
 ]
 
-export function FinanceSidebar({ activeTab, onTabChange, onLogout }: FinanceSidebarProps) {
+export function FinanceSidebar({ activeTab, onTabChange }: FinanceSidebarProps) {
   return (
     <>
       {/* Desktop Sidebar */}
@@ -70,13 +69,6 @@ export function FinanceSidebar({ activeTab, onTabChange, onLogout }: FinanceSide
             <span className="text-lg">🏠</span>
             <span className="font-medium">Dashboard</span>
           </Link>
-          <button
-            onClick={onLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-red-400 hover:bg-red-500/5 transition-all"
-          >
-            <span className="text-lg">🚪</span>
-            <span className="font-medium">Cerrar Sesion</span>
-          </button>
         </div>
       </aside>
 
@@ -114,12 +106,6 @@ export function FinanceSidebar({ activeTab, onTabChange, onLogout }: FinanceSide
             >
               🏠
             </Link>
-            <button
-              onClick={onLogout}
-              className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/5 transition-all"
-            >
-              🚪
-            </button>
           </div>
         </div>
       </header>

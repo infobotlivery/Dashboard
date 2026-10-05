@@ -1,43 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
-// Secret para firmar tokens de autenticación
-const AUTH_SECRET = process.env.API_SECRET_KEY || ''
-
-// Verificar API Key para endpoints externos (N8N)
+// Verificar API Key para endpoints externos (N8N / Kommo).
+// Comparación en tiempo constante; si API_SECRET_KEY no está configurada, siempre falla.
 export function verifyApiKey(request: NextRequest): boolean {
-  const apiKey = request.headers.get('X-API-Key')
-  return apiKey === process.env.API_SECRET_KEY
-}
+  const expected = process.env.API_SECRET_KEY
+  const received = request.headers.get('X-API-Key')
+  if (!expected || !received) return false
 
-// Crear token firmado con HMAC-SHA256
-export function createAuthToken(): string {
-  const payload = `admin:${Date.now()}`
-  const signature = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex')
-  return `${payload}:${signature}`
-}
-
-// Verificar token firmado
-export function verifyAuthToken(token: string | null): boolean {
-  if (!token) return false
-
-  const parts = token.split(':')
-  if (parts.length !== 3) return false
-
-  const [prefix, timestamp, signature] = parts
-  const payload = `${prefix}:${timestamp}`
-  const expectedSig = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex')
-
-  // Verificar firma usando comparación segura
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
-    return false
-  }
-
-  // Verificar expiración (24 horas)
-  const age = Date.now() - parseInt(timestamp)
-  if (age > 24 * 60 * 60 * 1000) return false
-
-  return true
+  const a = Buffer.from(received)
+  const b = Buffer.from(expected)
+  return a.length === b.length && crypto.timingSafeEqual(a, b)
 }
 
 // Respuesta de error estándar

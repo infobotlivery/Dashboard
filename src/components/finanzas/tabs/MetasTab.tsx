@@ -6,7 +6,7 @@ import { GlassCard } from '../GlassCard'
 import { Button } from '@/components/ui/Button'
 import NumberInput from '@/components/ui/NumberInput'
 import { ProgressBar } from '../ProgressBar'
-import { financeAuthFetch } from '@/lib/authFetch'
+import { apiFetch } from '@/lib/apiFetch'
 import type { MonthlyGoal, FinanceSummary } from '@/types'
 
 interface MetasTabProps {
@@ -73,7 +73,7 @@ export function MetasTab({ summary, onMessage }: MetasTabProps) {
   useEffect(() => {
     async function loadGoals() {
       try {
-        const res = await financeAuthFetch('/api/finance/goals')
+        const res = await apiFetch('/api/finance/goals')
         const data = await res.json()
         if (data.data) setGoals(data.data)
       } catch (err) {
@@ -117,7 +117,7 @@ export function MetasTab({ summary, onMessage }: MetasTabProps) {
       const [year, month] = selectedMonth.split('-')
       const monthDate = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, 1))
 
-      const res = await financeAuthFetch('/api/finance/goals', {
+      const res = await apiFetch('/api/finance/goals', {
         method: 'POST',
         body: JSON.stringify({
           month: monthDate.toISOString(),
@@ -150,7 +150,7 @@ export function MetasTab({ summary, onMessage }: MetasTabProps) {
       }
 
       // Refetch autoritativo
-      const goalsRes = await financeAuthFetch('/api/finance/goals')
+      const goalsRes = await apiFetch('/api/finance/goals')
       const goalsData = await goalsRes.json().catch(() => ({}))
       if (goalsRes.ok && goalsData.data) setGoals(goalsData.data)
 
