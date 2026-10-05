@@ -27,10 +27,18 @@ export async function GET(request: NextRequest) {
       orderBy: { date: 'desc' }
     })
 
+    // Cierres de venta vinculados (para poder deshacerlos)
+    const sales = await prisma.salesClose.findMany({
+      where: { proposalId: { in: proposals.map(p => p.id) } },
+      select: { id: true, proposalId: true, clientName: true, onboardingValue: true, recurringValue: true }
+    })
+    const saleByProposal = new Map(sales.map(s => [s.proposalId, s]))
+
     return NextResponse.json({
       success: true,
       data: proposals.map(p => ({
         ...p,
+        sale: saleByProposal.get(p.id) ?? null,
         date: p.date.toISOString(),
         createdAt: p.createdAt.toISOString(),
         updatedAt: p.updatedAt.toISOString()
@@ -46,7 +54,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { clientName, company = '', service = '', amount = 0, date, status = 'por_aprobacion', notes } = body
+    const { clientName, company = '', service = '', amount = 0, recurringAmount = 0, date, status = 'por_aprobacion', notes } = body
 
     if (!clientName) {
       return NextResponse.json({ success: false, error: 'clientName es requerido' }, { status: 400 })
@@ -57,7 +65,8 @@ export async function POST(request: NextRequest) {
         clientName,
         company,
         service,
-        amount: Number(amount),
+        amount: Number(amount) || 0,
+        recurringAmount: Number(recurringAmount) || 0,
         date: date ? new Date(date) : new Date(),
         status,
         notes: notes || null
@@ -83,10 +92,15 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, clientName, company, service, amount, date, status, notes } = body
+    const { id, clientName, company, service, amount, recurringAmount, date, status, notes, undoSale } = body
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'id es requerido' }, { status: 400 })
+    }
+
+    // Deshacer el cierre vinculado cuando la propuesta deja de estar aprobada
+    if (undoSale === true) {
+      await prisma.salesClose.deleteMany({ where: { proposalId: Number(id) } })
     }
 
     const proposal = await prisma.proposal.update({
@@ -96,6 +110,7 @@ export async function PUT(request: NextRequest) {
         ...(company !== undefined && { company }),
         ...(service !== undefined && { service }),
         ...(amount !== undefined && { amount: Number(amount) }),
+        ...(recurringAmount !== undefined && { recurringAmount: Number(recurringAmount) || 0 }),
         ...(date !== undefined && { date: new Date(date) }),
         ...(status !== undefined && { status }),
         ...(notes !== undefined && { notes: notes || null })
@@ -127,6 +142,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'id es requerido' }, { status: 400 })
     }
 
+    // ?deleteSale=true elimina también el cierre de venta vinculado
+    if (searchParams.get('deleteSale') === 'true') {
+      await prisma.salesClose.deleteMany({ where: { proposalId: Number(id) } })
+    }
     await prisma.proposal.delete({ where: { id: Number(id) } })
 
     return NextResponse.json({ success: true })

@@ -347,6 +347,17 @@ CREATE INDEX IF NOT EXISTS \"AccountEntry_kind_status_idx\" ON \"AccountEntry\"(
 CREATE INDEX IF NOT EXISTS \"AccountEntry_dueDate_idx\" ON \"AccountEntry\"(\"dueDate\");
 " 2>&1 || echo "Error creando tabla AccountEntry"
 
+# Columnas nuevas: Proposal.recurringAmount y SalesClose.proposalId
+echo "=== Verificando columnas recurringAmount / proposalId ==="
+if ! sqlite3 "$DB_PATH" "PRAGMA table_info(Proposal);" 2>/dev/null | grep -q "recurringAmount"; then
+    sqlite3 "$DB_PATH" "ALTER TABLE Proposal ADD COLUMN recurringAmount REAL NOT NULL DEFAULT 0;" 2>&1 || echo "Error agregando Proposal.recurringAmount"
+    echo "Columna Proposal.recurringAmount agregada"
+fi
+if ! sqlite3 "$DB_PATH" "PRAGMA table_info(SalesClose);" 2>/dev/null | grep -q "proposalId"; then
+    sqlite3 "$DB_PATH" "ALTER TABLE SalesClose ADD COLUMN proposalId INTEGER;" 2>&1 || echo "Error agregando SalesClose.proposalId"
+    echo "Columna SalesClose.proposalId agregada"
+fi
+
 # =====================================================
 # INDEXES - Asegurar que existan para performance
 # =====================================================

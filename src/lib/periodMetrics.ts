@@ -51,11 +51,14 @@ export interface PeriodValues {
   mrrCommunity: number
   facturacion: number
   clientesPerdidos: number
+  mrrNuevo: number          // MRR de los clientes que cerraron en el periodo
+  facturacionNuevas: number // Ventas nuevas: onboarding + MRR nuevo
+  mrrPorCerrar: number      // MRR esperado de propuestas del periodo aún por aprobar
 }
 
 interface Data {
   sales: Awaited<ReturnType<typeof loadSales>>
-  proposals: { date: Date; status: string; amount: number }[]
+  proposals: { date: Date; status: string; amount: number; recurringAmount: number }[]
   weekly: { weekStart: Date; leadsEntrantes: number; personasAgendadas: number }[]
 }
 
@@ -91,6 +94,8 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
   const cierres = newSales.length
 
   const mrr = sumMrr(d.sales, range.end)
+  const mrrNuevo = newSales.filter(s => s.status === 'active').reduce((sum, s) => sum + s.recurringValue, 0)
+  const mrrPorCerrar = proposals.filter(p => p.status === 'por_aprobacion').reduce((sum, p) => sum + p.recurringAmount, 0)
 
   // Facturación: semana = onboarding; mes = onboarding + MRR; trimestre = suma de sus meses
   let facturacion = onboarding
@@ -122,7 +127,10 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
     mrrServices: mrr.services,
     mrrCommunity: mrr.community,
     facturacion,
-    clientesPerdidos: d.sales.filter(s => s.status === 'cancelled' && s.cancelledAt && inRange(s.cancelledAt)).length
+    clientesPerdidos: d.sales.filter(s => s.status === 'cancelled' && s.cancelledAt && inRange(s.cancelledAt)).length,
+    mrrNuevo,
+    facturacionNuevas: onboarding + mrrNuevo,
+    mrrPorCerrar
   }
 }
 
@@ -134,7 +142,7 @@ export async function computePeriodMetrics(period: Period, date: Date) {
     loadSales(),
     prisma.proposal.findMany({
       where: { date: { gte: prev.start, lte: range.end } },
-      select: { date: true, status: true, amount: true }
+      select: { date: true, status: true, amount: true, recurringAmount: true }
     }),
     prisma.weeklyMetric.findMany({
       where: { weekStart: { gte: new Date(prev.start.getTime() - 12 * 3600_000), lte: range.end } },

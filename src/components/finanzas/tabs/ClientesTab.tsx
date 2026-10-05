@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { GlassCard } from '@/components/finanzas/GlassCard'
 import { AnimatedNumber } from '@/components/finanzas/AnimatedNumber'
 import { SalesCsvImport } from '@/components/finanzas/SalesCsvImport'
+import { apiFetch } from '@/lib/apiFetch'
 import type { SalesClose, SalesSummary } from '@/types'
 
 interface ClientesTabProps {
@@ -12,7 +13,8 @@ interface ClientesTabProps {
   summary: SalesSummary | null
   selectedMonth: string
   onMonthChange: (m: string) => void
-  onImported?: () => void
+  /** Se llama tras importar, cancelar, reactivar o eliminar para recargar los datos. */
+  onChanged?: () => void
 }
 
 function getCurrentYYYYMM(): string {
@@ -68,7 +70,7 @@ function getStatusBadge(status: string) {
   }
 }
 
-export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onImported }: ClientesTabProps) {
+export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onChanged }: ClientesTabProps) {
   const [filterStatus, setFilterStatus] = useState<string>('todos')
   const currentYM = getCurrentYYYYMM()
 
@@ -110,9 +112,26 @@ export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onIm
     link.click()
   }
 
+  async function changeStatus(sale: SalesClose, status: 'active' | 'cancelled') {
+    const verb = status === 'cancelled' ? 'cancelar (el cliente deja de sumar MRR desde hoy)' : 'reactivar'
+    if (!confirm(`¿Quieres ${verb} a ${sale.clientName}?`)) return
+    const res = await apiFetch('/api/sales', { method: 'PATCH', body: JSON.stringify({ id: sale.id, status }) })
+    const data = await res.json()
+    if (data.success) onChanged?.()
+    else alert(data.error || 'No se pudo actualizar el cliente')
+  }
+
+  async function deleteSale(sale: SalesClose) {
+    if (!confirm(`¿Eliminar definitivamente el cierre de ${sale.clientName}?\n\nSe borra del historial, del MRR y de las métricas. No se puede deshacer.`)) return
+    const res = await apiFetch(`/api/sales?id=${sale.id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (data.success) onChanged?.()
+    else alert(data.error || 'No se pudo eliminar el cierre')
+  }
+
   return (
     <div className="space-y-6">
-      <SalesCsvImport onImported={onImported} />
+      <SalesCsvImport onImported={onChanged} />
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-3 items-center">
@@ -224,6 +243,7 @@ export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onIm
                   <th className="text-right py-4 px-4 text-gray-400 font-medium text-sm">Recurrente</th>
                   <th className="text-center py-4 px-4 text-gray-400 font-medium text-sm">Fin Contrato</th>
                   <th className="text-center py-4 px-4 text-gray-400 font-medium text-sm">Estado</th>
+                  <th className="text-right py-4 px-4 text-gray-400 font-medium text-sm">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -255,6 +275,15 @@ export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onIm
                     </td>
                     <td className="text-center py-4 px-4">
                       {getStatusBadge(sale.status)}
+                    </td>
+                    <td className="text-right py-4 px-4 whitespace-nowrap">
+                      {sale.status === 'active' && (
+                        <button onClick={() => changeStatus(sale, 'cancelled')} className="text-xs text-yellow-400 hover:text-yellow-300 px-2 py-1 rounded hover:bg-yellow-400/10">Cancelar cliente</button>
+                      )}
+                      {sale.status === 'cancelled' && (
+                        <button onClick={() => changeStatus(sale, 'active')} className="text-xs text-green-400 hover:text-green-300 px-2 py-1 rounded hover:bg-green-400/10">Reactivar</button>
+                      )}
+                      <button onClick={() => deleteSale(sale)} className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-500/10">Eliminar</button>
                     </td>
                   </motion.tr>
                 ))}
