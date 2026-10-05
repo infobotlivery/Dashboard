@@ -40,7 +40,7 @@ const HEADER_ALIASES: Record<string, string> = {
   fecha_cancelacion: 'cancelledAt', cancelledat: 'cancelledAt'
 }
 
-const norm = (s: string) =>
+export const norm = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase().replace(/\s+/g, '_')
 
 // Parser CSV con comillas, separador coma o punto y coma, y BOM

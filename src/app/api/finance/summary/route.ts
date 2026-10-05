@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
-import { monthRange, sumMrr, isRecurringAtMonthEnd, expenseAppliesToMonth } from '@/lib/finance'
+import { monthRange, sumMrr, isRecurringAtMonthEnd, expenseAppliesToMonth, buildAccounts } from '@/lib/finance'
 
 // Parsear 'YYYY-MM' o 'YYYY-MM-DD' a Date local
 function parseMonthParam(month: string): Date {
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
         where: { startDate: { lte: range.end } },
         include: { category: true }
       }),
-      prisma.accountEntry.findMany({ where: { status: 'pending' } })
+      prisma.accountEntry.findMany()
     ])
 
     // 1. Ingresos del mes
@@ -77,17 +77,8 @@ export async function GET(request: NextRequest) {
     const prevSum = (type?: string) =>
       prevExpenses.filter(e => !type || e.type === type).reduce((sum, e) => sum + e.amount, 0)
 
-    // 4. Cuentas por cobrar / por pagar (pendientes, sin importar el mes)
-    const summarize = (kind: string) => {
-      const items = accounts.filter(a => a.kind === kind)
-      return {
-        pending: items.reduce((sum, a) => sum + a.amount, 0),
-        overdue: items.filter(a => a.dueDate < now).reduce((sum, a) => sum + a.amount, 0),
-        count: items.length
-      }
-    }
-    const receivable = summarize('receivable')
-    const payable = summarize('payable')
+    // 4. Cuentas por cobrar / por pagar pendientes al día de consulta
+    const { receivable, payable } = buildAccounts(accounts, expenses, range, now)
 
     const netProfit = totalIncome - totalExpenses
 
