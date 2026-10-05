@@ -96,7 +96,8 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
   let facturacion = onboarding
   if (period === 'month') facturacion = onboarding + mrr.services + mrr.community
   if (period === 'quarter') {
-    facturacion = monthsIn(range).reduce((sum, m) => {
+    // Solo meses ya iniciados: el trimestre en curso no proyecta meses futuros
+    facturacion = monthsIn(range).filter(m => m.start <= new Date()).reduce((sum, m) => {
       const onb = d.sales.filter(s => s.createdAt >= m.start && s.createdAt <= m.end).reduce((a, s) => a + s.onboardingValue, 0)
       const r = sumMrr(d.sales, m.end)
       return sum + onb + r.services + r.community

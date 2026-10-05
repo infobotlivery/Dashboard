@@ -1,13 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import type { DailyCheck } from '@/types'
-
-interface CadenceTreeProps {
-  dailyChecks?: DailyCheck[]
-}
-
-export function CadenceTree({ dailyChecks = [] }: CadenceTreeProps) {
+export function CadenceTree() {
   const cadences = [
     {
       level: 'DIARIO',
@@ -43,11 +37,6 @@ export function CadenceTree({ dailyChecks = [] }: CadenceTreeProps) {
     }
   ]
 
-  // Contar checks del último mes
-  const recentChecks = dailyChecks.slice(0, 30)
-  const contentDays = recentChecks.filter(c => c.publicoContenido).length
-  const leadsDays = recentChecks.filter(c => c.respondioLeads).length
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -64,20 +53,6 @@ export function CadenceTree({ dailyChecks = [] }: CadenceTreeProps) {
           </p>
         </div>
       </div>
-
-      {/* Stats rápidos de checks diarios */}
-      {recentChecks.length > 0 && (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="card">
-            <div className="text-brand-muted text-sm mb-1">Contenido (últimos 30 días)</div>
-            <div className="text-2xl font-bold text-brand-primary">{contentDays}/30</div>
-          </div>
-          <div className="card">
-            <div className="text-brand-muted text-sm mb-1">Leads respondidos (últimos 30 días)</div>
-            <div className="text-2xl font-bold text-brand-primary">{leadsDays}/30</div>
-          </div>
-        </div>
-      )}
 
       {/* Árbol de cadencias */}
       <div className="card">
