@@ -254,6 +254,16 @@ export default function FinanzasPage() {
     }
   }
 
+  async function refreshSummary() {
+    try {
+      const res = await apiFetch('/api/finance/summary')
+      const data = await res.json()
+      if (data.data) setSummary(data.data)
+    } catch {
+      // el resumen se actualizará en la próxima carga
+    }
+  }
+
   function showMessage(type: 'success' | 'error', text: string) {
     setMessage({ type, text })
     setTimeout(() => setMessage(null), 3000)
@@ -330,6 +340,7 @@ export default function FinanzasPage() {
                     upcomingTotal={upcomingTotal}
                     upcomingLoading={upcomingLoading}
                     summary={summary}
+                    onAccountsChanged={refreshSummary}
                   />
                 )}
 

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GlassCard } from '../GlassCard'
 import { UpcomingPayments } from '../UpcomingPayments'
+import { CuentasPanel } from '../CuentasPanel'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -35,6 +36,7 @@ interface GastosTabProps {
   upcomingTotal: number
   upcomingLoading: boolean
   summary: FinanceSummary | null
+  onAccountsChanged?: () => void
 }
 
 // Iconos para categorias
@@ -177,7 +179,8 @@ export function GastosTab({
   upcomingPayments,
   upcomingTotal,
   upcomingLoading,
-  summary
+  summary,
+  onAccountsChanged
 }: GastosTabProps) {
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
@@ -273,6 +276,9 @@ export function GastosTab({
         total={upcomingTotal}
         loading={upcomingLoading}
       />
+
+      {/* Cuentas por cobrar / por pagar */}
+      <CuentasPanel onChanged={onAccountsChanged} />
 
       {/* 3 Tarjetas resumen estilo Fina Partner */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

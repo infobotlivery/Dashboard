@@ -327,6 +327,26 @@ else
     echo "Tabla Proposal ya existe"
 fi
 
+# Verificar y crear tabla AccountEntry (cuentas por cobrar / por pagar)
+echo "=== Verificando tabla AccountEntry ==="
+sqlite3 "$DB_PATH" "
+CREATE TABLE IF NOT EXISTS \"AccountEntry\" (
+    \"id\" INTEGER PRIMARY KEY AUTOINCREMENT,
+    \"kind\" TEXT NOT NULL,
+    \"concept\" TEXT NOT NULL,
+    \"counterparty\" TEXT NOT NULL DEFAULT '',
+    \"amount\" REAL NOT NULL DEFAULT 0,
+    \"dueDate\" DATETIME NOT NULL,
+    \"status\" TEXT NOT NULL DEFAULT 'pending',
+    \"paidAt\" DATETIME,
+    \"notes\" TEXT,
+    \"createdAt\" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \"updatedAt\" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS \"AccountEntry_kind_status_idx\" ON \"AccountEntry\"(\"kind\", \"status\");
+CREATE INDEX IF NOT EXISTS \"AccountEntry_dueDate_idx\" ON \"AccountEntry\"(\"dueDate\");
+" 2>&1 || echo "Error creando tabla AccountEntry"
+
 # =====================================================
 # INDEXES - Asegurar que existan para performance
 # =====================================================

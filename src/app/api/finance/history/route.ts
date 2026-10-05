@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
+import { sumMrr, expenseAppliesToMonth } from '@/lib/finance'
 
 // GET - Histórico de últimos 6 meses (solo 2026+)
 export async function GET() {
@@ -33,8 +34,8 @@ export async function GET() {
         select: { onboardingValue: true, createdAt: true }
       }),
       prisma.salesClose.findMany({
-        where: { status: 'active' },
-        select: { recurringValue: true, createdAt: true, product: true }
+        where: { recurringValue: { gt: 0 } },
+        select: { recurringValue: true, createdAt: true, product: true, status: true, cancelledAt: true }
       }),
       prisma.expense.findMany({
         where: {
@@ -44,7 +45,7 @@ export async function GET() {
             { endDate: { gte: earliestStart } }
           ]
         },
-        select: { amount: true, startDate: true, endDate: true }
+        select: { amount: true, type: true, startDate: true, endDate: true }
       })
     ])
 
@@ -76,18 +77,14 @@ export async function GET() {
         .filter(s => s.createdAt >= monthStart && s.createdAt <= monthEnd)
         .reduce((sum, s) => sum + s.onboardingValue, 0)
 
-      const totalMrrServices = activeSales
-        .filter(s => s.createdAt <= monthEnd && s.product !== 'Comunidad')
-        .reduce((sum, s) => sum + s.recurringValue, 0)
-
-      const totalMrrCommunity = activeSales
-        .filter(s => s.createdAt <= monthEnd && s.product === 'Comunidad')
-        .reduce((sum, s) => sum + s.recurringValue, 0)
+      const mrr = sumMrr(activeSales, monthEnd)
+      const totalMrrServices = mrr.services
+      const totalMrrCommunity = mrr.community
 
       const totalIncome = totalOnboarding + totalMrrServices + totalMrrCommunity
 
       const totalExpenses = expenses
-        .filter(e => e.startDate <= monthEnd && (!e.endDate || e.endDate >= monthStart))
+        .filter(e => expenseAppliesToMonth(e, { start: monthStart, end: monthEnd }))
         .reduce((sum, e) => sum + e.amount, 0)
 
       const netProfit = totalIncome - totalExpenses

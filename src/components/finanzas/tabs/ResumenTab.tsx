@@ -638,6 +638,38 @@ export function ResumenTab({ summary, currentGoal, upcomingPayments, upcomingTot
         </div>
       </motion.div>
 
+      {/* Cuentas por cobrar / por pagar */}
+      {summary.accounts && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-4"
+        >
+          <div className="glass-card-green p-5">
+            <p className="text-xs text-gray-400">Por cobrar ({summary.accounts.receivable.count})</p>
+            <p className="text-2xl font-bold text-green-400">{formatCurrency(summary.accounts.receivable.pending)}</p>
+            {summary.accounts.receivable.overdue > 0 && (
+              <p className="text-xs text-yellow-400">{formatCurrency(summary.accounts.receivable.overdue)} vencido</p>
+            )}
+          </div>
+          <div className="glass-card-red p-5">
+            <p className="text-xs text-gray-400">Por pagar ({summary.accounts.payable.count})</p>
+            <p className="text-2xl font-bold text-red-400">{formatCurrency(summary.accounts.payable.pending)}</p>
+            {summary.accounts.payable.overdue > 0 && (
+              <p className="text-xs text-yellow-400">{formatCurrency(summary.accounts.payable.overdue)} vencido</p>
+            )}
+          </div>
+          <div className="glass-card p-5">
+            <p className="text-xs text-gray-400">Balance proyectado</p>
+            <p className={`text-2xl font-bold ${summary.accounts.projectedBalance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {formatCurrency(summary.accounts.projectedBalance)}
+            </p>
+            <p className="text-xs text-gray-500">Utilidad + por cobrar − por pagar</p>
+          </div>
+        </motion.div>
+      )}
+
       {/* Próximos Pagos */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
