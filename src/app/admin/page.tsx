@@ -9,7 +9,7 @@ import Toggle from '@/components/ui/Toggle'
 import NumberInput from '@/components/ui/NumberInput'
 import DateSelector from '@/components/ui/DateSelector'
 import { Select } from '@/components/ui/Select'
-import { adminAuthFetch } from '@/lib/authFetch'
+import { apiFetch } from '@/lib/apiFetch'
 import type { WeeklyMetric, MonthlyScorecard, Settings, SalesClose, Proposal } from '@/types'
 
 type Tab = 'weekly' | 'monthly' | 'daily' | 'sales' | 'settings' | 'proposals'
@@ -72,10 +72,6 @@ const icons = {
 }
 
 export default function AdminPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [password, setPassword] = useState('')
-  const [authError, setAuthError] = useState('')
-  const [authLoading, setAuthLoading] = useState(false)
 
   const [activeTab, setActiveTab] = useState<Tab>('weekly')
   const [saving, setSaving] = useState(false)
@@ -121,7 +117,6 @@ export default function AdminPage() {
     brandDark: '#171717',
     logoUrl: null
   })
-  const [newPassword, setNewPassword] = useState('')
 
   // Sales close state
   // createdAt se maneja como "YYYY-MM-DD" (hora local) igual que weeklyMetric.weekStart.
@@ -177,42 +172,12 @@ export default function AdminPage() {
     return new Date(year, month - 1, day)
   }
 
-  // Autenticación
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setAuthLoading(true)
-    setAuthError('')
-
-    try {
-      const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        setIsAuthenticated(true)
-        localStorage.setItem('admin_token', data.data.token)
-      } else {
-        setAuthError(data.error || 'Contraseña incorrecta')
-      }
-    } catch {
-      setAuthError('Error de conexión')
-    } finally {
-      setAuthLoading(false)
-    }
-  }
-
   // Cargar datos al cambiar de tab
   useEffect(() => {
-    if (!isAuthenticated) return
-
     async function loadData() {
       try {
         if (activeTab === 'weekly') {
-          const res = await adminAuthFetch('/api/metrics/current')
+          const res = await apiFetch('/api/metrics/current')
           const data = await res.json()
           if (data.data) {
             setWeeklyMetric({
@@ -222,7 +187,7 @@ export default function AdminPage() {
           }
         } else if (activeTab === 'monthly') {
           // Cargar scorecard del mes actual con métricas calculadas
-          const res = await adminAuthFetch('/api/scorecard?current=true')
+          const res = await apiFetch('/api/scorecard?current=true')
           const data = await res.json()
           if (data.data) {
             setMonthlyScorecard({
@@ -231,7 +196,7 @@ export default function AdminPage() {
             })
           }
         } else if (activeTab === 'daily') {
-          const res = await adminAuthFetch('/api/daily?today=true')
+          const res = await apiFetch('/api/daily?today=true')
           const data = await res.json()
           if (data.data) {
             setDailyCheck({
@@ -241,13 +206,13 @@ export default function AdminPage() {
             })
           }
         } else if (activeTab === 'sales') {
-          const res = await adminAuthFetch('/api/sales')
+          const res = await apiFetch('/api/sales')
           const data = await res.json()
           if (data.data) {
             setSalesList(data.data)
           }
         } else if (activeTab === 'settings') {
-          const res = await adminAuthFetch('/api/settings')
+          const res = await apiFetch('/api/settings')
           const data = await res.json()
           if (data.data) {
             setSettings(data.data)
@@ -263,7 +228,7 @@ export default function AdminPage() {
     }
 
     loadData()
-  }, [activeTab, isAuthenticated])
+  }, [activeTab])
 
   // Guardar datos
   async function handleSave() {
@@ -295,10 +260,10 @@ export default function AdminPage() {
         }
       } else if (activeTab === 'settings') {
         endpoint = '/api/settings'
-        body = { ...settings, newPassword: newPassword || undefined }
+        body = { ...settings }
       }
 
-      const res = await adminAuthFetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: activeTab === 'sales' && editingSaleId ? 'PUT' : 'POST',
         body: JSON.stringify(body)
       })
@@ -307,10 +272,9 @@ export default function AdminPage() {
 
       if (data.success) {
         setMessage({ type: 'success', text: 'Guardado correctamente' })
-        if (activeTab === 'settings') setNewPassword('')
         if (activeTab === 'sales') {
           // Recargar lista y limpiar formulario
-          const salesRes = await adminAuthFetch('/api/sales')
+          const salesRes = await apiFetch('/api/sales')
           const salesData = await salesRes.json()
           if (salesData.data) setSalesList(salesData.data)
           setSalesClose({
@@ -350,7 +314,7 @@ export default function AdminPage() {
         ? { ...proposalForm, id: editingProposalId }
         : proposalForm
       const method = editingProposalId ? 'PUT' : 'POST'
-      const res = await adminAuthFetch('/api/proposals', {
+      const res = await apiFetch('/api/proposals', {
         method,
         body: JSON.stringify(body)
       })
@@ -376,7 +340,7 @@ export default function AdminPage() {
   async function handleDeleteProposal(id: number) {
     if (!confirm('¿Eliminar esta propuesta?')) return
     try {
-      const res = await adminAuthFetch(`/api/proposals?id=${id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/proposals?id=${id}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.success) {
         setProposalList(proposalList.filter(p => p.id !== id))
@@ -402,61 +366,6 @@ export default function AdminPage() {
     setEditingProposalId(p.id)
   }
 
-  // Pantalla de login
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-md"
-        >
-          <Card>
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-brand-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-brand-primary" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <h1 className="text-2xl font-bold">Panel de Administración</h1>
-              <p className="text-brand-muted mt-2">Ingresa tu contraseña para continuar</p>
-            </div>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <Input
-                type="password"
-                placeholder="Contraseña"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoFocus
-              />
-
-              {authError && (
-                <motion.p
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-red-400 text-sm text-center bg-red-400/10 py-2 px-4 rounded-lg"
-                >
-                  {authError}
-                </motion.p>
-              )}
-
-              <Button type="submit" className="w-full" loading={authLoading}>
-                Ingresar
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <a href="/" className="text-brand-muted hover:text-brand-primary text-sm transition-colors">
-                ← Volver al Dashboard
-              </a>
-            </div>
-          </Card>
-        </motion.div>
-      </div>
-    )
-  }
-
   // Panel de admin
   return (
     <div className="min-h-screen bg-black">
@@ -472,15 +381,6 @@ export default function AdminPage() {
               <a href="/" className="btn-secondary text-sm">
                 Ver Dashboard
               </a>
-              <button
-                onClick={() => {
-                  localStorage.removeItem('admin_token')
-                  setIsAuthenticated(false)
-                }}
-                className="btn-secondary text-sm"
-              >
-                Cerrar Sesión
-              </button>
             </div>
           </div>
         </div>
@@ -597,7 +497,7 @@ export default function AdminPage() {
                       const monthStr = formatLocalDate(date)
                       // Cargar datos del mes seleccionado
                       try {
-                        const res = await adminAuthFetch(`/api/scorecard?month=${monthStr}`)
+                        const res = await apiFetch(`/api/scorecard?month=${monthStr}`)
                         const data = await res.json()
                         if (data.data) {
                           setMonthlyScorecard({
@@ -1006,16 +906,6 @@ export default function AdminPage() {
                   )}
                 </Card>
 
-                <Card>
-                  <h2 className="text-lg font-semibold mb-4">Cambiar Contraseña</h2>
-                  <Input
-                    type="password"
-                    label="Nueva Contraseña"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Dejar vacío para no cambiar"
-                  />
-                </Card>
               </div>
             )}
             {/* Proposals Tab */}

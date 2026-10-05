@@ -4,10 +4,9 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   FinanceSidebar,
-  LoginScreen,
   ExportButton
 } from '@/components/finanzas'
-import { financeAuthFetch } from '@/lib/authFetch'
+import { apiFetch } from '@/lib/apiFetch'
 import type { FinanceTab } from '@/components/finanzas'
 import {
   ResumenTab,
@@ -29,11 +28,6 @@ const tabTitles: Record<FinanceTab, string> = {
 }
 
 export default function FinanzasPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [password, setPassword] = useState('')
-  const [authError, setAuthError] = useState('')
-  const [authLoading, setAuthLoading] = useState(false)
-
   const [activeTab, setActiveTab] = useState<FinanceTab>('resumen')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -69,55 +63,20 @@ export default function FinanzasPage() {
   const [upcomingTotal, setUpcomingTotal] = useState(0)
   const [upcomingLoading, setUpcomingLoading] = useState(true)
 
-  // Autenticacion
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setAuthLoading(true)
-    setAuthError('')
-
-    try {
-      const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        setIsAuthenticated(true)
-        localStorage.setItem('finance_token', data.data.token)
-      } else {
-        setAuthError(data.error || 'Contrasena incorrecta')
-      }
-    } catch {
-      setAuthError('Error de conexion')
-    } finally {
-      setAuthLoading(false)
-    }
-  }
-
-  function handleLogout() {
-    localStorage.removeItem('finance_token')
-    setIsAuthenticated(false)
-  }
-
   // Cargar datos
   useEffect(() => {
-    if (!isAuthenticated) return
-
     async function loadData() {
       setLoading(true)
       setUpcomingLoading(true)
       try {
         const [summaryRes, historyRes, categoriesRes, expensesRes, upcomingRes, salesRes, salesSummaryRes] = await Promise.all([
-          financeAuthFetch('/api/finance/summary'),
-          financeAuthFetch('/api/finance/history'),
-          financeAuthFetch('/api/finance/categories'),
-          financeAuthFetch('/api/finance/expenses'),
-          financeAuthFetch('/api/finance/expenses/upcoming'),
-          financeAuthFetch('/api/sales'),
-          financeAuthFetch('/api/sales?summary=true')
+          apiFetch('/api/finance/summary'),
+          apiFetch('/api/finance/history'),
+          apiFetch('/api/finance/categories'),
+          apiFetch('/api/finance/expenses'),
+          apiFetch('/api/finance/expenses/upcoming'),
+          apiFetch('/api/sales'),
+          apiFetch('/api/sales?summary=true')
         ])
 
         const [summaryData, historyData, categoriesData, expensesData, upcomingData, salesData, salesSummaryData] = await Promise.all([
@@ -144,7 +103,7 @@ export default function FinanzasPage() {
         // Cargar meta del mes actual
         const now = new Date()
         const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-        const goalRes = await financeAuthFetch(`/api/finance/goals?month=${currentMonth}`)
+        const goalRes = await apiFetch(`/api/finance/goals?month=${currentMonth}`)
         const goalData = await goalRes.json()
         if (goalData.data) setCurrentGoal(goalData.data)
       } catch (err) {
@@ -156,7 +115,7 @@ export default function FinanzasPage() {
     }
 
     loadData()
-  }, [isAuthenticated])
+  }, [])
 
   // Crear categoria
   async function handleCreateCategory() {
@@ -167,7 +126,7 @@ export default function FinanzasPage() {
 
     setSaving(true)
     try {
-      const res = await financeAuthFetch('/api/finance/categories', {
+      const res = await apiFetch('/api/finance/categories', {
         method: 'POST',
         body: JSON.stringify(newCategory)
       })
@@ -201,7 +160,7 @@ export default function FinanzasPage() {
         ? { ...newExpense, id: editingExpenseId }
         : newExpense
 
-      const res = await financeAuthFetch('/api/finance/expenses', {
+      const res = await apiFetch('/api/finance/expenses', {
         method,
         body: JSON.stringify(body)
       })
@@ -210,8 +169,8 @@ export default function FinanzasPage() {
       if (data.success) {
         // Recargar gastos y próximos pagos
         const [expensesRes, upcomingRes] = await Promise.all([
-          financeAuthFetch('/api/finance/expenses'),
-          financeAuthFetch('/api/finance/expenses/upcoming')
+          apiFetch('/api/finance/expenses'),
+          apiFetch('/api/finance/expenses/upcoming')
         ])
         const [expensesData, upcomingData] = await Promise.all([
           expensesRes.json(),
@@ -224,7 +183,7 @@ export default function FinanzasPage() {
         }
 
         // Recargar resumen
-        const summaryRes = await financeAuthFetch('/api/finance/summary')
+        const summaryRes = await apiFetch('/api/finance/summary')
         const summaryData = await summaryRes.json()
         if (summaryData.data) setSummary(summaryData.data)
 
@@ -244,7 +203,7 @@ export default function FinanzasPage() {
   // Marcar gasto como pagado
   async function handleMarkPaid(id: number) {
     try {
-      const res = await financeAuthFetch('/api/finance/expenses', {
+      const res = await apiFetch('/api/finance/expenses', {
         method: 'PATCH',
         body: JSON.stringify({ id })
       })
@@ -269,15 +228,15 @@ export default function FinanzasPage() {
     if (!confirm('Eliminar este gasto?')) return
 
     try {
-      const res = await financeAuthFetch(`/api/finance/expenses?id=${id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/finance/expenses?id=${id}`, { method: 'DELETE' })
       const data = await res.json()
 
       if (data.success) {
         setExpenses(expenses.filter(e => e.id !== id))
         // Recargar resumen y próximos pagos
         const [summaryRes, upcomingRes] = await Promise.all([
-          financeAuthFetch('/api/finance/summary'),
-          financeAuthFetch('/api/finance/expenses/upcoming')
+          apiFetch('/api/finance/summary'),
+          apiFetch('/api/finance/expenses/upcoming')
         ])
         const [summaryData, upcomingData] = await Promise.all([
           summaryRes.json(),
@@ -300,19 +259,6 @@ export default function FinanzasPage() {
     setTimeout(() => setMessage(null), 3000)
   }
 
-  // Pantalla de login
-  if (!isAuthenticated) {
-    return (
-      <LoginScreen
-        password={password}
-        setPassword={setPassword}
-        onSubmit={handleLogin}
-        loading={authLoading}
-        error={authError}
-      />
-    )
-  }
-
   // Dashboard financiero
   return (
     <div className="min-h-screen bg-black">
@@ -320,7 +266,6 @@ export default function FinanzasPage() {
       <FinanceSidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        onLogout={handleLogout}
       />
 
       {/* Main content */}

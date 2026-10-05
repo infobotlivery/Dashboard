@@ -47,7 +47,6 @@ Edita `.env` con tus valores:
 
 ```env
 DATABASE_URL="file:./dev.db"
-ADMIN_PASSWORD="tu-contraseña-segura"
 API_SECRET_KEY="tu-clave-api-para-n8n"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
@@ -86,7 +85,6 @@ git push origin main
 4. **Variables de entorno** (en la pestaña Environment):
    ```
    DATABASE_URL=file:/app/data/metrics.db
-   ADMIN_PASSWORD=tu-contraseña-segura
    API_SECRET_KEY=una-clave-aleatoria-larga
    NEXT_PUBLIC_APP_URL=https://tu-dominio.com
    ```
@@ -113,10 +111,9 @@ Vista de solo lectura con:
 
 ### Panel Admin (/admin)
 
-1. Ingresa con la contraseña configurada en `ADMIN_PASSWORD`
+1. Acceso directo, sin contraseña
 2. Edita métricas semanales, scorecards mensuales o checks diarios
 3. Configura colores de marca y logo
-4. Cambia la contraseña si lo necesitas
 
 ---
 
