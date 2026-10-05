@@ -210,6 +210,7 @@ model SalesClose {
   status          String    @default("active")        // active, cancelled, completed
   createdAt       DateTime  @default(now())
   cancelledAt     DateTime?
+  proposalId      Int?                                // Propuesta que originó el cierre (para deshacerlo)
   updatedAt       DateTime  @updatedAt
 }
 ```
@@ -311,7 +312,8 @@ model Proposal {
   clientName  String
   company     String   @default("")
   service     String   @default("")
-  amount      Float    @default(0)
+  amount      Float    @default(0)            // Pago único / onboarding
+  recurringAmount Float @default(0)           // MRR esperado si se cierra
   date        DateTime @default(now())
   status      String   @default("por_aprobacion") // por_aprobacion | aprobada | no_cerrada
   notes       String?
@@ -376,6 +378,12 @@ El **selector de mes** de "Finanzas del Mes" controla toda la página: finanzas,
 - Personas agendadas = `WeeklyMetric.personasAgendadas` (webhook Kommo)
 - Cierres = cierres de venta (`SalesClose.createdAt`) del periodo; % cierre = cierres ÷ leads
 - Facturación: semana = onboarding; mes = onboarding + MRR al cierre; trimestre = suma de sus meses ya iniciados
+- Facturación de ventas nuevas = onboarding + MRR de los clientes cerrados en el periodo; MRR de clientes nuevos = recurringValue de esos cierres (activos)
+- MRR por cerrar = suma de `Proposal.recurringAmount` de las propuestas del periodo en estado por_aprobacion
+
+**Deshacer una venta:**
+- Desde la propuesta: al sacarla de "Aprobada" se ofrece eliminar el cierre vinculado (`SalesClose.proposalId`); al eliminar la propuesta también.
+- Cualquier cierre (incluso sin propuesta): `/finanzas` → Clientes → Cancelar cliente / Reactivar / Eliminar (`PATCH` y `DELETE /api/sales`).
 
 ### Dashboard Financiero (`/finanzas`)
 - Acceso directo, sin contraseña (URL separada para control de finanzas)
@@ -740,7 +748,8 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-05 | MRR de todos los clientes activos + cuentas por cobrar/pagar | a4618aa |
 | 2026-10-05 | Importación de ventas por CSV | ddc0799 |
 | 2026-10-05 | Admin dividido en componentes (SalesTab, ProposalsTab) | 0b0bc1f |
-| 2026-10-05 | Portada: cuentas por pagar/cobrar, métricas automáticas, propuestas editables, cierre desde propuesta; admin reducido a 3 tabs | pendiente |
+| 2026-10-05 | Portada: cuentas por pagar/cobrar, métricas automáticas, propuestas editables, cierre desde propuesta; admin reducido a 3 tabs | 23e3cba |
+| 2026-10-05 | Métricas de ventas nuevas / MRR nuevo / MRR por cerrar; deshacer ventas; Proposal.recurringAmount y SalesClose.proposalId | pendiente |
 
 ### Detalle del cambio 2026-10-05:
 - **Sin contraseña:** se eliminaron login, `middleware.ts`, `/api/auth`, `authFetch.ts`, tokens y bcryptjs.

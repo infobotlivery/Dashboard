@@ -32,7 +32,7 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
       product: match ?? 'Otro',
       customProduct: match ? '' : proposal.service,
       onboardingValue: String(proposal.amount || ''),
-      recurringValue: '',
+      recurringValue: proposal.recurringAmount ? String(proposal.recurringAmount) : '',
       contractMonths: '',
       createdAt: formatLocalDate(new Date())
     })
@@ -57,6 +57,7 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
           recurringValue: Number(form.recurringValue) || 0,
           contractMonths: form.contractMonths ? Number(form.contractMonths) : null,
           status: 'active',
+          proposalId: proposal.id,
           createdAt: parseLocalDate(form.createdAt).toISOString()
         })
       })

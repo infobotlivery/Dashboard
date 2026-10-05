@@ -60,6 +60,7 @@ export interface SalesClose {
   status: 'active' | 'cancelled' | 'completed'
   createdAt: string
   cancelledAt: string | null
+  proposalId?: number | null
 }
 
 export interface SalesSummary {
@@ -196,6 +197,8 @@ export interface Proposal {
   company: string
   service: string
   amount: number
+  recurringAmount?: number
+  sale?: { id: number; clientName: string; onboardingValue: number; recurringValue: number } | null
   date: string
   status: 'por_aprobacion' | 'aprobada' | 'no_cerrada'
   notes?: string | null

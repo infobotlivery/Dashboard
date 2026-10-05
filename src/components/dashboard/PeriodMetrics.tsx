@@ -20,6 +20,9 @@ interface PeriodValues {
   mrrCommunity: number
   facturacion: number
   clientesPerdidos: number
+  mrrNuevo: number
+  facturacionNuevas: number
+  mrrPorCerrar: number
 }
 
 interface PeriodResponse {
@@ -153,6 +156,30 @@ export function PeriodMetrics({
       {!error && !c && <div className="glass-card text-center py-6 text-brand-muted">Cargando…</div>}
 
       {c && p && (
+        <>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card
+            title="Facturación de ventas nuevas"
+            value={fmtMoney(c.facturacionNuevas)}
+            sub={`Onboarding ${fmtMoney(c.onboarding)} + MRR nuevo ${fmtMoney(c.mrrNuevo)}`}
+            delta={<Delta value={c.facturacionNuevas} previous={p.facturacionNuevas} />}
+            delay={0}
+          />
+          <Card
+            title="MRR de clientes nuevos"
+            value={fmtMoney(c.mrrNuevo)}
+            sub={`${c.cierres} cierre${c.cierres === 1 ? '' : 's'} en el periodo`}
+            delta={<Delta value={c.mrrNuevo} previous={p.mrrNuevo} />}
+            delay={0.04}
+          />
+          <Card
+            title="MRR por cerrar"
+            value={fmtMoney(c.mrrPorCerrar)}
+            sub={`${c.propuestas.porAprobacion} propuesta${c.propuestas.porAprobacion === 1 ? '' : 's'} por aprobar`}
+            delta={<Delta value={c.mrrPorCerrar} previous={p.mrrPorCerrar} />}
+            delay={0.08}
+          />
+        </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card title="Leads" value={String(c.leads)} sub={`${c.leadsKommo} Kommo + ${c.propuestas.total} propuestas`} delta={<Delta value={c.leads} previous={p.leads} />} delay={0} />
           <Card title="Personas agendadas" value={String(c.agendadas)} delta={<Delta value={c.agendadas} previous={p.agendadas} />} delay={0.04} />
@@ -175,6 +202,7 @@ export function PeriodMetrics({
           <Card title="MRR clientes" value={fmtMoney(c.mrr)} sub={`Servicios ${fmtMoney(c.mrrServices)} · Comunidad ${fmtMoney(c.mrrCommunity)}`} delta={<Delta value={c.mrr} previous={p.mrr} />} delay={0.24} />
           <Card title="Clientes perdidos" value={String(c.clientesPerdidos)} delta={<Delta value={c.clientesPerdidos} previous={p.clientesPerdidos} inverse />} delay={0.28} />
         </div>
+        </>
       )}
     </div>
   )

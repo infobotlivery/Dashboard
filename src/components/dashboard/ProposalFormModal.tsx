@@ -15,7 +15,7 @@ interface ProposalFormModalProps {
 }
 
 const emptyForm = () => ({
-  clientName: '', company: '', service: '', amount: '',
+  clientName: '', company: '', service: '', amount: '', recurringAmount: '',
   date: formatLocalDate(new Date()), status: 'por_aprobacion' as Proposal['status'], notes: ''
 })
 
@@ -32,6 +32,7 @@ export function ProposalFormModal({ open, proposal, onClose, onSaved }: Proposal
       company: proposal.company,
       service: proposal.service,
       amount: String(proposal.amount),
+      recurringAmount: proposal.recurringAmount ? String(proposal.recurringAmount) : '',
       date: formatLocalDate(new Date(proposal.date)),
       status: proposal.status,
       notes: proposal.notes || ''
@@ -51,6 +52,7 @@ export function ProposalFormModal({ open, proposal, onClose, onSaved }: Proposal
         company: form.company.trim(),
         service: form.service.trim(),
         amount: Number(form.amount) || 0,
+        recurringAmount: Number(form.recurringAmount) || 0,
         date: parseLocalDate(form.date).toISOString(),
         status: wantsApproved ? (proposal?.status ?? 'por_aprobacion') : form.status,
         notes: form.notes
@@ -78,7 +80,8 @@ export function ProposalFormModal({ open, proposal, onClose, onSaved }: Proposal
         <Field label="Cliente *"><input className={modalInputCls} value={form.clientName} onChange={set('clientName')} autoFocus /></Field>
         <Field label="Empresa"><input className={modalInputCls} value={form.company} onChange={set('company')} /></Field>
         <Field label="Servicio"><input className={modalInputCls} value={form.service} onChange={set('service')} placeholder="CRM, Agente IA, Asesoría…" /></Field>
-        <Field label="Monto"><input type="number" min="0" step="0.01" className={modalInputCls} value={form.amount} onChange={set('amount')} /></Field>
+        <Field label="Monto (pago único / onboarding)"><input type="number" min="0" step="0.01" className={modalInputCls} value={form.amount} onChange={set('amount')} /></Field>
+        <Field label="Mensual esperado (MRR)"><input type="number" min="0" step="0.01" className={modalInputCls} value={form.recurringAmount} onChange={set('recurringAmount')} placeholder="0 si no es recurrente" /></Field>
         <Field label="Fecha de envío"><input type="date" className={modalInputCls} value={form.date} onChange={set('date')} /></Field>
         <Field label="Estado">
           <select className={`${modalInputCls} dark-select`} value={form.status} onChange={set('status')}>

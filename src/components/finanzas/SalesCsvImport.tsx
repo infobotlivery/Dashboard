@@ -22,7 +22,7 @@ export function ProposalsCsvImport({ onImported }: Props) {
   return (
     <CsvImportCard
       title="Importar propuestas enviadas desde CSV"
-      description="Columnas: cliente, empresa, servicio, monto, fecha, estado (por_aprobacion, aprobada o no_cerrada), notas."
+      description="Columnas: cliente, empresa, servicio, monto, mensual (MRR esperado, opcional), fecha, estado (por_aprobacion, aprobada o no_cerrada), notas."
       endpoint="/api/proposals/import"
       noun="propuestas"
       onImported={onImported}

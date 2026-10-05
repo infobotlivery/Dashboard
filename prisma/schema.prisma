@@ -71,6 +71,7 @@ model SalesClose {
   status          String    @default("active")        // active, cancelled, completed
   createdAt       DateTime  @default(now())           // Fecha registro
   cancelledAt     DateTime?                           // Fecha de cancelación
+  proposalId      Int?                                // Propuesta que originó el cierre (para deshacerlo)
   updatedAt       DateTime  @updatedAt
 
   @@index([status, createdAt])
@@ -157,6 +158,7 @@ model Proposal {
   company     String   @default("")
   service     String   @default("")
   amount      Float    @default(0)
+  recurringAmount Float @default(0) // MRR esperado si se cierra
   date        DateTime @default(now())
   status      String   @default("por_aprobacion") // por_aprobacion | aprobada | no_cerrada
   notes       String?

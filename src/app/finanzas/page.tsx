@@ -383,7 +383,7 @@ export default function FinanzasPage() {
                     summary={salesSummary}
                     selectedMonth={selectedFinanceMonth}
                     onMonthChange={setSelectedFinanceMonth}
-                    onImported={reloadSales}
+                    onChanged={reloadSales}
                   />
                 )}
               </motion.div>

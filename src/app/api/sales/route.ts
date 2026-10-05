@@ -80,7 +80,8 @@ export async function POST(request: NextRequest) {
       recurringValue,
       contractMonths,
       status,
-      createdAt
+      createdAt,
+      proposalId
     } = body
 
     // Validación básica
@@ -102,6 +103,7 @@ export async function POST(request: NextRequest) {
         recurringValue: Number(recurringValue) || 0,
         contractMonths: contractMonths ? Number(contractMonths) : null,
         status: status || 'active',
+        proposalId: proposalId ? Number(proposalId) : null,
         ...(parsedCreatedAt && { createdAt: parsedCreatedAt })
       }
     })
@@ -157,6 +159,26 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('Error updating sale:', error)
     return errorResponse('Error al actualizar cierre de venta', 500)
+  }
+}
+
+// PATCH /api/sales - Cambiar solo el estado (cancelar / reactivar un cliente)
+export async function PATCH(request: NextRequest) {
+  try {
+    const { id, status } = await request.json()
+    if (!id) return errorResponse('ID es requerido', 400)
+    if (!['active', 'cancelled', 'completed'].includes(status)) {
+      return errorResponse('Estado inválido (active | cancelled | completed)', 400)
+    }
+
+    const sale = await prisma.salesClose.update({
+      where: { id: Number(id) },
+      data: { status, cancelledAt: status === 'cancelled' ? new Date() : null }
+    })
+    return successResponse(sale)
+  } catch (error) {
+    console.error('Error patching sale:', error)
+    return errorResponse('Error al cambiar el estado del cliente', 500)
   }
 }
 

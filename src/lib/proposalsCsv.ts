@@ -2,16 +2,17 @@
 import { parseCsv, parseAmount, parseCsvDate, norm, MAX_IMPORT_ROWS } from '@/lib/salesCsv'
 
 export const PROPOSALS_TEMPLATE_CSV =
-  'cliente,empresa,servicio,monto,fecha,estado,notas\n' +
-  'Juan Pérez,Pérez SA,CRM,1500,2026-01-15,aprobada,Cerró en la llamada\n' +
-  'Ana Gómez,,Agente IA,2500,2026-02-03,por_aprobacion,\n' +
-  'Empresa XYZ,XYZ,Asesoría,800,2026-02-20,no_cerrada,Sin presupuesto\n'
+  'cliente,empresa,servicio,monto,mensual,fecha,estado,notas\n' +
+  'Juan Pérez,Pérez SA,CRM,1500,300,2026-01-15,aprobada,Cerró en la llamada\n' +
+  'Ana Gómez,,Agente IA,2500,250,2026-02-03,por_aprobacion,\n' +
+  'Empresa XYZ,XYZ,Asesoría,800,0,2026-02-20,no_cerrada,Sin presupuesto\n'
 
 export interface ParsedProposal {
   clientName: string
   company: string
   service: string
   amount: number
+  recurringAmount: number
   date: Date
   status: 'por_aprobacion' | 'aprobada' | 'no_cerrada'
   notes: string | null
@@ -28,6 +29,7 @@ const ALIASES: Record<string, string> = {
   empresa: 'company', company: 'company',
   servicio: 'service', producto: 'service', service: 'service',
   monto: 'amount', valor: 'amount', amount: 'amount',
+  mensual: 'recurring', mrr: 'recurring', recurringamount: 'recurring',
   fecha: 'date', fecha_envio: 'date', date: 'date',
   estado: 'status', status: 'status',
   notas: 'notes', notes: 'notes'
@@ -63,12 +65,14 @@ export function parseProposalsCsv(text: string): { rows: ProposalRowResult[]; fa
     if (!clientName) errors.push('cliente vacío')
     const amount = parseAmount(get(r, 'amount'))
     if (amount === null) errors.push('monto no es un número válido')
+    const recurring = parseAmount(get(r, 'recurring'))
+    if (recurring === null) errors.push('mensual no es un número válido')
     const date = parseCsvDate(get(r, 'date'))
     if (!date) errors.push('fecha inválida (usa AAAA-MM-DD o DD/MM/AAAA)')
     const status = normalizeStatus(get(r, 'status'))
     if (!status) errors.push('estado inválido (por_aprobacion, aprobada o no_cerrada)')
 
-    if (errors.length || amount === null || !date || !status) return { line, errors }
+    if (errors.length || amount === null || recurring === null || !date || !status) return { line, errors }
     return {
       line,
       errors,
@@ -77,6 +81,7 @@ export function parseProposalsCsv(text: string): { rows: ProposalRowResult[]; fa
         company: get(r, 'company'),
         service: get(r, 'service'),
         amount,
+        recurringAmount: recurring,
         date,
         status,
         notes: get(r, 'notes') || null

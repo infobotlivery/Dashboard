@@ -74,9 +74,22 @@ export function ProposalsBoard({ proposals, month, onChanged }: ProposalsBoardPr
     if (status === p.status) return
     // Aprobar = cerrar la venta: se pide el registro del cierre en el momento
     if (status === 'aprobada') return setClosing(p)
+
+    // Salir de "aprobada": ofrecer deshacer el cierre de venta vinculado
+    let undoSale = false
+    if (p.status === 'aprobada') {
+      if (p.sale) {
+        undoSale = confirm(
+          `Esta propuesta tiene un cierre registrado (${p.sale.clientName}).\n\n` +
+          'Aceptar = deshacer también el cierre de venta.\nCancelar = conservar el cierre y solo cambiar el estado.'
+        )
+      } else {
+        alert('Esta propuesta no tiene un cierre vinculado. Si registraste el cierre antes, elimínalo en Finanzas → Clientes.')
+      }
+    }
     setError('')
     try {
-      const res = await apiFetch('/api/proposals', { method: 'PUT', body: JSON.stringify({ id: p.id, status }) })
+      const res = await apiFetch('/api/proposals', { method: 'PUT', body: JSON.stringify({ id: p.id, status, undoSale }) })
       const data = await res.json()
       if (!data.success) return setError(data.error || 'No se pudo cambiar el estado')
       onChanged()
@@ -87,8 +100,11 @@ export function ProposalsBoard({ proposals, month, onChanged }: ProposalsBoardPr
 
   async function remove(p: Proposal) {
     if (!confirm(`¿Eliminar la propuesta de ${p.clientName}?`)) return
+    const deleteSale = !!p.sale && confirm(
+      `Esta propuesta tiene un cierre de venta registrado (${p.sale!.clientName}).\n\nAceptar = eliminar también el cierre.\nCancelar = conservar el cierre.`
+    )
     try {
-      const res = await apiFetch(`/api/proposals?id=${p.id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/proposals?id=${p.id}${deleteSale ? '&deleteSale=true' : ''}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.success) onChanged()
       else setError(data.error || 'No se pudo eliminar')
@@ -163,10 +179,16 @@ export function ProposalsBoard({ proposals, month, onChanged }: ProposalsBoardPr
                     const sc = statusConfig[p.status]
                     return (
                       <tr key={p.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="py-3 px-4 font-medium text-white">{p.clientName}</td>
+                        <td className="py-3 px-4 font-medium text-white">
+                          {p.clientName}
+                          {p.sale && <span title="Cierre de venta registrado" className="ml-1.5 text-xs">💰</span>}
+                        </td>
                         <td className="py-3 px-4 text-brand-muted hidden md:table-cell">{p.company || '-'}</td>
                         <td className="py-3 px-4 text-brand-muted hidden sm:table-cell">{p.service || '-'}</td>
-                        <td className="py-3 px-4 text-right font-semibold text-green-400">{fmtMoney(p.amount)}</td>
+                        <td className="py-3 px-4 text-right font-semibold text-green-400">
+                          {fmtMoney(p.amount)}
+                          {(p.recurringAmount ?? 0) > 0 && <span className="block text-xs font-normal text-brand-primary">+{fmtMoney(p.recurringAmount!)}/mes</span>}
+                        </td>
                         <td className="py-3 px-4 text-center text-brand-muted text-sm hidden sm:table-cell">
                           {new Date(p.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </td>
