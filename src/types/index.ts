@@ -106,10 +106,21 @@ export interface FinanceSummary {
   activeClients: number
 }
 
+export interface AccountItem {
+  id: string
+  source: 'account' | 'expense'
+  concept: string
+  counterparty: string
+  amount: number
+  dueDate: string
+  overdue: boolean
+}
+
 export interface AccountsTotals {
   pending: number
   overdue: number
   count: number
+  items?: AccountItem[]
 }
 
 export interface AccountEntry {

@@ -39,16 +39,18 @@ Dashboard/
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx              # Dashboard público principal
-│   │   ├── admin/page.tsx        # Panel de administración (protegido)
-│   │   ├── finanzas/page.tsx     # Dashboard financiero privado (protegido)
+│   │   ├── admin/page.tsx        # Panel admin: Semanal / Mensual / Trimestral (solo lectura, automático)
+│   │   ├── finanzas/page.tsx     # Dashboard financiero (sin contraseña)
 │   │   ├── layout.tsx            # Layout principal
 │   │   ├── globals.css           # Estilos globales
 │   │   └── api/
-│   │       ├── proposals/route.ts      # CRUD propuestas (GET público)
+│   │       ├── proposals/route.ts      # CRUD propuestas
+│   │       ├── proposals/import/route.ts # Importar propuestas desde CSV (preview + confirmar) / plantilla
 │   │       ├── metrics/
 │   │       │   ├── route.ts      # CRUD métricas semanales
 │   │       │   ├── current/route.ts    # Métrica semana actual
-│   │       │   └── comparison/route.ts # Comparativa semanal
+│   │       │   ├── comparison/route.ts # Comparativa semanal
+│   │       │   └── period/route.ts     # Métricas automáticas por semana/mes/trimestre
 │   │       ├── finance/
 │   │       │   ├── summary/route.ts    # Resumen financiero mensual
 │   │       │   ├── history/route.ts    # Histórico últimos 6 meses (solo 2026+)
@@ -69,15 +71,16 @@ Dashboard/
 │   │
 │   ├── components/
 │   │   ├── dashboard/
-│   │   │   ├── BillingMetrics.tsx      # Facturación + utilidad del mes (público, con selector de mes)
+│   │   │   ├── BillingMetrics.tsx      # Facturación + utilidad del mes (selector de mes, importar ventas CSV)
+│   │   │   ├── AccountsBoxes.tsx       # Cuentas por pagar / por cobrar (pendientes a la fecha)
 │   │   │   ├── UpcomingClientPayments.tsx # Cobros de clientes próximos 7 días
-│   │   │   ├── ProposalsTable.tsx      # Tabla de propuestas (read-only, con filtros)
-│   │   │   ├── WeeklyDashboard.tsx     # Grid de 7 métricas semanales
-│   │   │   ├── WeeklyComparison.tsx    # Tabla comparativa semanal
-│   │   │   ├── MetricCard.tsx          # Card individual de métrica
-│   │   │   ├── MonthlyScorecard.tsx    # Tabla scorecard mensual
-│   │   │   ├── SalesCloseTable.tsx     # Tabla de cierres de ventas
-│   │   │   └── CadenceTree.tsx         # Árbol de cadencias
+│   │   │   ├── PeriodMetrics.tsx       # Métricas automáticas (semana/mes/trimestre) — portada y admin
+│   │   │   ├── ProposalsBoard.tsx      # Propuestas: agregar, editar, estado, filtros, importar CSV
+│   │   │   ├── ProposalFormModal.tsx   # Alta/edición de propuesta
+│   │   │   ├── CloseSaleModal.tsx      # Registro del cierre de venta al aprobar una propuesta
+│   │   │   ├── Modal.tsx               # Modal base + Field
+│   │   │   ├── CadenceTree.tsx         # Árbol de cadencias
+│   │   │   └── (WeeklyDashboard, WeeklyComparison, MetricCard, MonthlyScorecard, SalesCloseTable: sin uso en la portada)
 │   │   ├── finanzas/
 │   │   │   ├── index.ts                # Exportaciones centrales
 │   │   │   ├── GlassCard.tsx           # Card con glassmorphism
@@ -85,7 +88,8 @@ Dashboard/
 │   │   │   ├── ProgressBar.tsx         # Barra de progreso para metas
 │   │   │   ├── FinanceSidebar.tsx      # Sidebar lateral + mobile nav
 │   │   │   ├── CuentasPanel.tsx        # Cuentas por cobrar / por pagar (en tab Gastos)
-│   │   │   ├── SalesCsvImport.tsx      # Subir CSV de ventas (vista previa + confirmar)
+│   │   │   ├── CsvImportCard.tsx       # Tarjeta genérica de importación CSV (vista previa + confirmar)
+│   │   │   ├── SalesCsvImport.tsx      # Wrappers: SalesCsvImport / ProposalsCsvImport
 │   │   │   ├── ExportButton.tsx        # Botón exportar CSV
 │   │   │   ├── UpcomingPayments.tsx    # Tabla de próximos 5 pagos
 │   │   │   └── tabs/
@@ -96,9 +100,6 @@ Dashboard/
 │   │   │       ├── HistorialTab.tsx    # Tab historial mensual
 │   │   │       ├── MetasTab.tsx        # Tab metas mensuales
 │   │   │       └── ClientesTab.tsx     # Tab clientes (registro de ventas + filtros)
-│   │   ├── admin/
-│   │   │   ├── SalesTab.tsx            # Tab Cierres del admin (autocontenido)
-│   │   │   └── ProposalsTab.tsx        # Tab Propuestas del admin (autocontenido)
 │   │   └── ui/
 │   │       ├── Button.tsx
 │   │       ├── Card.tsx
@@ -116,7 +117,9 @@ Dashboard/
 │       ├── api.ts                # Utilidades API + verifyApiKey (webhooks)
 │       ├── apiFetch.ts           # fetch con JSON por defecto (sin auth)
 │       ├── dates.ts              # formatLocalDate, parseLocalDate, getMonday
-│       ├── finance.ts            # Reglas de MRR/gastos por mes (summary, history, export)
+│       ├── finance.ts            # Reglas de MRR/gastos por mes + cuentas por cobrar/pagar a la fecha
+│       ├── periodMetrics.ts      # Cálculo de métricas por semana/mes/trimestre
+│       ├── proposalsCsv.ts       # Parser/validador del CSV de propuestas
 │       └── salesCsv.ts           # Parser/validador del CSV de ventas
 │
 ├── prisma/
@@ -355,20 +358,24 @@ NEXT_PUBLIC_APP_URL="https://dashboard.elraperomarketero.com"
 ## Páginas y Funcionalidades
 
 ### Dashboard Público (`/`)
-- **BillingMetrics:** Facturación y utilidad del mes con selector de mes (público, sin login)
+El **selector de mes** de "Finanzas del Mes" controla toda la página: finanzas, cuentas, métricas y filtro de propuestas.
+- **BillingMetrics:** Facturación y utilidad del mes + botón "Importar ventas (CSV)"
+- **AccountsBoxes:** Cuentas por pagar (cuentas manuales + gastos recurrentes con día de cobro sin marcar como pagados) y por cobrar (cuentas manuales), pendientes al día de consulta (o al cierre del mes si es un mes pasado)
 - **UpcomingClientPayments:** Clientes con cobros próximos en 7 días
-- **MonthlyMetrics (Scorecard):** Scorecard mensual del negocio
-- **ProposalsTable:** Tabla read-only de propuestas con filtros (sin botones de edición)
-- **CadenceTree:** Árbol visual de cadencias de revisión
+- **PeriodMetrics:** Leads, personas agendadas, propuestas enviadas, cierres, % de cierre, facturación, MRR y clientes perdidos — Semanal / Mensual / Trimestral, todo automático con comparación vs periodo anterior
+- **ProposalsBoard:** "Agregar nueva propuesta" (cuenta como lead), cambio de estado en la tabla, filtros por estado y mes, importar CSV. Al pasar una propuesta a **Aprobada** se abre el modal de **registro de cierre de venta** (no hay formulario de cierres aparte)
+- **CadenceTree:** Árbol visual de cadencias de revisión (pendiente de rediseño)
 
 ### Panel Admin (`/admin`)
 - Acceso directo, sin contraseña
-- **Tab Semanal:** Editar métricas de cualquier semana
-- **Tab Mensual:** Editar scorecard de cualquier mes
-- **Tab Diario:** Registrar checks diarios
-- **Tab Cierres:** Registrar y editar cierres de ventas
-- **Tab Propuestas:** CRUD completo de propuestas (crear/editar/eliminar, filtros por estado y mes)
-- **Tab Configuración:** Colores de marca y logo
+- Solo **Semanal / Mensual / Trimestral**, en modo lectura: las métricas se calculan solas
+- Se eliminaron los tabs Diario, Cierres, Propuestas y Configuración (las APIs `/api/daily`, `/api/settings` y `/api/scorecard` siguen existiendo)
+
+**Definición de métricas (src/lib/periodMetrics.ts):**
+- Leads = `WeeklyMetric.leadsEntrantes` (webhook Kommo) + propuestas del periodo (cada propuesta suma 1 lead)
+- Personas agendadas = `WeeklyMetric.personasAgendadas` (webhook Kommo)
+- Cierres = cierres de venta (`SalesClose.createdAt`) del periodo; % cierre = cierres ÷ leads
+- Facturación: semana = onboarding; mes = onboarding + MRR al cierre; trimestre = suma de sus meses ya iniciados
 
 ### Dashboard Financiero (`/finanzas`)
 - Acceso directo, sin contraseña (URL separada para control de finanzas)
@@ -732,7 +739,8 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-05 | Se elimina autenticación por contraseña (admin y finanzas) | d341521 |
 | 2026-10-05 | MRR de todos los clientes activos + cuentas por cobrar/pagar | a4618aa |
 | 2026-10-05 | Importación de ventas por CSV | ddc0799 |
-| 2026-10-05 | Admin dividido en componentes (SalesTab, ProposalsTab) | pendiente |
+| 2026-10-05 | Admin dividido en componentes (SalesTab, ProposalsTab) | 0b0bc1f |
+| 2026-10-05 | Portada: cuentas por pagar/cobrar, métricas automáticas, propuestas editables, cierre desde propuesta; admin reducido a 3 tabs | pendiente |
 
 ### Detalle del cambio 2026-10-05:
 - **Sin contraseña:** se eliminaron login, `middleware.ts`, `/api/auth`, `authFetch.ts`, tokens y bcryptjs.

@@ -49,7 +49,9 @@ export async function POST(request: NextRequest) {
       onboardingTotal: toInsert.reduce((s, p) => s + p.data!.onboardingValue, 0),
       mrrTotal: toInsert
         .filter(p => p.data!.status === 'active')
-        .reduce((s, p) => s + p.data!.recurringValue, 0)
+        .reduce((s, p) => s + p.data!.recurringValue, 0),
+      extraLabel: 'Onboarding',
+      extraValue: toInsert.reduce((s, p) => s + p.data!.onboardingValue, 0)
     }
 
     if (dryRun) return successResponse({ imported: 0, summary, rows: preview })

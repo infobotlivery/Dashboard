@@ -1,15 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { MonthlyMetrics } from '@/components/dashboard/MonthlyMetrics'
+import { PeriodMetrics } from '@/components/dashboard/PeriodMetrics'
 import { CadenceTree } from '@/components/dashboard/CadenceTree'
 import { BillingMetrics } from '@/components/dashboard/BillingMetrics'
 import { UpcomingClientPayments } from '@/components/dashboard/UpcomingClientPayments'
-import { ProposalsTable } from '@/components/dashboard/ProposalsTable'
+import { ProposalsBoard } from '@/components/dashboard/ProposalsBoard'
 import type {
-  MonthlyScorecard,
-  DailyCheck,
   Settings,
   FinanceSummary,
   MonthlyGoal,
@@ -17,63 +15,56 @@ import type {
   Proposal
 } from '@/types'
 
+const currentYYYYMM = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
 export default function DashboardPage() {
-  const [monthlyComparisonData, setMonthlyComparisonData] = useState<{ currentMonth: MonthlyScorecard | null; previousMonth: MonthlyScorecard | null }>({ currentMonth: null, previousMonth: null })
-  const [dailyChecks, setDailyChecks] = useState<DailyCheck[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Finance / proposals state
+  // Mes seleccionado ('' = mes actual). Controla finanzas, cuentas, métricas y propuestas.
   const [selectedMonth, setSelectedMonth] = useState<string>('')
   const [billingSummary, setBillingSummary] = useState<FinanceSummary | null>(null)
   const [billingGoal, setBillingGoal] = useState<MonthlyGoal | null>(null)
   const [upcomingClients, setUpcomingClients] = useState<UpcomingClientPayment[]>([])
   const [proposals, setProposals] = useState<Proposal[]>([])
+  const [refreshKey, setRefreshKey] = useState(0)
 
+  const fetchBilling = useCallback(async (month: string) => {
+    const target = month || currentYYYYMM()
+    const [summaryRes, goalRes] = await Promise.all([
+      fetch(`/api/finance/summary?month=${target}`, { cache: 'no-store' }),
+      fetch(`/api/finance/goals?month=${target}-01`, { cache: 'no-store' })
+    ])
+    if (summaryRes.ok) {
+      const d = await summaryRes.json()
+      setBillingSummary(d.data ?? null)
+    }
+    if (goalRes.ok) {
+      const d = await goalRes.json()
+      setBillingGoal(d.data ?? null)
+    }
+  }, [])
+
+  const fetchLists = useCallback(async () => {
+    const [upcomingRes, proposalsRes] = await Promise.all([
+      fetch('/api/sales/upcoming', { cache: 'no-store' }),
+      fetch('/api/proposals', { cache: 'no-store' })
+    ])
+    if (upcomingRes.ok) setUpcomingClients((await upcomingRes.json()).data || [])
+    if (proposalsRes.ok) setProposals((await proposalsRes.json()).data || [])
+  }, [])
+
+  // Carga inicial
   useEffect(() => {
-    async function fetchData() {
+    async function init() {
       try {
-        setLoading(true)
-
-        const [monthlyComparisonRes, dailyRes, settingsRes, upcomingRes, proposalsRes] = await Promise.all([
-          fetch('/api/scorecard/comparison'),
-          fetch('/api/daily?limit=30'),
-          fetch('/api/settings'),
-          fetch('/api/sales/upcoming'),
-          fetch('/api/proposals')
-        ])
-
-        if (monthlyComparisonRes.ok) {
-          const d = await monthlyComparisonRes.json()
-          setMonthlyComparisonData({
-            currentMonth: d.data?.currentMonth || null,
-            previousMonth: d.data?.previousMonth || null
-          })
-        }
-
-        if (dailyRes.ok) {
-          const d = await dailyRes.json()
-          setDailyChecks(d.data || [])
-        }
-
-        if (settingsRes.ok) {
-          const d = await settingsRes.json()
-          setSettings(d.data)
-        }
-
-        if (upcomingRes.ok) {
-          const d = await upcomingRes.json()
-          setUpcomingClients(d.data || [])
-        }
-
-        if (proposalsRes.ok) {
-          const d = await proposalsRes.json()
-          setProposals(d.data || [])
-        }
-
-        // Cargar finance summary + goal para mes actual
-        await fetchBillingData('')
+        const settingsRes = await fetch('/api/settings')
+        if (settingsRes.ok) setSettings((await settingsRes.json()).data)
+        await Promise.all([fetchBilling(''), fetchLists()])
       } catch (err) {
         console.error('Error fetching data:', err)
         setError('Error al cargar los datos')
@@ -81,40 +72,23 @@ export default function DashboardPage() {
         setLoading(false)
       }
     }
+    init()
+  }, [fetchBilling, fetchLists])
 
-    fetchData()
-  }, [])
-
-  // Recargar billing cuando cambia el mes seleccionado
+  // El selector de mes recarga las finanzas y cuentas de ese mes
   useEffect(() => {
-    if (!loading) {
-      fetchBillingData(selectedMonth)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth])
+    if (!loading) fetchBilling(selectedMonth).catch(err => console.error('Error fetching billing:', err))
+  }, [selectedMonth, loading, fetchBilling])
 
-  async function fetchBillingData(month: string) {
+  // Tras crear/editar propuestas o registrar ventas: recarga todo y recalcula métricas
+  const reloadAll = useCallback(async () => {
     try {
-      const monthParam = month ? `?month=${month}` : ''
-      const [summaryRes, goalRes] = await Promise.all([
-        fetch(`/api/finance/summary${monthParam}`),
-        fetch(`/api/finance/goals${monthParam ? `?month=${month}-01` : `?month=${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`}`)
-      ])
-
-      if (summaryRes.ok) {
-        const d = await summaryRes.json()
-        if (d.data) setBillingSummary(d.data)
-      }
-
-      if (goalRes.ok) {
-        const d = await goalRes.json()
-        if (d.data) setBillingGoal(d.data)
-        else setBillingGoal(null)
-      }
+      await Promise.all([fetchBilling(selectedMonth), fetchLists()])
     } catch (err) {
-      console.error('Error fetching billing data:', err)
+      console.error('Error reloading:', err)
     }
-  }
+    setRefreshKey(k => k + 1)
+  }, [fetchBilling, fetchLists, selectedMonth])
 
   if (loading) {
     return (
@@ -210,6 +184,7 @@ export default function DashboardPage() {
             goal={billingGoal}
             selectedMonth={selectedMonth}
             onMonthChange={setSelectedMonth}
+            onSalesImported={reloadAll}
           />
         </section>
 
@@ -218,19 +193,24 @@ export default function DashboardPage() {
           <UpcomingClientPayments payments={upcomingClients} />
         </section>
 
-        {/* Métricas Mensuales (Scorecard) */}
+        {/* Métricas automáticas: semana / mes / trimestre */}
         <section>
-          <MonthlyMetrics scorecard={monthlyComparisonData.currentMonth} />
+          <PeriodMetrics
+            month={selectedMonth}
+            followMonth
+            refreshKey={refreshKey}
+            title="Métricas"
+          />
         </section>
 
-        {/* Propuestas (read-only) */}
+        {/* Propuestas */}
         <section>
-          <ProposalsTable proposals={proposals} />
+          <ProposalsBoard proposals={proposals} month={selectedMonth} onChanged={reloadAll} />
         </section>
 
         {/* Cadencia de Revisión */}
         <section>
-          <CadenceTree dailyChecks={dailyChecks} />
+          <CadenceTree />
         </section>
       </main>
 

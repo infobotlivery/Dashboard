@@ -1,8 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { AnimatedNumber } from '@/components/finanzas/AnimatedNumber'
 import { ProgressBar } from '@/components/finanzas/ProgressBar'
+import { SalesCsvImport } from '@/components/finanzas/SalesCsvImport'
+import { Modal } from './Modal'
+import { AccountsBoxes } from './AccountsBoxes'
 import type { FinanceSummary, MonthlyGoal } from '@/types'
 
 interface BillingMetricsProps {
@@ -10,6 +14,7 @@ interface BillingMetricsProps {
   goal: MonthlyGoal | null
   selectedMonth: string
   onMonthChange: (m: string) => void
+  onSalesImported?: () => void
 }
 
 const monthNames = [
@@ -49,7 +54,8 @@ function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
   )
 }
 
-export function BillingMetrics({ summary, goal, selectedMonth, onMonthChange }: BillingMetricsProps) {
+export function BillingMetrics({ summary, goal, selectedMonth, onMonthChange, onSalesImported }: BillingMetricsProps) {
+  const [showImport, setShowImport] = useState(false)
   const activeMonth = selectedMonth || getCurrentYYYYMM()
   const currentMonth = getCurrentYYYYMM()
 
@@ -72,6 +78,14 @@ export function BillingMetrics({ summary, goal, selectedMonth, onMonthChange }: 
       {/* Header + Selector de mes */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">Finanzas del Mes</h2>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+        <button
+          onClick={() => setShowImport(true)}
+          className="btn-secondary text-sm"
+          title="Subir un CSV con tus ventas"
+        >
+          ⬆ Importar ventas (CSV)
+        </button>
         <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
           <button
             onClick={() => onMonthChange(addMonths(activeMonth, -1))}
@@ -101,6 +115,7 @@ export function BillingMetrics({ summary, goal, selectedMonth, onMonthChange }: 
               Hoy
             </button>
           )}
+        </div>
         </div>
       </div>
 
@@ -262,6 +277,17 @@ export function BillingMetrics({ summary, goal, selectedMonth, onMonthChange }: 
         </motion.div>
 
       </div>
+      {/* Cuentas por pagar / por cobrar */}
+      <AccountsBoxes
+        payable={summary?.accounts?.payable}
+        receivable={summary?.accounts?.receivable}
+        asOfLabel={selectedMonth && selectedMonth !== currentMonth ? `al cierre de ${formatMonthLabel(selectedMonth)}` : `al ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`}
+      />
+
+      {/* Importar ventas desde CSV */}
+      <Modal open={showImport} title="Importar ventas" onClose={() => setShowImport(false)} wide>
+        <SalesCsvImport onImported={() => { onSalesImported?.() }} />
+      </Modal>
     </div>
   )
 }
