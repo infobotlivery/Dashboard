@@ -46,6 +46,7 @@ Dashboard/
 │   │   └── api/
 │   │       ├── calls/route.ts          # Llamadas: listar, agregar manual, marcar asistencia, eliminar
 │   │       ├── calls/sync/route.ts     # Sincroniza Calendly → llamadas
+│   │       ├── calls/import/route.ts   # Importar llamadas desde CSV (preview + confirmar) / plantilla
 │   │       ├── calls/export/route.ts   # CSV de llamadas
 │   │       ├── proposals/route.ts      # CRUD propuestas
 │   │       ├── proposals/import/route.ts # Importar propuestas desde CSV (preview + confirmar) / plantilla
@@ -123,6 +124,7 @@ Dashboard/
 │       ├── apiFetch.ts           # fetch con JSON por defecto (sin auth)
 │       ├── calendly.ts           # Cliente de la API de Calendly (CALENDLY_API_TOKEN)
 │       ├── callsSync.ts          # Sincronización Calendly → tabla Call
+│       ├── callsCsv.ts           # Parser/validador del CSV de llamadas
 │       ├── dates.ts              # formatLocalDate, parseLocalDate, getMonday
 │       ├── finance.ts            # Reglas de MRR/gastos por mes + cuentas por cobrar/pagar a la fecha
 │       ├── periodMetrics.ts      # Cálculo de métricas por semana/mes/trimestre
@@ -393,7 +395,7 @@ El **selector de mes** de "Finanzas del Mes" controla toda la página: finanzas,
 - **BillingMetrics:** Facturación y utilidad del mes + botón "Importar ventas (CSV)"
 - **AccountsBoxes:** Cuentas por pagar (cuentas manuales + gastos recurrentes con día de cobro sin marcar como pagados) y por cobrar (cuentas manuales), pendientes al día de consulta (o al cierre del mes si es un mes pasado)
 - **UpcomingClientPayments:** Clientes con cobros próximos en 7 días
-- **CallsBoard:** llamadas de Calendly (lead, fecha y hora, presupuesto), botones Asistió / No asistió; al marcar "Asistió" pregunta qué propuesta se envió y la crea vinculada a la llamada. Sincroniza al abrir y cada 5 min; también se pueden agregar llamadas a mano
+- **CallsBoard:** (importar CSV, exportar CSV, sincronizar) llamadas de Calendly (lead, fecha y hora, presupuesto), botones Asistió / No asistió; al marcar "Asistió" pregunta qué propuesta se envió y la crea vinculada a la llamada. Sincroniza al abrir y cada 5 min; también se pueden agregar llamadas a mano
 - **PeriodMetrics:** (botón Exportar CSV) Leads, personas agendadas, propuestas enviadas, cierres, % de cierre, facturación, MRR y clientes perdidos — Semanal / Mensual / Trimestral, todo automático con comparación vs periodo anterior
 - **ProposalsBoard:** "Agregar nueva propuesta" (cuenta como lead), cambio de estado en la tabla, filtros por estado y mes, importar CSV. Al pasar una propuesta a **Aprobada** se abre el modal de **registro de cierre de venta** (no hay formulario de cierres aparte)
 - **CadenceTree:** Árbol visual de cadencias de revisión (pendiente de rediseño)
@@ -782,7 +784,22 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-05 | Admin dividido en componentes (SalesTab, ProposalsTab) | 0b0bc1f |
 | 2026-10-05 | Portada: cuentas por pagar/cobrar, métricas automáticas, propuestas editables, cierre desde propuesta; admin reducido a 3 tabs | 23e3cba |
 | 2026-10-05 | Métricas de ventas nuevas / MRR nuevo / MRR por cerrar; deshacer ventas; Proposal.recurringAmount y SalesClose.proposalId | 9c79381 |
-| 2026-10-05 | Llamadas de Calendly (leads, personas agendadas, asistencia), propuesta desde llamada, exportar métricas a CSV; modelo Call y Proposal.callId | pendiente |
+| 2026-10-05 | Llamadas de Calendly (leads, personas agendadas, asistencia), propuesta desde llamada, exportar métricas a CSV; modelo Call y Proposal.callId | ea57959 |
+| 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | pendiente |
+
+### Detalle del cambio 2026-10-06:
+- **Respaldo automático:** `docker-entrypoint.sh` copia `metrics.db` a `/app/data/backups/metrics-AAAAMMDD-HHMMSS.db`
+  al iniciar el contenedor, ANTES de cualquier migración (usa `sqlite3 .backup`; si falla, copia simple). Conserva los últimos 10.
+  El directorio vive en el volumen de datos, así que sobrevive a los rebuilds. Para restaurar: detener la app y
+  copiar el respaldo elegido sobre `/app/data/metrics.db`.
+- **CSV de llamadas:** columnas `lead, email, fecha_llamada, agendada_el, presupuesto, estado, reprogramada, asistencia`
+  (+ opcionales `evento_calendly`, `invitado_calendly`, `nombre_evento`). Duplicado = mismo invitado de Calendly,
+  o mismo email + misma hora. Plantilla en `GET /api/calls/import`.
+- **Sincronización Calendly:** una llamada cargada por CSV se vincula a su reserva de Calendly (por email + hora)
+  en vez de duplicarse. Respeta el `no_show` marcado en Calendly.
+- **Reprogramaciones:** Calendly marca `old_invitee` en la reserva NUEVA; la original (cancelada, `rescheduled: true`)
+  es el lead. Antes ambas se marcaban como reprogramación.
+- **Presupuesto:** se detecta por la pregunta del formulario (presupuesto, facturación, invertir, fondos, inversión).
 
 ### Detalle del cambio 2026-10-05:
 - **Sin contraseña:** se eliminaron login, `middleware.ts`, `/api/auth`, `authFetch.ts`, tokens y bcryptjs.

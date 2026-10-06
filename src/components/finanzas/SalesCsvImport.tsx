@@ -29,3 +29,15 @@ export function ProposalsCsvImport({ onImported }: Props) {
     />
   )
 }
+
+export function CallsCsvImport({ onImported }: Props) {
+  return (
+    <CsvImportCard
+      title="Importar llamadas desde CSV"
+      description="Columnas: lead, email, fecha_llamada, agendada_el, presupuesto, estado (agendada o cancelada), reprogramada (si/no), asistencia (pendiente, asistio o no_asistio)."
+      endpoint="/api/calls/import"
+      noun="llamadas"
+      onImported={onImported}
+    />
+  )
+}

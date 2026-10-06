@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { apiFetch } from '@/lib/apiFetch'
 import { Modal, Field, modalInputCls } from './Modal'
 import { ProposalFormModal } from './ProposalFormModal'
+import { CallsCsvImport } from '@/components/finanzas/SalesCsvImport'
 import type { CallRecord } from '@/types'
 
 interface CallsBoardProps {
@@ -46,6 +47,7 @@ export function CallsBoard({ calls, configured, syncing, syncError, month, onSyn
   const [filterAttendance, setFilterAttendance] = useState<AttendanceFilter>('todas')
   const [proposalFor, setProposalFor] = useState<CallRecord | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [form, setForm] = useState({ leadName: '', leadEmail: '', scheduledAt: localInputValue(new Date()), budget: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -144,6 +146,7 @@ export function CallsBoard({ calls, configured, syncing, syncError, month, onSyn
           <button onClick={onSync} disabled={!configured || syncing} className="btn-secondary text-sm disabled:opacity-40">
             {syncing ? 'Sincronizando…' : '↻ Sincronizar Calendly'}
           </button>
+          <button onClick={() => setImportOpen(true)} className="btn-secondary text-sm">⬆ Importar CSV</button>
           <a href={`/api/calls/export${filterMonth ? `?month=${filterMonth}` : ''}`} download className="btn-secondary text-sm">⬇ CSV</a>
           <button onClick={() => { setError(''); setAddOpen(true) }} className="btn-primary text-sm">+ Agregar llamada</button>
         </div>
@@ -263,6 +266,10 @@ export function CallsBoard({ calls, configured, syncing, syncError, month, onSyn
         onClose={() => setProposalFor(null)}
         onSaved={() => { setProposalFor(null); onChanged() }}
       />
+
+      <Modal open={importOpen} title="Importar llamadas" onClose={() => setImportOpen(false)} wide>
+        <CallsCsvImport onImported={onChanged} />
+      </Modal>
 
       <Modal open={addOpen} title="Agregar llamada manualmente" onClose={() => setAddOpen(false)}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
