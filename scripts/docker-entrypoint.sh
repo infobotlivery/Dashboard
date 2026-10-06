@@ -358,6 +358,38 @@ if ! sqlite3 "$DB_PATH" "PRAGMA table_info(SalesClose);" 2>/dev/null | grep -q "
     echo "Columna SalesClose.proposalId agregada"
 fi
 
+# Llamadas (Calendly) y Proposal.callId
+echo "=== Verificando tabla Call ==="
+sqlite3 "$DB_PATH" "
+CREATE TABLE IF NOT EXISTS \"Call\" (
+    \"id\" INTEGER PRIMARY KEY AUTOINCREMENT,
+    \"calendlyEventUri\" TEXT,
+    \"calendlyInviteeUri\" TEXT,
+    \"leadName\" TEXT NOT NULL,
+    \"leadEmail\" TEXT NOT NULL DEFAULT '',
+    \"eventName\" TEXT NOT NULL DEFAULT '',
+    \"scheduledAt\" DATETIME NOT NULL,
+    \"bookedAt\" DATETIME NOT NULL,
+    \"budget\" TEXT,
+    \"status\" TEXT NOT NULL DEFAULT 'scheduled',
+    \"attendance\" TEXT NOT NULL DEFAULT 'pending',
+    \"isReschedule\" BOOLEAN NOT NULL DEFAULT 0,
+    \"source\" TEXT NOT NULL DEFAULT 'calendly',
+    \"joinUrl\" TEXT,
+    \"notes\" TEXT,
+    \"createdAt\" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \"updatedAt\" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS \"Call_calendlyEventUri_key\" ON \"Call\"(\"calendlyEventUri\");
+CREATE UNIQUE INDEX IF NOT EXISTS \"Call_calendlyInviteeUri_key\" ON \"Call\"(\"calendlyInviteeUri\");
+CREATE INDEX IF NOT EXISTS \"Call_scheduledAt_idx\" ON \"Call\"(\"scheduledAt\");
+CREATE INDEX IF NOT EXISTS \"Call_bookedAt_idx\" ON \"Call\"(\"bookedAt\");
+" 2>&1 || echo "Error creando tabla Call"
+if ! sqlite3 "$DB_PATH" "PRAGMA table_info(Proposal);" 2>/dev/null | grep -q "callId"; then
+    sqlite3 "$DB_PATH" "ALTER TABLE Proposal ADD COLUMN callId INTEGER;" 2>&1 || echo "Error agregando Proposal.callId"
+    echo "Columna Proposal.callId agregada"
+fi
+
 # =====================================================
 # INDEXES - Asegurar que existan para performance
 # =====================================================

@@ -159,6 +159,7 @@ model Proposal {
   service     String   @default("")
   amount      Float    @default(0)
   recurringAmount Float @default(0) // MRR esperado si se cierra
+  callId      Int?     // Llamada que originó la propuesta (no cuenta como lead extra)
   date        DateTime @default(now())
   status      String   @default("por_aprobacion") // por_aprobacion | aprobada | no_cerrada
   notes       String?
@@ -185,4 +186,28 @@ model AccountEntry {
 
   @@index([kind, status])
   @@index([dueDate])
+}
+
+// Llamadas agendadas (Calendly o manuales). Cada llamada nueva cuenta como lead.
+model Call {
+  id                 Int      @id @default(autoincrement())
+  calendlyEventUri   String?  @unique                  // scheduled_event de Calendly
+  calendlyInviteeUri String?  @unique                  // invitee de Calendly
+  leadName           String
+  leadEmail          String   @default("")
+  eventName          String   @default("")
+  scheduledAt        DateTime                          // Fecha y hora de la llamada
+  bookedAt           DateTime                          // Cuándo se agendó (fecha del lead)
+  budget             String?                           // Respuesta del lead sobre presupuesto/facturación
+  status             String   @default("scheduled")    // scheduled | canceled
+  attendance         String   @default("pending")      // pending | attended | no_show
+  isReschedule       Boolean  @default(false)          // Reprogramación: no cuenta como lead nuevo
+  source             String   @default("calendly")     // calendly | manual
+  joinUrl            String?
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([scheduledAt])
+  @@index([bookedAt])
 }

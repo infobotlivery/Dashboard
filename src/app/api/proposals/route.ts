@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { clientName, company = '', service = '', amount = 0, recurringAmount = 0, date, status = 'por_aprobacion', notes } = body
+    const { clientName, company = '', service = '', amount = 0, recurringAmount = 0, callId, date, status = 'por_aprobacion', notes } = body
 
     if (!clientName) {
       return NextResponse.json({ success: false, error: 'clientName es requerido' }, { status: 400 })
@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
         service,
         amount: Number(amount) || 0,
         recurringAmount: Number(recurringAmount) || 0,
+        callId: callId ? Number(callId) : null,
         date: date ? new Date(date) : new Date(),
         status,
         notes: notes || null

@@ -10,6 +10,8 @@ import type { Proposal } from '@/types'
 interface ProposalFormModalProps {
   open: boolean
   proposal: Proposal | null          // null = nueva propuesta
+  /** Datos iniciales para una propuesta nueva (p. ej. desde una llamada a la que asistió el lead). */
+  prefill?: { clientName?: string; notes?: string; callId?: number; title?: string; hint?: string }
   onClose: () => void
   onSaved: (saved: Proposal, becameApproved: boolean) => void
 }
@@ -19,7 +21,7 @@ const emptyForm = () => ({
   date: formatLocalDate(new Date()), status: 'por_aprobacion' as Proposal['status'], notes: ''
 })
 
-export function ProposalFormModal({ open, proposal, onClose, onSaved }: ProposalFormModalProps) {
+export function ProposalFormModal({ open, proposal, prefill, onClose, onSaved }: ProposalFormModalProps) {
   const [form, setForm] = useState(emptyForm())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -36,8 +38,8 @@ export function ProposalFormModal({ open, proposal, onClose, onSaved }: Proposal
       date: formatLocalDate(new Date(proposal.date)),
       status: proposal.status,
       notes: proposal.notes || ''
-    } : emptyForm())
-  }, [open, proposal])
+    } : { ...emptyForm(), clientName: prefill?.clientName ?? '', notes: prefill?.notes ?? '' })
+  }, [open, proposal, prefill])
 
   async function handleSave() {
     if (!form.clientName.trim()) return setError('El nombre del cliente es requerido')
@@ -48,6 +50,7 @@ export function ProposalFormModal({ open, proposal, onClose, onSaved }: Proposal
       const wantsApproved = form.status === 'aprobada' && proposal?.status !== 'aprobada'
       const body = {
         ...(proposal && { id: proposal.id }),
+        ...(!proposal && prefill?.callId && { callId: prefill.callId }),
         clientName: form.clientName.trim(),
         company: form.company.trim(),
         service: form.service.trim(),
@@ -72,9 +75,9 @@ export function ProposalFormModal({ open, proposal, onClose, onSaved }: Proposal
     setForm({ ...form, [k]: e.target.value })
 
   return (
-    <Modal open={open} title={proposal ? 'Editar propuesta' : 'Agregar nueva propuesta'} onClose={onClose} wide>
+    <Modal open={open} title={proposal ? 'Editar propuesta' : (prefill?.title ?? 'Agregar nueva propuesta')} onClose={onClose} wide>
       {!proposal && (
-        <p className="text-xs text-brand-muted mb-4">Cada propuesta nueva cuenta automáticamente como un lead.</p>
+        <p className="text-xs text-brand-muted mb-4">{prefill?.hint ?? 'Cada propuesta nueva cuenta automáticamente como un lead.'}</p>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Cliente *"><input className={modalInputCls} value={form.clientName} onChange={set('clientName')} autoFocus /></Field>

@@ -39,9 +39,16 @@ export function previousRange(period: Period, range: PeriodRange): PeriodRange {
 }
 
 export interface PeriodValues {
-  leads: number          // leads de Kommo + propuestas del periodo (cada propuesta suma 1 lead)
+  leads: number          // leads de Kommo + llamadas nuevas + propuestas que no vienen de una llamada
   leadsKommo: number
-  agendadas: number
+  leadsCalls: number     // llamadas agendadas en el periodo (sin reprogramaciones)
+  leadsProposals: number // propuestas directas (sin llamada previa)
+  agendadas: number      // personas agendadas = llamadas agendadas (no canceladas)
+  callsAttended: number  // llamadas del periodo marcadas como asistidas
+  callsNoShow: number    // llamadas del periodo marcadas como no asistidas
+  callsPending: number   // llamadas ya realizadas sin marcar
+  asistencia: number     // asistió ÷ (asistió + no asistió) × 100
+  noShow: number         // no asistió ÷ (asistió + no asistió) × 100
   propuestas: { total: number; porAprobacion: number; aprobada: number; noCerrada: number; monto: number }
   cierres: number        // clientes nuevos (cierres de venta firmados en el periodo)
   tasaCierre: number     // cierres / leads * 100
@@ -58,7 +65,9 @@ export interface PeriodValues {
 
 interface Data {
   sales: Awaited<ReturnType<typeof loadSales>>
-  proposals: { date: Date; status: string; amount: number; recurringAmount: number }[]
+  proposals: { date: Date; status: string; amount: number; recurringAmount: number; callId: number | null }[]
+  hasCalls: boolean // ¿existe alguna llamada registrada? (si no, se usa el dato de Kommo)
+  calls: { bookedAt: Date; scheduledAt: Date; status: string; attendance: string; isReschedule: boolean }[]
   weekly: { weekStart: Date; leadsEntrantes: number; personasAgendadas: number }[]
 }
 
@@ -87,7 +96,22 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
   // Semanas de Kommo (guardadas con el lunes en UTC): tolerancia de 12 h por zona horaria
   const weekly = d.weekly.filter(w => w.weekStart.getTime() >= range.start.getTime() - 12 * 3600_000 && w.weekStart <= range.end)
   const leadsKommo = weekly.reduce((s, w) => s + w.leadsEntrantes, 0)
-  const leads = leadsKommo + proposals.length
+
+  // Llamadas: el lead nace al agendar (bookedAt); la asistencia se mide por la fecha de la llamada
+  const booked = d.calls.filter(c => inRange(c.bookedAt))
+  const leadsCalls = booked.filter(c => !c.isReschedule).length
+  const callsBooked = booked.filter(c => c.status !== 'canceled').length
+  const held = d.calls.filter(c => inRange(c.scheduledAt) && c.status !== 'canceled')
+  const callsAttended = held.filter(c => c.attendance === 'attended').length
+  const callsNoShow = held.filter(c => c.attendance === 'no_show').length
+  const callsPending = held.filter(c => c.attendance === 'pending' && c.scheduledAt <= new Date()).length
+  const marked = callsAttended + callsNoShow
+
+  // Una propuesta que sale de una llamada ya se contó como lead al agendar
+  const leadsProposals = proposals.filter(p => p.callId === null).length
+  const leads = leadsKommo + leadsCalls + leadsProposals
+  // Sin llamadas registradas (Calendly sin conectar) se conserva el dato histórico de Kommo
+  const agendadas = d.hasCalls ? callsBooked : weekly.reduce((s, w) => s + w.personasAgendadas, 0)
 
   const newSales = d.sales.filter(s => inRange(s.createdAt))
   const onboarding = newSales.reduce((s, x) => s + x.onboardingValue, 0)
@@ -112,7 +136,14 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
   return {
     leads,
     leadsKommo,
-    agendadas: weekly.reduce((s, w) => s + w.personasAgendadas, 0),
+    leadsCalls,
+    leadsProposals,
+    agendadas,
+    callsAttended,
+    callsNoShow,
+    callsPending,
+    asistencia: marked > 0 ? (callsAttended / marked) * 100 : 0,
+    noShow: marked > 0 ? (callsNoShow / marked) * 100 : 0,
     propuestas: {
       total: proposals.length,
       porAprobacion: count('por_aprobacion'),
@@ -138,18 +169,28 @@ export async function computePeriodMetrics(period: Period, date: Date) {
   const range = periodRange(period, date)
   const prev = previousRange(period, range)
 
-  const [sales, proposals, weekly] = await Promise.all([
+  const [sales, proposals, weekly, calls, callCount] = await Promise.all([
     loadSales(),
     prisma.proposal.findMany({
       where: { date: { gte: prev.start, lte: range.end } },
-      select: { date: true, status: true, amount: true, recurringAmount: true }
+      select: { date: true, status: true, amount: true, recurringAmount: true, callId: true }
     }),
     prisma.weeklyMetric.findMany({
       where: { weekStart: { gte: new Date(prev.start.getTime() - 12 * 3600_000), lte: range.end } },
       select: { weekStart: true, leadsEntrantes: true, personasAgendadas: true }
-    })
+    }),
+    prisma.call.findMany({
+      where: {
+        OR: [
+          { bookedAt: { gte: prev.start, lte: range.end } },
+          { scheduledAt: { gte: prev.start, lte: range.end } }
+        ]
+      },
+      select: { bookedAt: true, scheduledAt: true, status: true, attendance: true, isReschedule: true }
+    }),
+    prisma.call.count()
   ])
-  const data: Data = { sales, proposals, weekly }
+  const data: Data = { sales, proposals, weekly, calls, hasCalls: callCount > 0 }
 
   return {
     period,

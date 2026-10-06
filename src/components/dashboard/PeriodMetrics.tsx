@@ -10,7 +10,14 @@ type Period = 'week' | 'month' | 'quarter'
 interface PeriodValues {
   leads: number
   leadsKommo: number
+  leadsCalls: number
+  leadsProposals: number
   agendadas: number
+  callsAttended: number
+  callsNoShow: number
+  callsPending: number
+  asistencia: number
+  noShow: number
   propuestas: { total: number; porAprobacion: number; aprobada: number; noCerrada: number; monto: number }
   cierres: number
   tasaCierre: number
@@ -142,6 +149,14 @@ export function PeriodMetrics({
               ))}
             </div>
           )}
+          <a
+            href={`/api/metrics/export?period=${period}&date=${date}`}
+            download
+            className="btn-secondary text-sm"
+            title="Descargar las métricas de este periodo en CSV"
+          >
+            ⬇ Exportar CSV
+          </a>
           {!controlled && (
             <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
               <button onClick={() => setOffset(o => o - 1)} className="px-2.5 py-1 rounded-lg hover:bg-white/10 text-brand-muted hover:text-white" title="Anterior">‹</button>
@@ -180,9 +195,32 @@ export function PeriodMetrics({
             delay={0.08}
           />
         </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card
+            title="Asistencia a llamadas"
+            value={`${c.asistencia.toFixed(0)}%`}
+            sub={`${c.callsAttended} asistieron · ${c.callsNoShow} no asistieron`}
+            delta={<Delta value={c.asistencia} previous={p.asistencia} unit="pts" />}
+            delay={0}
+          />
+          <Card
+            title="No asistencia (no-show)"
+            value={`${c.noShow.toFixed(0)}%`}
+            sub="No asistieron ÷ llamadas marcadas"
+            delta={<Delta value={c.noShow} previous={p.noShow} unit="pts" inverse />}
+            delay={0.04}
+          />
+          <Card
+            title="Llamadas por marcar"
+            value={String(c.callsPending)}
+            sub="Ya ocurrieron y no marcaste asistencia"
+            delta={<span className="text-xs text-brand-muted">Márcalas en "Llamadas"</span>}
+            delay={0.08}
+          />
+        </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card title="Leads" value={String(c.leads)} sub={`${c.leadsKommo} Kommo + ${c.propuestas.total} propuestas`} delta={<Delta value={c.leads} previous={p.leads} />} delay={0} />
-          <Card title="Personas agendadas" value={String(c.agendadas)} delta={<Delta value={c.agendadas} previous={p.agendadas} />} delay={0.04} />
+          <Card title="Leads" value={String(c.leads)} sub={`${c.leadsKommo} Kommo + ${c.leadsCalls} llamadas + ${c.leadsProposals} propuestas`} delta={<Delta value={c.leads} previous={p.leads} />} delay={0} />
+          <Card title="Personas agendadas" value={String(c.agendadas)} sub="Llamadas agendadas" delta={<Delta value={c.agendadas} previous={p.agendadas} />} delay={0.04} />
           <Card
             title="Propuestas enviadas"
             value={String(c.propuestas.total)}
