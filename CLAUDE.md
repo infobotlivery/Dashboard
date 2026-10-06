@@ -44,13 +44,17 @@ Dashboard/
 │   │   ├── layout.tsx            # Layout principal
 │   │   ├── globals.css           # Estilos globales
 │   │   └── api/
+│   │       ├── calls/route.ts          # Llamadas: listar, agregar manual, marcar asistencia, eliminar
+│   │       ├── calls/sync/route.ts     # Sincroniza Calendly → llamadas
+│   │       ├── calls/export/route.ts   # CSV de llamadas
 │   │       ├── proposals/route.ts      # CRUD propuestas
 │   │       ├── proposals/import/route.ts # Importar propuestas desde CSV (preview + confirmar) / plantilla
 │   │       ├── metrics/
 │   │       │   ├── route.ts      # CRUD métricas semanales
 │   │       │   ├── current/route.ts    # Métrica semana actual
 │   │       │   ├── comparison/route.ts # Comparativa semanal
-│   │       │   └── period/route.ts     # Métricas automáticas por semana/mes/trimestre
+│   │       │   ├── period/route.ts     # Métricas automáticas por semana/mes/trimestre
+│   │       │   └── export/route.ts     # CSV de las métricas de un periodo
 │   │       ├── finance/
 │   │       │   ├── summary/route.ts    # Resumen financiero mensual
 │   │       │   ├── history/route.ts    # Histórico últimos 6 meses (solo 2026+)
@@ -75,6 +79,7 @@ Dashboard/
 │   │   │   ├── AccountsBoxes.tsx       # Cuentas por pagar / por cobrar (pendientes a la fecha)
 │   │   │   ├── UpcomingClientPayments.tsx # Cobros de clientes próximos 7 días
 │   │   │   ├── PeriodMetrics.tsx       # Métricas automáticas (semana/mes/trimestre) — portada y admin
+│   │   │   ├── CallsBoard.tsx          # Llamadas (Calendly): lead, fecha, presupuesto, asistencia, propuesta
 │   │   │   ├── ProposalsBoard.tsx      # Propuestas: agregar, editar, estado, filtros, importar CSV
 │   │   │   ├── ProposalFormModal.tsx   # Alta/edición de propuesta
 │   │   │   ├── CloseSaleModal.tsx      # Registro del cierre de venta al aprobar una propuesta
@@ -116,6 +121,8 @@ Dashboard/
 │       ├── db.ts                 # Cliente Prisma singleton
 │       ├── api.ts                # Utilidades API + verifyApiKey (webhooks)
 │       ├── apiFetch.ts           # fetch con JSON por defecto (sin auth)
+│       ├── calendly.ts           # Cliente de la API de Calendly (CALENDLY_API_TOKEN)
+│       ├── callsSync.ts          # Sincronización Calendly → tabla Call
 │       ├── dates.ts              # formatLocalDate, parseLocalDate, getMonday
 │       ├── finance.ts            # Reglas de MRR/gastos por mes + cuentas por cobrar/pagar a la fecha
 │       ├── periodMetrics.ts      # Cálculo de métricas por semana/mes/trimestre
@@ -294,6 +301,22 @@ model MonthlyFinance {
 }
 ```
 
+### Call
+Llamadas agendadas (Calendly o manuales). Cada llamada nueva cuenta como lead.
+```prisma
+model Call {
+  id Int @id; calendlyEventUri String? @unique; calendlyInviteeUri String? @unique
+  leadName String; leadEmail String; eventName String
+  scheduledAt DateTime   // fecha y hora de la llamada
+  bookedAt DateTime      // cuándo se agendó (fecha del lead)
+  budget String?         // respuesta del formulario (presupuesto / rango de facturación)
+  status String          // scheduled | canceled
+  attendance String      // pending | attended | no_show (se marca a mano)
+  isReschedule Boolean   // reprogramación: no cuenta como lead nuevo
+  source String          // calendly | manual
+}
+```
+
 ### AccountEntry
 Cuentas por cobrar (`receivable`) y por pagar (`payable`), gestionadas en el tab Gastos.
 ```prisma
@@ -314,6 +337,7 @@ model Proposal {
   service     String   @default("")
   amount      Float    @default(0)            // Pago único / onboarding
   recurringAmount Float @default(0)           // MRR esperado si se cierra
+  callId      Int?                            // Llamada de origen (no cuenta como lead extra)
   date        DateTime @default(now())
   status      String   @default("por_aprobacion") // por_aprobacion | aprobada | no_cerrada
   notes       String?
@@ -335,6 +359,11 @@ DATABASE_URL="file:./prisma/dev.db"       # Desarrollo local
 
 # API Key solo para webhooks/integraciones externas (N8N, Kommo)
 API_SECRET_KEY="clave-aleatoria-larga"
+
+# Calendly: token personal para sincronizar llamadas automáticamente
+CALENDLY_API_TOKEN="..."
+# Opcional: solo contar eventos cuyo nombre contenga este texto (ej. "IA AUDIT")
+CALENDLY_EVENT_NAME_FILTER=""
 
 # URL base de la aplicación
 NEXT_PUBLIC_APP_URL="https://dashboard.elraperomarketero.com"
@@ -364,7 +393,8 @@ El **selector de mes** de "Finanzas del Mes" controla toda la página: finanzas,
 - **BillingMetrics:** Facturación y utilidad del mes + botón "Importar ventas (CSV)"
 - **AccountsBoxes:** Cuentas por pagar (cuentas manuales + gastos recurrentes con día de cobro sin marcar como pagados) y por cobrar (cuentas manuales), pendientes al día de consulta (o al cierre del mes si es un mes pasado)
 - **UpcomingClientPayments:** Clientes con cobros próximos en 7 días
-- **PeriodMetrics:** Leads, personas agendadas, propuestas enviadas, cierres, % de cierre, facturación, MRR y clientes perdidos — Semanal / Mensual / Trimestral, todo automático con comparación vs periodo anterior
+- **CallsBoard:** llamadas de Calendly (lead, fecha y hora, presupuesto), botones Asistió / No asistió; al marcar "Asistió" pregunta qué propuesta se envió y la crea vinculada a la llamada. Sincroniza al abrir y cada 5 min; también se pueden agregar llamadas a mano
+- **PeriodMetrics:** (botón Exportar CSV) Leads, personas agendadas, propuestas enviadas, cierres, % de cierre, facturación, MRR y clientes perdidos — Semanal / Mensual / Trimestral, todo automático con comparación vs periodo anterior
 - **ProposalsBoard:** "Agregar nueva propuesta" (cuenta como lead), cambio de estado en la tabla, filtros por estado y mes, importar CSV. Al pasar una propuesta a **Aprobada** se abre el modal de **registro de cierre de venta** (no hay formulario de cierres aparte)
 - **CadenceTree:** Árbol visual de cadencias de revisión (pendiente de rediseño)
 
@@ -374,8 +404,10 @@ El **selector de mes** de "Finanzas del Mes" controla toda la página: finanzas,
 - Se eliminaron los tabs Diario, Cierres, Propuestas y Configuración (las APIs `/api/daily`, `/api/settings` y `/api/scorecard` siguen existiendo)
 
 **Definición de métricas (src/lib/periodMetrics.ts):**
-- Leads = `WeeklyMetric.leadsEntrantes` (webhook Kommo) + propuestas del periodo (cada propuesta suma 1 lead)
-- Personas agendadas = `WeeklyMetric.personasAgendadas` (webhook Kommo)
+- Leads = `WeeklyMetric.leadsEntrantes` (webhook Kommo) + llamadas agendadas en el periodo (por `Call.bookedAt`, sin reprogramaciones) + propuestas directas (sin `callId`)
+- Personas agendadas = llamadas agendadas no canceladas en el periodo; si nunca hubo llamadas se usa `WeeklyMetric.personasAgendadas` (Kommo)
+- Asistencia = asistió ÷ (asistió + no asistió) de las llamadas del periodo (por `scheduledAt`, sin canceladas); no-show = el complemento
+- Exportar: `GET /api/metrics/export?period=&date=` y `GET /api/calls/export?month=`
 - Cierres = cierres de venta (`SalesClose.createdAt`) del periodo; % cierre = cierres ÷ leads
 - Facturación: semana = onboarding; mes = onboarding + MRR al cierre; trimestre = suma de sus meses ya iniciados
 - Facturación de ventas nuevas = onboarding + MRR de los clientes cerrados en el periodo; MRR de clientes nuevos = recurringValue de esos cierres (activos)
@@ -749,7 +781,8 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-05 | Importación de ventas por CSV | ddc0799 |
 | 2026-10-05 | Admin dividido en componentes (SalesTab, ProposalsTab) | 0b0bc1f |
 | 2026-10-05 | Portada: cuentas por pagar/cobrar, métricas automáticas, propuestas editables, cierre desde propuesta; admin reducido a 3 tabs | 23e3cba |
-| 2026-10-05 | Métricas de ventas nuevas / MRR nuevo / MRR por cerrar; deshacer ventas; Proposal.recurringAmount y SalesClose.proposalId | pendiente |
+| 2026-10-05 | Métricas de ventas nuevas / MRR nuevo / MRR por cerrar; deshacer ventas; Proposal.recurringAmount y SalesClose.proposalId | 9c79381 |
+| 2026-10-05 | Llamadas de Calendly (leads, personas agendadas, asistencia), propuesta desde llamada, exportar métricas a CSV; modelo Call y Proposal.callId | pendiente |
 
 ### Detalle del cambio 2026-10-05:
 - **Sin contraseña:** se eliminaron login, `middleware.ts`, `/api/auth`, `authFetch.ts`, tokens y bcryptjs.

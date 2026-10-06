@@ -7,12 +7,14 @@ import { CadenceTree } from '@/components/dashboard/CadenceTree'
 import { BillingMetrics } from '@/components/dashboard/BillingMetrics'
 import { UpcomingClientPayments } from '@/components/dashboard/UpcomingClientPayments'
 import { ProposalsBoard } from '@/components/dashboard/ProposalsBoard'
+import { CallsBoard } from '@/components/dashboard/CallsBoard'
 import type {
   Settings,
   FinanceSummary,
   MonthlyGoal,
   UpcomingClientPayment,
-  Proposal
+  Proposal,
+  CallRecord
 } from '@/types'
 
 const currentYYYYMM = () => {
@@ -32,6 +34,10 @@ export default function DashboardPage() {
   const [upcomingClients, setUpcomingClients] = useState<UpcomingClientPayment[]>([])
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [refreshKey, setRefreshKey] = useState(0)
+  const [calls, setCalls] = useState<CallRecord[]>([])
+  const [calendlyConfigured, setCalendlyConfigured] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncError, setSyncError] = useState('')
 
   const fetchBilling = useCallback(async (month: string) => {
     const target = month || currentYYYYMM()
@@ -58,13 +64,44 @@ export default function DashboardPage() {
     if (proposalsRes.ok) setProposals((await proposalsRes.json()).data || [])
   }, [])
 
+  const fetchCalls = useCallback(async () => {
+    const res = await fetch('/api/calls', { cache: 'no-store' })
+    if (res.ok) {
+      const d = await res.json()
+      setCalls(d.data?.calls ?? [])
+      setCalendlyConfigured(!!d.data?.configured)
+    }
+  }, [])
+
+  // Trae llamadas nuevas de Calendly; si hay novedades recalcula métricas
+  const syncCalendly = useCallback(async (force = false) => {
+    setSyncing(true)
+    try {
+      const res = await fetch('/api/calls/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force })
+      })
+      const d = (await res.json()).data
+      setSyncError(d?.error ?? '')
+      if (d && (d.created > 0 || d.updated > 0)) {
+        await fetchCalls()
+        setRefreshKey(k => k + 1)
+      }
+    } catch {
+      setSyncError('No se pudo contactar al servidor')
+    } finally {
+      setSyncing(false)
+    }
+  }, [fetchCalls])
+
   // Carga inicial
   useEffect(() => {
     async function init() {
       try {
         const settingsRes = await fetch('/api/settings')
         if (settingsRes.ok) setSettings((await settingsRes.json()).data)
-        await Promise.all([fetchBilling(''), fetchLists()])
+        await Promise.all([fetchBilling(''), fetchLists(), fetchCalls()])
       } catch (err) {
         console.error('Error fetching data:', err)
         setError('Error al cargar los datos')
@@ -73,7 +110,15 @@ export default function DashboardPage() {
       }
     }
     init()
-  }, [fetchBilling, fetchLists])
+  }, [fetchBilling, fetchLists, fetchCalls])
+
+  // Sincronización automática con Calendly: al abrir y cada 5 minutos mientras la página esté abierta
+  useEffect(() => {
+    if (loading) return
+    syncCalendly()
+    const id = setInterval(() => syncCalendly(), 5 * 60_000)
+    return () => clearInterval(id)
+  }, [loading, syncCalendly])
 
   // El selector de mes recarga las finanzas y cuentas de ese mes
   useEffect(() => {
@@ -83,12 +128,12 @@ export default function DashboardPage() {
   // Tras crear/editar propuestas o registrar ventas: recarga todo y recalcula métricas
   const reloadAll = useCallback(async () => {
     try {
-      await Promise.all([fetchBilling(selectedMonth), fetchLists()])
+      await Promise.all([fetchBilling(selectedMonth), fetchLists(), fetchCalls()])
     } catch (err) {
       console.error('Error reloading:', err)
     }
     setRefreshKey(k => k + 1)
-  }, [fetchBilling, fetchLists, selectedMonth])
+  }, [fetchBilling, fetchLists, fetchCalls, selectedMonth])
 
   if (loading) {
     return (
@@ -200,6 +245,19 @@ export default function DashboardPage() {
             followMonth
             refreshKey={refreshKey}
             title="Métricas"
+          />
+        </section>
+
+        {/* Llamadas (Calendly) */}
+        <section>
+          <CallsBoard
+            calls={calls}
+            configured={calendlyConfigured}
+            syncing={syncing}
+            syncError={syncError}
+            month={selectedMonth}
+            onSync={() => syncCalendly(true)}
+            onChanged={reloadAll}
           />
         </section>
 

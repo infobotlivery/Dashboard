@@ -198,6 +198,7 @@ export interface Proposal {
   service: string
   amount: number
   recurringAmount?: number
+  callId?: number | null
   sale?: { id: number; clientName: string; onboardingValue: number; recurringValue: number } | null
   date: string
   status: 'por_aprobacion' | 'aprobada' | 'no_cerrada'
@@ -213,4 +214,21 @@ export interface UpcomingClientPayment {
   billingDay: number
   nextPaymentDate: string
   daysUntil: number
+}
+
+export interface CallRecord {
+  id: number
+  leadName: string
+  leadEmail: string
+  eventName: string
+  scheduledAt: string
+  bookedAt: string
+  budget: string | null
+  status: 'scheduled' | 'canceled'
+  attendance: 'pending' | 'attended' | 'no_show'
+  isReschedule: boolean
+  source: 'calendly' | 'manual'
+  joinUrl: string | null
+  notes: string | null
+  proposal?: { id: number; amount: number; status: string } | null
 }
