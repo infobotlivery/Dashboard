@@ -37,6 +37,27 @@ if [ ! -f "$DB_PATH" ]; then
     echo "Base de datos creada"
 fi
 
+# =====================================================
+# RESPALDO AUTOMÁTICO antes de cualquier migración
+# Se guarda en el volumen de datos (/app/data/backups) y se conservan los últimos 10.
+# =====================================================
+BACKUP_DIR="$DATA_DIR/backups"
+if [ -f "$DB_PATH" ]; then
+    mkdir -p "$BACKUP_DIR"
+    BACKUP_FILE="$BACKUP_DIR/metrics-$(date +%Y%m%d-%H%M%S).db"
+    # .backup es seguro aunque la base esté en uso; si falla se copia el archivo
+    if sqlite3 "$DB_PATH" ".backup '$BACKUP_FILE'" 2>/dev/null; then
+        echo "Respaldo creado: $BACKUP_FILE"
+    elif cp "$DB_PATH" "$BACKUP_FILE" 2>/dev/null; then
+        echo "Respaldo (copia simple) creado: $BACKUP_FILE"
+    else
+        echo "ADVERTENCIA: no se pudo crear el respaldo de la base de datos"
+    fi
+    # Rotación: borrar los respaldos más antiguos y dejar los 10 más recientes
+    ls -1t "$BACKUP_DIR"/metrics-*.db 2>/dev/null | tail -n +11 | while read -r old; do rm -f "$old"; done
+    chown -R 1001:1001 "$BACKUP_DIR" 2>/dev/null || true
+fi
+
 # Verificar estructura actual
 echo "=== Estructura actual de WeeklyMetric ==="
 sqlite3 "$DB_PATH" "PRAGMA table_info(WeeklyMetric);" 2>/dev/null || echo "Tabla no existe"

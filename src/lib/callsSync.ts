@@ -68,6 +68,27 @@ async function runSync(days: number): Promise<SyncResult> {
     for (const inv of invitees) {
       const exists = await prisma.call.findUnique({ where: { calendlyInviteeUri: inv.uri }, select: { id: true } })
       if (exists) continue
+
+      // Llamada cargada antes por CSV (sin enlace a Calendly): vincularla en vez de duplicarla
+      const imported = inv.email
+        ? await prisma.call.findFirst({
+            where: { leadEmail: inv.email, scheduledAt: new Date(ev.start_time), calendlyInviteeUri: null },
+            select: { id: true }
+          })
+        : null
+      if (imported) {
+        await prisma.call.update({
+          where: { id: imported.id },
+          data: {
+            calendlyEventUri: invitees.length === 1 ? ev.uri : null,
+            calendlyInviteeUri: inv.uri,
+            status: ev.status === 'canceled' || inv.status === 'canceled' ? 'canceled' : 'scheduled'
+          }
+        })
+        updated++
+        continue
+      }
+
       await prisma.call.create({
         data: {
           calendlyEventUri: invitees.length === 1 ? ev.uri : null,
@@ -79,8 +100,11 @@ async function runSync(days: number): Promise<SyncResult> {
           bookedAt: new Date(inv.created_at || ev.created_at),
           budget: extractBudget(inv),
           status: ev.status === 'canceled' || inv.status === 'canceled' ? 'canceled' : 'scheduled',
-          // Una reprogramación no es un lead nuevo
-          isReschedule: !!(inv.rescheduled || inv.old_invitee),
+          // Una reprogramación no es un lead nuevo. Calendly marca `old_invitee` en la reserva NUEVA;
+          // la original (cancelada, con `rescheduled: true`) sí es el lead.
+          isReschedule: !!inv.old_invitee,
+          // Calendly permite marcar "no asistió" desde su panel
+          attendance: inv.no_show ? 'no_show' : 'pending',
           source: 'calendly',
           joinUrl: ev.location?.actual_instance?.join_url ?? null
         }

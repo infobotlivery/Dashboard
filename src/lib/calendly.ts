@@ -44,7 +44,8 @@ export interface CalendlyInvitee {
   status: string
   created_at: string
   rescheduled?: boolean
-  old_invitee?: string | null
+  old_invitee?: string | null   // presente en la reserva NUEVA de una reprogramación
+  no_show?: { uri: string } | null
   questions_and_answers?: { question: string; answer: string; position: number }[]
 }
 
@@ -86,7 +87,8 @@ export function listInvitees(eventUri: string): Promise<CalendlyInvitee[]> {
 }
 
 // Respuesta sobre presupuesto / facturación del formulario de agendamiento
-const BUDGET_QUESTION = /presupuesto|facturaci[oó]n|budget|inversi[oó]n/i
+// (los formularios antiguos preguntan "qué fondos estarías dispuesto a invertir")
+const BUDGET_QUESTION = /presupuesto|facturaci[oó]n|budget|inversi[oó]n|invertir|fondos/i
 
 export function extractBudget(invitee: CalendlyInvitee): string | null {
   const qa = (invitee.questions_and_answers ?? []).find(q => BUDGET_QUESTION.test(q.question) && q.answer?.trim())

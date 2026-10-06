@@ -19,6 +19,7 @@ interface ImportSummary {
   invalid: number
   extraLabel: string
   extraValue: number
+  extraIsCount?: boolean   // true: se muestra como número, no como dinero
 }
 
 interface CsvImportCardProps {
@@ -122,7 +123,7 @@ export function CsvImportCard({ title, description, endpoint, noun, onImported }
             <div className="bg-white/5 rounded-lg p-3"><p className="text-xl font-bold text-green-400">{summary.valid}</p><p className="text-xs text-gray-400">A importar</p></div>
             <div className="bg-white/5 rounded-lg p-3"><p className="text-xl font-bold text-yellow-400">{summary.duplicates}</p><p className="text-xs text-gray-400">Duplicadas (se omiten)</p></div>
             <div className="bg-white/5 rounded-lg p-3"><p className="text-xl font-bold text-red-400">{summary.invalid}</p><p className="text-xs text-gray-400">Con errores</p></div>
-            <div className="bg-white/5 rounded-lg p-3"><p className="text-xl font-bold">{fmt(summary.extraValue)}</p><p className="text-xs text-gray-400">{summary.extraLabel}</p></div>
+            <div className="bg-white/5 rounded-lg p-3"><p className="text-xl font-bold">{summary.extraIsCount ? summary.extraValue : fmt(summary.extraValue)}</p><p className="text-xs text-gray-400">{summary.extraLabel}</p></div>
           </div>
 
           {problems.length > 0 && (
