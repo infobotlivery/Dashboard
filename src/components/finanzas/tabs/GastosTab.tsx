@@ -74,6 +74,8 @@ function getCategoryIcon(name: string): string {
   return categoryIcons.default
 }
 
+const normalizeText = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
 type FilterStatus = 'all' | 'active' | 'cancelled'
 type ViewMode = 'cards' | 'list'
 type SubTab = 'all' | 'fixed' | 'variable' | 'unique'
@@ -184,6 +186,7 @@ export function GastosTab({
   onAccountsChanged
 }: GastosTabProps) {
   const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [showForm, setShowForm] = useState(false)
@@ -202,6 +205,7 @@ export function GastosTab({
   const filteredExpenses = useMemo(() => {
     return expenses.filter(expense => {
       if (filterCategory !== 'all' && String(expense.categoryId) !== filterCategory) return false
+      if (search.trim() && !normalizeText(expense.name).includes(normalizeText(search))) return false
       if (filterStatus === 'active' && expense.endDate) return false
       if (filterStatus === 'cancelled' && !expense.endDate) return false
 
@@ -219,7 +223,7 @@ export function GastosTab({
 
       return true
     })
-  }, [expenses, filterCategory, filterStatus, subTab, filterMonth, filterYear])
+  }, [expenses, filterCategory, filterStatus, subTab, filterMonth, filterYear, search])
 
   // Estadisticas
   const stats = useMemo(() => {
@@ -282,7 +286,7 @@ export function GastosTab({
       />
 
       {/* Cuentas automáticas (gastos del mes y mensualidades) */}
-      <AutoAccounts summary={summary} />
+      <AutoAccounts summary={summary} onMarkPaid={onMarkPaid} onChanged={onAccountsChanged} />
 
       {/* Cuentas manuales: solo para casos extra */}
       <CuentasPanel onChanged={onAccountsChanged} />
@@ -436,6 +440,16 @@ export function GastosTab({
 
       {/* Fila 2: Filtros de contenido */}
       <div className="flex flex-wrap gap-2 items-center">
+        {/* Buscador por nombre */}
+        <div className="relative w-full sm:w-64">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="🔍 Buscar gasto por nombre…"
+            className="w-full px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white placeholder:text-gray-500 focus:border-[#44e1fc] focus:outline-none"
+          />
+        </div>
         {/* Filtro categoria */}
         <select
           value={filterCategory}
