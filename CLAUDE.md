@@ -827,10 +827,14 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-10-08 | Buscador de gastos por nombre (tabs Gastos y Revisión) y botón ✓ Pagado en el bloque "Automáticas" | pendiente |
 | 2026-10-08 | Cuentas por pagar automáticas (todos los gastos mensuales del mes, con botón ✓ Pagado en la portada) y bloque "Automáticas" en tab Gastos | pendiente |
 | 2026-10-08 | Revisión mensual de gastos (tab Revisión + aviso en portada), tipo de gasto Variable, etiquetas Fijo mensual / Variable / Único | pendiente |
 | 2026-10-08 | Portada reordenada (finanzas, cobros, llamadas, propuestas, métricas, cadencia, leyenda), cadencia y leyenda desplegables, detalle "¿De dónde sale este mes?", historial hasta 5 años, Clientes muestra recurrentes vigentes del mes | pendiente |
 | 2026-10-07 | Carga del trimestre jul–sep 2026 (PDF): seguimiento de cobros desde julio 2026, importador de cobros CSV, exportación filtrable por fechas, borrado masivo con respaldo, "mensualidades por cobrar" real | pendiente |
+
+### Detalle del cambio 2026-10-08 (buscador y pagado):
+- `GastosTab` y `RevisionTab`: buscador por nombre (sin tildes ni mayúsculas). `AutoAccounts` muestra ✓ Pagado en cada gasto por pagar (usa `PATCH /api/finance/expenses` y refresca el resumen).
 
 ### Detalle del cambio 2026-10-08 (cuentas automáticas):
 - Las cuentas por pagar ya no dependen de `billingDay` ni de agregarlas a mano: todo gasto fijo mensual o variable vigente en el mes (que no pague un cliente) aparece hasta marcarlo pagado (`PATCH /api/finance/expenses`, `lastPaymentDate`). Los únicos no generan cuenta por pagar.

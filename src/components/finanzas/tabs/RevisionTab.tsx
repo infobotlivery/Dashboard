@@ -42,6 +42,7 @@ export function RevisionTab({ onChanged }: { onChanged?: () => void }) {
   const [data, setData] = useState<Review | null>(null)
   const [busy, setBusy] = useState<number | null>(null)
   const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -76,6 +77,10 @@ export function RevisionTab({ onChanged }: { onChanged?: () => void }) {
   }
 
   const diff = data ? data.totals.total - data.totals.previous : 0
+  const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const visibleGroups = (data?.groups ?? [])
+    .map(g => ({ ...g, items: g.items.filter(i => !search.trim() || norm(i.name).includes(norm(search))) }))
+    .filter(g => g.items.length > 0)
 
   return (
     <div className="space-y-5">
@@ -113,7 +118,17 @@ export function RevisionTab({ onChanged }: { onChanged?: () => void }) {
       {!data && !error && <p className="text-sm text-gray-400">Cargando…</p>}
       {data && data.groups.length === 0 && <GlassCard hover={false} className="p-5"><p className="text-gray-400 text-sm">No hay gastos vigentes en este mes.</p></GlassCard>}
 
-      {data?.groups.map(g => (
+      {data && (
+        <input
+          type="search"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="🔍 Buscar gasto por nombre…"
+          className="w-full sm:w-72 px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-sm text-white placeholder:text-gray-500 focus:border-[#44e1fc] focus:outline-none"
+        />
+      )}
+
+      {visibleGroups.map(g => (
         <GlassCard key={g.category} hover={false} className="p-5">
           <div className="flex items-center justify-between mb-3">
             <h4 className="font-semibold flex items-center gap-2">
