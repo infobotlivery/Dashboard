@@ -411,6 +411,21 @@ if ! sqlite3 "$DB_PATH" "PRAGMA table_info(Proposal);" 2>/dev/null | grep -q "ca
     echo "Columna Proposal.callId agregada"
 fi
 
+# Cobros de mensualidades de clientes (ClientPayment)
+echo "=== Verificando tabla ClientPayment ==="
+sqlite3 "$DB_PATH" "
+CREATE TABLE IF NOT EXISTS \"ClientPayment\" (
+    \"id\" INTEGER PRIMARY KEY AUTOINCREMENT,
+    \"saleId\" INTEGER NOT NULL,
+    \"forMonth\" TEXT NOT NULL,
+    \"amount\" REAL NOT NULL,
+    \"paidAt\" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \"createdAt\" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS \"ClientPayment_saleId_forMonth_key\" ON \"ClientPayment\"(\"saleId\", \"forMonth\");
+CREATE INDEX IF NOT EXISTS \"ClientPayment_paidAt_idx\" ON \"ClientPayment\"(\"paidAt\");
+" 2>&1 || echo "Error creando tabla ClientPayment"
+
 # =====================================================
 # INDEXES - Asegurar que existan para performance
 # =====================================================

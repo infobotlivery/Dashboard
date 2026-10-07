@@ -79,10 +79,12 @@ export interface SalesSummary {
 export interface FinanceSummary {
   month: string
   income: {
-    total: number
+    total: number                // Facturación = lo cobrado
     onboarding: number
-    mrrServices: number
+    mrrServices: number          // MRR cobrado
     mrrCommunity: number
+    otherCollected?: number      // otras cuentas por cobrar cobradas
+    projected?: { mrrServices: number; mrrCommunity: number; mrr: number; total: number }
   }
   expenses: {
     total: number
@@ -109,7 +111,9 @@ export interface FinanceSummary {
 
 export interface AccountItem {
   id: string
-  source: 'account' | 'expense'
+  source: 'account' | 'expense' | 'client'
+  saleId?: number
+  forMonth?: string
   concept: string
   counterparty: string
   amount: number

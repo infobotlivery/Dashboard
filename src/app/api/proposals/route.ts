@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 
+
+// Borra los cierres de venta vinculados a una propuesta junto con sus cobros registrados
+async function deleteLinkedSales(proposalId: number) {
+  const sales = await prisma.salesClose.findMany({ where: { proposalId }, select: { id: true } })
+  const ids = sales.map(s => s.id)
+  await prisma.clientPayment.deleteMany({ where: { saleId: { in: ids } } })
+  await prisma.salesClose.deleteMany({ where: { id: { in: ids } } })
+}
+
 // GET /api/proposals — lista completa, soporta ?status= y ?month=YYYY-MM
 export async function GET(request: NextRequest) {
   try {
@@ -101,7 +110,7 @@ export async function PUT(request: NextRequest) {
 
     // Deshacer el cierre vinculado cuando la propuesta deja de estar aprobada
     if (undoSale === true) {
-      await prisma.salesClose.deleteMany({ where: { proposalId: Number(id) } })
+      await deleteLinkedSales(Number(id))
     }
 
     const proposal = await prisma.proposal.update({
@@ -145,7 +154,7 @@ export async function DELETE(request: NextRequest) {
 
     // ?deleteSale=true elimina también el cierre de venta vinculado
     if (searchParams.get('deleteSale') === 'true') {
-      await prisma.salesClose.deleteMany({ where: { proposalId: Number(id) } })
+      await deleteLinkedSales(Number(id))
     }
     await prisma.proposal.delete({ where: { id: Number(id) } })
 

@@ -5,14 +5,13 @@ import { motion } from 'framer-motion'
 import { PeriodMetrics } from '@/components/dashboard/PeriodMetrics'
 import { CadenceTree } from '@/components/dashboard/CadenceTree'
 import { BillingMetrics } from '@/components/dashboard/BillingMetrics'
-import { UpcomingClientPayments } from '@/components/dashboard/UpcomingClientPayments'
+import { ClientCharges, type ClientChargeRow } from '@/components/dashboard/ClientCharges'
 import { ProposalsBoard } from '@/components/dashboard/ProposalsBoard'
 import { CallsBoard } from '@/components/dashboard/CallsBoard'
 import type {
   Settings,
   FinanceSummary,
   MonthlyGoal,
-  UpcomingClientPayment,
   Proposal,
   CallRecord
 } from '@/types'
@@ -31,7 +30,8 @@ export default function DashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>('')
   const [billingSummary, setBillingSummary] = useState<FinanceSummary | null>(null)
   const [billingGoal, setBillingGoal] = useState<MonthlyGoal | null>(null)
-  const [upcomingClients, setUpcomingClients] = useState<UpcomingClientPayment[]>([])
+  const [charges, setCharges] = useState<ClientChargeRow[]>([])
+  const [chargesTracked, setChargesTracked] = useState(true)
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [refreshKey, setRefreshKey] = useState(0)
   const [calls, setCalls] = useState<CallRecord[]>([])
@@ -41,10 +41,16 @@ export default function DashboardPage() {
 
   const fetchBilling = useCallback(async (month: string) => {
     const target = month || currentYYYYMM()
-    const [summaryRes, goalRes] = await Promise.all([
+    const [summaryRes, goalRes, chargesRes] = await Promise.all([
       fetch(`/api/finance/summary?month=${target}`, { cache: 'no-store' }),
-      fetch(`/api/finance/goals?month=${target}-01`, { cache: 'no-store' })
+      fetch(`/api/finance/goals?month=${target}-01`, { cache: 'no-store' }),
+      fetch(`/api/collections?month=${target}`, { cache: 'no-store' })
     ])
+    if (chargesRes.ok) {
+      const d = await chargesRes.json()
+      setCharges(d.data?.charges ?? [])
+      setChargesTracked(d.data?.tracked ?? true)
+    }
     if (summaryRes.ok) {
       const d = await summaryRes.json()
       setBillingSummary(d.data ?? null)
@@ -56,11 +62,7 @@ export default function DashboardPage() {
   }, [])
 
   const fetchLists = useCallback(async () => {
-    const [upcomingRes, proposalsRes] = await Promise.all([
-      fetch('/api/sales/upcoming', { cache: 'no-store' }),
-      fetch('/api/proposals', { cache: 'no-store' })
-    ])
-    if (upcomingRes.ok) setUpcomingClients((await upcomingRes.json()).data || [])
+    const proposalsRes = await fetch('/api/proposals', { cache: 'no-store' })
     if (proposalsRes.ok) setProposals((await proposalsRes.json()).data || [])
   }, [])
 
@@ -124,6 +126,19 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!loading) fetchBilling(selectedMonth).catch(err => console.error('Error fetching billing:', err))
   }, [selectedMonth, loading, fetchBilling])
+
+  // Marcar / desmarcar el cobro de una mensualidad: recalcula facturación, utilidad y cuentas por cobrar
+  const toggleCharge = useCallback(async (saleId: number, paid: boolean) => {
+    const res = await fetch('/api/collections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saleId, month: selectedMonth || currentYYYYMM(), paid })
+    })
+    const d = await res.json()
+    if (!d.success) alert(d.error || 'No se pudo actualizar el cobro')
+    await fetchBilling(selectedMonth)
+    setRefreshKey(k => k + 1)
+  }, [fetchBilling, selectedMonth])
 
   // Tras crear/editar propuestas o registrar ventas: recarga todo y recalcula métricas
   const reloadAll = useCallback(async () => {
@@ -233,9 +248,15 @@ export default function DashboardPage() {
           />
         </section>
 
-        {/* Cobros esta semana */}
+        {/* Cobros de clientes (con ✓ de cobrado) */}
         <section>
-          <UpcomingClientPayments payments={upcomingClients} />
+          <ClientCharges
+            charges={charges}
+            tracked={chargesTracked}
+            isCurrentMonth={!selectedMonth || selectedMonth === currentYYYYMM()}
+            monthLabel={new Date(`${selectedMonth || currentYYYYMM()}-01T12:00:00`).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+            onToggle={toggleCharge}
+          />
         </section>
 
         {/* Métricas automáticas: semana / mes / trimestre */}

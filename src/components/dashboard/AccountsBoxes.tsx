@@ -49,8 +49,8 @@ function Box({ title, tone, data, empty, delay }: {
         {items.length === 0 ? (
           <p className="text-sm text-brand-muted pt-1">{empty}</p>
         ) : (
-          <ul className="space-y-1.5 pt-1">
-            {items.slice(0, 5).map(i => (
+          <ul className="space-y-1.5 pt-1 max-h-72 overflow-y-auto pr-1">
+            {items.map(i => (
               <li key={i.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2">
                 <div className="min-w-0">
                   <p className="text-sm text-white truncate">
@@ -64,9 +64,6 @@ function Box({ title, tone, data, empty, delay }: {
                 <span className="text-sm font-semibold text-white shrink-0">{fmt(i.amount)}</span>
               </li>
             ))}
-            {items.length > 5 && (
-              <li className="text-xs text-brand-muted text-center pt-1">y {items.length - 5} más…</li>
-            )}
           </ul>
         )}
       </div>

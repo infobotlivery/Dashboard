@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
-import { monthRange, sumMrr, isRecurringAtMonthEnd, expenseAppliesToMonth, buildAccounts } from '@/lib/finance'
+import {
+  monthRange,
+  sumMrr,
+  isRecurringAtMonthEnd,
+  expenseAppliesToMonth,
+  buildAccounts,
+  expectedCharges,
+  collectedMrr,
+  monthKey
+} from '@/lib/finance'
 
 // Parsear 'YYYY-MM' o 'YYYY-MM-DD' a Date local
 function parseMonthParam(month: string): Date {
@@ -20,9 +29,12 @@ export async function GET(request: NextRequest) {
     const now = new Date()
 
     // Todas las consultas en paralelo
-    const [sales, expenses, accounts] = await Promise.all([
+    const [sales, expenses, accounts, payments] = await Promise.all([
       prisma.salesClose.findMany({
         select: {
+          id: true,
+          clientName: true,
+          customProduct: true,
           status: true,
           createdAt: true,
           cancelledAt: true,
@@ -35,7 +47,11 @@ export async function GET(request: NextRequest) {
         where: { startDate: { lte: range.end } },
         include: { category: true }
       }),
-      prisma.accountEntry.findMany()
+      prisma.accountEntry.findMany(),
+      // Pagos de la mensualidad de este mes (cualquier fecha) o cobrados dentro del mes
+      prisma.clientPayment.findMany({
+        where: { OR: [{ forMonth: monthKey(range.start) }, { paidAt: { gte: range.start, lte: range.end } }] }
+      })
     ])
 
     // 1. Ingresos del mes
@@ -44,11 +60,17 @@ export async function GET(request: NextRequest) {
       .filter(s => s.createdAt >= range.start && s.createdAt <= range.end)
       .reduce((sum, s) => sum + s.onboardingValue, 0)
 
-    // MRR: TODOS los clientes con recurrencia vigente al cierre del mes (no solo los nuevos)
-    const mrr = sumMrr(sales, range.end)
-    const totalMrrServices = mrr.services
-    const totalMrrCommunity = mrr.community
-    const totalIncome = totalOnboarding + totalMrrServices + totalMrrCommunity
+    // MRR proyectado: lo que TODOS los clientes con recurrencia vigente deberían pagar este mes
+    const projected = sumMrr(sales, range.end)
+
+    // Facturación = lo realmente cobrado: onboarding + mensualidades cobradas + otras cuentas por cobrar cobradas
+    const collected = collectedMrr(sales, payments, range)
+    const otherCollected = accounts
+      .filter(a => a.kind === 'receivable' && a.status === 'paid' && a.paidAt && a.paidAt >= range.start && a.paidAt <= range.end)
+      .reduce((sum, a) => sum + a.amount, 0)
+    const totalMrrServices = collected.services
+    const totalMrrCommunity = collected.community
+    const totalIncome = totalOnboarding + totalMrrServices + totalMrrCommunity + otherCollected
 
     // Clientes activos (con recurrencia vigente al cierre del mes)
     const activeClientsCount = sales.filter(
@@ -78,7 +100,9 @@ export async function GET(request: NextRequest) {
       prevExpenses.filter(e => !type || e.type === type).reduce((sum, e) => sum + e.amount, 0)
 
     // 4. Cuentas por cobrar / por pagar pendientes al día de consulta
-    const { receivable, payable } = buildAccounts(accounts, expenses, range, now)
+    const asOf = now < range.end ? now : range.end
+    const charges = expectedCharges(sales, payments, range, asOf)
+    const { receivable, payable } = buildAccounts(accounts, expenses, range, now, charges)
 
     const netProfit = totalIncome - totalExpenses
 
@@ -87,8 +111,15 @@ export async function GET(request: NextRequest) {
       income: {
         total: totalIncome,
         onboarding: totalOnboarding,
-        mrrServices: totalMrrServices,
-        mrrCommunity: totalMrrCommunity
+        mrrServices: totalMrrServices,       // MRR cobrado
+        mrrCommunity: totalMrrCommunity,
+        otherCollected,
+        projected: {                         // lo que debería cobrarse este mes
+          mrrServices: projected.services,
+          mrrCommunity: projected.community,
+          mrr: projected.services + projected.community,
+          total: totalOnboarding + projected.services + projected.community
+        }
       },
       expenses: {
         total: totalExpenses,

@@ -211,3 +211,17 @@ model Call {
   @@index([scheduledAt])
   @@index([bookedAt])
 }
+
+// Mensualidades (MRR) cobradas a clientes. Una fila por cliente y mes cobrado.
+// La mensualidad ESPERADA no se guarda: se calcula desde SalesClose; aquí solo queda lo cobrado.
+model ClientPayment {
+  id        Int      @id @default(autoincrement())
+  saleId    Int                                  // SalesClose del cliente
+  forMonth  String                               // Mes de la mensualidad: "YYYY-MM"
+  amount    Float                                // Monto cobrado
+  paidAt    DateTime @default(now())             // Cuándo se cobró (cuenta como facturación de ese mes)
+  createdAt DateTime @default(now())
+
+  @@unique([saleId, forMonth])
+  @@index([paidAt])
+}
