@@ -70,7 +70,6 @@ const WORKFLOW = [
 export function Legend() {
   return (
     <motion.details
-      open
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="glass-card p-0 overflow-hidden group"

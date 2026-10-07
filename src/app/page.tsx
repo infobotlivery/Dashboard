@@ -268,16 +268,6 @@ export default function DashboardPage() {
           />
         </section>
 
-        {/* Métricas automáticas: semana / mes / trimestre */}
-        <section>
-          <PeriodMetrics
-            month={selectedMonth}
-            followMonth
-            refreshKey={refreshKey}
-            title="Métricas"
-          />
-        </section>
-
         {/* Llamadas (Calendly) */}
         <section>
           <CallsBoard
@@ -294,6 +284,16 @@ export default function DashboardPage() {
         {/* Propuestas */}
         <section>
           <ProposalsBoard proposals={proposals} month={selectedMonth} onChanged={reloadAll} />
+        </section>
+
+        {/* Métricas automáticas: semana / mes / trimestre */}
+        <section>
+          <PeriodMetrics
+            month={selectedMonth}
+            followMonth
+            refreshKey={refreshKey}
+            title="Métricas"
+          />
         </section>
 
         {/* Cadencia de Revisión */}

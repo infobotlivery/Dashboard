@@ -7,6 +7,7 @@ import { ProgressBar } from '@/components/finanzas/ProgressBar'
 import { SalesCsvImport } from '@/components/finanzas/SalesCsvImport'
 import { Modal } from './Modal'
 import { AccountsBoxes } from './AccountsBoxes'
+import { MonthBreakdown } from './MonthBreakdown'
 import type { FinanceSummary, MonthlyGoal } from '@/types'
 
 interface BillingMetricsProps {
@@ -284,6 +285,8 @@ export function BillingMetrics({ summary, goal, selectedMonth, onMonthChange, on
         </motion.div>
 
       </div>
+      <MonthBreakdown month={activeMonth} refreshKey={summary ? Math.round(summary.income.total * 100) : 0} />
+
       {/* Cuentas por pagar / por cobrar */}
       <AccountsBoxes
         payable={summary?.accounts?.payable}

@@ -46,6 +46,7 @@ Dashboard/
 │   │   └── api/
 │   │       ├── collections/route.ts    # Cobros de mensualidades: listar del mes y marcar cobrada / no cobrada
 │   │       ├── collections/import/route.ts # Importar cobros históricos desde CSV (mensualidades + otros ingresos) / plantilla
+│   │       ├── finance/breakdown/route.ts # Detalle del mes: clientes y montos detrás de facturación cobrada y MRR
 │   │       ├── export/route.ts         # CSV unificado filtrable por fechas: metrics|sales|collections|proposals|calls|expenses
 │   │       ├── admin/reset/route.ts    # Borrado masivo con respaldo previo: proposals | sales (+cobros)
 │   │       ├── calls/route.ts          # Llamadas: listar, agregar manual, marcar asistencia, eliminar
@@ -82,6 +83,7 @@ Dashboard/
 │   │   ├── dashboard/
 │   │   │   ├── BillingMetrics.tsx      # Facturación + utilidad del mes (selector de mes, importar ventas CSV)
 │   │   │   ├── AccountsBoxes.tsx       # Cuentas por pagar / por cobrar (pendientes a la fecha)
+│   │   │   ├── MonthBreakdown.tsx      # Desplegable "¿De dónde sale este mes?" (clientes detrás de facturación y MRR)
 │   │   │   ├── ExportModal.tsx         # Modal "Exportar" (tipo + desde/hasta) en el encabezado de la portada
 │   │   │   ├── ResetButton.tsx         # Botón de borrado masivo con confirmación escrita (BORRAR)
 │   │   │   ├── Legend.tsx              # Leyenda al final: qué significa cada número y qué es automático
@@ -130,7 +132,6 @@ Dashboard/
 │       ├── db.ts                 # Cliente Prisma singleton
 │       ├── api.ts                # Utilidades API + verifyApiKey (webhooks)
 │       ├── apiFetch.ts           # fetch con JSON por defecto (sin auth)
-│       ├── collectionsCsv.ts     # Parser/validador del CSV de cobros
 │       ├── collectionsCsv.ts     # Parser/validador del CSV de cobros
 │       ├── calendly.ts           # Cliente de la API de Calendly (CALENDLY_API_TOKEN)
 │       ├── callsSync.ts          # Sincronización Calendly → tabla Call
@@ -815,7 +816,15 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-10-08 | Portada reordenada (finanzas, cobros, llamadas, propuestas, métricas, cadencia, leyenda), cadencia y leyenda desplegables, detalle "¿De dónde sale este mes?", historial hasta 5 años, Clientes muestra recurrentes vigentes del mes | pendiente |
 | 2026-10-07 | Carga del trimestre jul–sep 2026 (PDF): seguimiento de cobros desde julio 2026, importador de cobros CSV, exportación filtrable por fechas, borrado masivo con respaldo, "mensualidades por cobrar" real | pendiente |
+
+### Detalle del cambio 2026-10-08 (orden de la portada y trazabilidad):
+- **Orden de la portada:** 1 Finanzas del mes, 2 Cobros de clientes, 3 Llamadas, 4 Propuestas, 5 Métricas, 6 Cadencia de revisión (desplegable), Leyenda (desplegable). Ambos desplegables arrancan cerrados.
+- `GET /api/finance/breakdown?month=YYYY-MM` + `MonthBreakdown.tsx`: lista cada cobro (pago único, mensualidad, otro ingreso) y cada cliente con MRR vigente, para que los totales se puedan auditar. En meses sin registro de cobros (antes de julio 2026) la mensualidad se marca como "asumida cobrada".
+- `GET /api/finance/history?months=N` (6–60, antes solo 2026+) y selector de rango en el tab Historial.
+- Finanzas → Clientes: por defecto muestra cierres del mes + clientes con mensualidad vigente ese mes; "Solo cerrados en el mes" restaura el filtro anterior.
+- Datos históricos de Kommo (ventas ganadas) se cargan como cobros únicos (`completed`, sin MRR): el MRR anterior a julio 2026 no se reconstruye.
 
 ### Detalle del cambio 2026-10-07 (carga histórica jul–sep 2026):
 - `COLLECTIONS_START` pasa a **2026-07-01**: jul–sep 2026 tienen cobros registrados (`ClientPayment`); lo anterior se asume cobrado.
@@ -1096,4 +1105,4 @@ model MonthlyGoal {
 
 ---
 
-*Última actualización: 2026-10-07*
+*Última actualización: 2026-10-08*

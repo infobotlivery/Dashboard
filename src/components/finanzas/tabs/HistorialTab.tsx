@@ -8,9 +8,11 @@ import type { MonthlyHistory } from '@/types'
 
 interface HistorialTabProps {
   history: MonthlyHistory[]
+  months?: number
+  onMonthsChange?: (m: number) => void
 }
 
-export function HistorialTab({ history }: HistorialTabProps) {
+export function HistorialTab({ history, months, onMonthsChange }: HistorialTabProps) {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-MX', {
       style: 'currency',
@@ -144,6 +146,21 @@ export function HistorialTab({ history }: HistorialTabProps) {
           </div>
         </motion.div>
       </div>
+
+      {onMonthsChange && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-gray-400">Mostrar:</span>
+          {[6, 12, 24, 36, 60].map(m => (
+            <button
+              key={m}
+              onClick={() => onMonthsChange(m)}
+              className={`px-3 py-1 rounded-lg text-sm ${months === m ? 'bg-[#44e1fc]/20 text-[#44e1fc]' : 'bg-white/5 text-gray-400 hover:text-white'}`}
+            >
+              {m < 12 ? `${m} meses` : m === 60 ? '5 años' : `${m / 12} ${m === 12 ? 'año' : 'años'}`}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Gráfico de barras visual */}
       <GlassCard>

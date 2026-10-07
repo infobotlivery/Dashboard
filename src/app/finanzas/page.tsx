@@ -35,6 +35,7 @@ export default function FinanzasPage() {
   // Data states
   const [summary, setSummary] = useState<FinanceSummary | null>(null)
   const [history, setHistory] = useState<MonthlyHistory[]>([])
+  const [historyMonths, setHistoryMonths] = useState(12)
   const [categories, setCategories] = useState<Category[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [currentGoal, setCurrentGoal] = useState<MonthlyGoal | null>(null)
@@ -71,7 +72,7 @@ export default function FinanzasPage() {
       try {
         const [summaryRes, historyRes, categoriesRes, expensesRes, upcomingRes, salesRes, salesSummaryRes] = await Promise.all([
           apiFetch('/api/finance/summary'),
-          apiFetch('/api/finance/history'),
+          apiFetch(`/api/finance/history?months=${historyMonths}`),
           apiFetch('/api/finance/categories'),
           apiFetch('/api/finance/expenses'),
           apiFetch('/api/finance/expenses/upcoming'),
@@ -116,6 +117,14 @@ export default function FinanzasPage() {
 
     loadData()
   }, [])
+
+  // Cambiar el rango del historial sin recargar el resto de la página
+  useEffect(() => {
+    apiFetch(`/api/finance/history?months=${historyMonths}`)
+      .then(r => r.json())
+      .then(d => { if (d.data) setHistory(d.data) })
+      .catch(() => {})
+  }, [historyMonths])
 
   // Crear categoria
   async function handleCreateCategory() {
@@ -370,7 +379,7 @@ export default function FinanzasPage() {
                 )}
 
                 {activeTab === 'historial' && (
-                  <HistorialTab history={history} />
+                  <HistorialTab history={history} months={historyMonths} onMonthsChange={setHistoryMonths} />
                 )}
 
                 {activeTab === 'metas' && (

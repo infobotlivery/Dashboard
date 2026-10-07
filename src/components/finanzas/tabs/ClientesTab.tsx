@@ -7,6 +7,7 @@ import { AnimatedNumber } from '@/components/finanzas/AnimatedNumber'
 import { ResetButton } from '@/components/dashboard/ResetButton'
 import { SalesCsvImport, CollectionsCsvImport } from '@/components/finanzas/SalesCsvImport'
 import { apiFetch } from '@/lib/apiFetch'
+import { isRecurringAtMonthEnd, monthRange } from '@/lib/finance'
 import type { SalesClose, SalesSummary } from '@/types'
 
 interface ClientesTabProps {
@@ -73,6 +74,8 @@ function getStatusBadge(status: string) {
 
 export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onChanged }: ClientesTabProps) {
   const [filterStatus, setFilterStatus] = useState<string>('todos')
+  // 'vigentes': cierres del mes + clientes con mensualidad vigente en ese mes · 'cierres': solo los cerrados en el mes
+  const [scope, setScope] = useState<'vigentes' | 'cierres'>('vigentes')
   const currentYM = getCurrentYYYYMM()
 
   const formatCurrency = (v: number) =>
@@ -85,11 +88,19 @@ export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onCh
       if (selectedMonth) {
         const d = new Date(sale.createdAt)
         const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-        if (ym !== selectedMonth) return false
+        if (ym === selectedMonth) return true
+        if (scope === 'cierres') return false
+        // Cliente recurrente con mensualidad vigente al cierre del mes consultado
+        const [y, m] = selectedMonth.split('-').map(Number)
+        const end = monthRange(new Date(y, m - 1, 1)).end
+        return sale.recurringValue > 0 && isRecurringAtMonthEnd(
+          { status: sale.status, createdAt: d, cancelledAt: sale.cancelledAt ? new Date(sale.cancelledAt) : null, recurringValue: sale.recurringValue, product: sale.product },
+          end
+        )
       }
       return true
     })
-  }, [sales, filterStatus, selectedMonth])
+  }, [sales, filterStatus, selectedMonth, scope])
 
   const handleExportCSV = () => {
     const headers = ['Mes Cierre', 'Cliente', 'Producto', 'Onboarding', 'Recurrente', 'Duracion', 'Fin Contrato', 'Estado', 'Fecha Registro']
@@ -145,6 +156,20 @@ export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onCh
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-3 items-center">
+        <div className="flex gap-1">
+          {[
+            { id: 'vigentes', label: 'Cierres + recurrentes del mes' },
+            { id: 'cierres', label: 'Solo cerrados en el mes' }
+          ].map(f => (
+            <button
+              key={f.id}
+              onClick={() => setScope(f.id as 'vigentes' | 'cierres')}
+              className={`px-3 py-1.5 rounded-lg text-sm ${scope === f.id ? 'bg-[#44e1fc]/20 text-[#44e1fc]' : 'bg-white/5 text-gray-400 hover:text-white'}`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
         <div className="flex gap-1">
           {[
             { id: 'todos', label: 'Todos' },
