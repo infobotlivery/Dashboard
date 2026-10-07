@@ -19,39 +19,49 @@ export async function GET(request: NextRequest) {
 
   const m = await computePeriodMetrics(period, date)
   const lines: [string, (v: PeriodValues) => number][] = [
-    ['Leads', v => v.leads],
-    ['  Leads Kommo', v => v.leadsKommo],
-    ['  Leads por llamadas agendadas', v => v.leadsCalls],
-    ['  Leads por propuestas directas', v => v.leadsProposals],
-    ['Personas agendadas (llamadas)', v => v.agendadas],
+    ['1. EMBUDO', () => NaN],
+    ['Leads (llamadas agendadas + propuestas directas)', v => v.leads],
+    ['  Llamadas agendadas (leads)', v => v.leadsCalls],
+    ['  Propuestas directas (leads)', v => v.leadsProposals],
+    ['Llamadas agendadas activas (personas agendadas)', v => v.agendadas],
     ['Llamadas que asistieron', v => v.callsAttended],
     ['Llamadas que no asistieron', v => v.callsNoShow],
-    ['Llamadas sin marcar', v => v.callsPending],
+    ['Llamadas por marcar', v => v.callsPending],
     ['Tasa de asistencia (%)', v => v.asistencia],
-    ['Tasa de no asistencia (%)', v => v.noShow],
     ['Propuestas enviadas', v => v.propuestas.total],
     ['  Por aprobación', v => v.propuestas.porAprobacion],
     ['  Aprobadas', v => v.propuestas.aprobada],
     ['  No cerradas', v => v.propuestas.noCerrada],
-    ['Monto de propuestas (USD)', v => v.propuestas.monto],
-    ['Clientes nuevos (cierres)', v => v.cierres],
-    ['% de cierre', v => v.tasaCierre],
-    ['Onboarding (USD)', v => v.onboarding],
-    ['Facturación cobrada (USD)', v => v.facturacion],
-    ['Facturación de ventas nuevas (USD)', v => v.facturacionNuevas],
-    ['MRR de clientes nuevos (USD)', v => v.mrrNuevo],
+    ['Clientes nuevos', v => v.cierres],
+    ['% de cierre (clientes nuevos / llamadas asistidas)', v => v.tasaCierre],
+    ['Conversaciones calificadas en Kommo (aparte, no suma a leads)', v => v.leadsKommo],
+    ['2. VENTAS', () => NaN],
+    ['Venta nueva (USD)', v => v.facturacionNuevas],
+    ['  Onboarding (USD)', v => v.onboarding],
+    ['  MRR nuevo (USD)', v => v.mrrNuevo],
     ['Facturación por cerrar (USD)', v => v.porCerrar],
     ['  Por cerrar: pago único (USD)', v => v.porCerrarPagoUnico],
     ['  Por cerrar: mensual (USD)', v => v.porCerrarMensual],
-    ['MRR proyectado (USD)', v => v.mrr],
+    ['3. DINERO', () => NaN],
+    ['Facturación cobrada (USD)', v => v.facturacion],
     ['  MRR cobrado (USD)', v => v.mrrCobrado],
-    ['  MRR proyectado servicios (USD)', v => v.mrrServices],
-    ['  MRR proyectado comunidad (USD)', v => v.mrrCommunity],
+    ['4. BASE RECURRENTE (MRR)', () => NaN],
+    ['MRR activo / proyectado (USD)', v => v.mrr],
+    ['  MRR servicios (USD)', v => v.mrrServices],
+    ['  MRR comunidad (USD)', v => v.mrrCommunity],
+    ['MRR nuevo (USD)', v => v.mrrNuevo],
+    ['MRR perdido (USD)', v => v.mrrPerdido],
+    ['Churn de MRR (%)', v => v.churnPct],
+    ['MRR neto (USD)', v => v.mrrNeto],
+    ['Clientes activos', v => v.clientesActivos],
     ['Clientes perdidos', v => v.clientesPerdidos]
   ]
 
   const rows = [`Métrica,${csv(m.label)},${csv(m.previousLabel)}`]
-  for (const [name, get] of lines) rows.push(`${csv(name)},${num(get(m.current))},${num(get(m.previous))}`)
+  for (const [name, get] of lines) {
+    const cur = get(m.current)
+    rows.push(Number.isNaN(cur) ? `${csv(name)},,` : `${csv(name)},${num(cur)},${num(get(m.previous))}`)
+  }
 
   return new NextResponse('﻿' + rows.join('\n'), {
     headers: {

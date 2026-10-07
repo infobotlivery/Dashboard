@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { PeriodMetrics } from '@/components/dashboard/PeriodMetrics'
+import { Legend } from '@/components/dashboard/Legend'
 
 type Tab = 'weekly' | 'monthly' | 'quarterly'
 
@@ -58,6 +59,7 @@ export default function AdminPage() {
           Registra propuestas y cierres directamente desde el <a href="/" className="text-brand-primary hover:underline">dashboard</a>.
         </p>
         <PeriodMetrics key={tab.id} periods={[tab.period]} initialPeriod={tab.period} title={tab.title} />
+        <Legend />
       </main>
     </div>
   )

@@ -1,5 +1,5 @@
 import prisma from '@/lib/db'
-import { monthRange, sumMrr, collectedMrr, isTrackedMonth, type MonthRange, type PaymentLike } from '@/lib/finance'
+import { monthRange, sumMrr, collectedMrr, isRecurringAtMonthEnd, isTrackedMonth, type MonthRange, type PaymentLike } from '@/lib/finance'
 
 export type Period = 'week' | 'month' | 'quarter'
 
@@ -39,8 +39,8 @@ export function previousRange(period: Period, range: PeriodRange): PeriodRange {
 }
 
 export interface PeriodValues {
-  leads: number          // leads de Kommo + llamadas nuevas + propuestas que no vienen de una llamada
-  leadsKommo: number
+  leads: number          // LEADS = llamadas agendadas (sin reprogramaciones) + propuestas directas (sin llamada previa)
+  leadsKommo: number     // conversaciones calificadas en Kommo: dato aparte, NO suma a leads
   leadsCalls: number     // llamadas agendadas en el periodo (sin reprogramaciones)
   leadsProposals: number // propuestas directas (sin llamada previa)
   agendadas: number      // personas agendadas = llamadas agendadas (no canceladas)
@@ -51,7 +51,8 @@ export interface PeriodValues {
   noShow: number         // no asistió ÷ (asistió + no asistió) × 100
   propuestas: { total: number; porAprobacion: number; aprobada: number; noCerrada: number; monto: number }
   cierres: number        // clientes nuevos (cierres de venta firmados en el periodo)
-  tasaCierre: number     // cierres / leads * 100
+  tasaCierre: number     // clientes nuevos ÷ llamadas asistidas × 100 (ver cierreSobre)
+  cierreSobre: 'asistidas' | 'agendadas' | 'leads' // base real del cálculo (cae a otra si no se marcó asistencia)
   onboarding: number
   mrr: number            // MRR PROYECTADO: lo que los clientes deberían pagar (vigente al cierre del periodo)
   mrrServices: number
@@ -59,6 +60,10 @@ export interface PeriodValues {
   mrrCobrado: number     // parte del MRR que ya se marcó como cobrada
   facturacion: number    // FACTURACIÓN = lo cobrado: onboarding + mensualidades cobradas + otros cobros
   clientesPerdidos: number
+  clientesActivos: number   // clientes con recurrencia vigente al cierre del periodo
+  mrrPerdido: number        // MRR de los clientes que cancelaron en el periodo
+  churnPct: number          // mrrPerdido ÷ MRR al inicio del periodo × 100
+  mrrNeto: number           // MRR nuevo − MRR perdido
   mrrNuevo: number          // MRR de los clientes que cerraron en el periodo
   facturacionNuevas: number // Ventas nuevas: onboarding + MRR nuevo
   porCerrar: number         // Facturación por cerrar: monto de las propuestas del periodo aún por aprobar
@@ -68,7 +73,8 @@ export interface PeriodValues {
 
 interface Data {
   sales: Awaited<ReturnType<typeof loadSales>>
-  proposals: { date: Date; status: string; amount: number; recurringAmount: number; callId: number | null }[]
+  proposals: { clientName: string; date: Date; status: string; amount: number; recurringAmount: number; callId: number | null }[]
+  callRefs: { leadName: string; scheduledAt: Date }[] // llamadas cercanas, para no contar dos veces el lead de una propuesta
   payments: PaymentLike[]                       // mensualidades cobradas
   paidReceivables: { amount: number; paidAt: Date }[] // otras cuentas por cobrar cobradas
   hasCalls: boolean // ¿existe alguna llamada registrada? (si no, se usa el dato de Kommo)
@@ -81,6 +87,10 @@ function loadSales() {
     select: { id: true, status: true, createdAt: true, cancelledAt: true, recurringValue: true, onboardingValue: true, product: true }
   })
 }
+
+const normName = (s: string) =>
+  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+const DAY = 86_400_000
 
 function monthsIn(range: MonthRange): MonthRange[] {
   const out: MonthRange[] = []
@@ -113,14 +123,39 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
   const marked = callsAttended + callsNoShow
 
   // Una propuesta que sale de una llamada ya se contó como lead al agendar
-  const leadsProposals = proposals.filter(p => p.callId === null).length
-  const leads = leadsKommo + leadsCalls + leadsProposals
+  // (vinculada con callId, o por coincidencia de nombre con una llamada hasta 45 días antes: típico al importar historial)
+  const fromCall = (p: Data['proposals'][number]) =>
+    p.callId !== null ||
+    d.callRefs.some(
+      c =>
+        normName(c.leadName) === normName(p.clientName) &&
+        c.scheduledAt.getTime() <= p.date.getTime() + 2 * DAY &&
+        c.scheduledAt.getTime() >= p.date.getTime() - 45 * DAY
+    )
+  const leadsProposals = proposals.filter(p => !fromCall(p)).length
+  const leads = leadsCalls + leadsProposals
   // Sin llamadas registradas (Calendly sin conectar) se conserva el dato histórico de Kommo
   const agendadas = d.hasCalls ? callsBooked : weekly.reduce((s, w) => s + w.personasAgendadas, 0)
 
   const newSales = d.sales.filter(s => inRange(s.createdAt))
   const onboarding = newSales.reduce((s, x) => s + x.onboardingValue, 0)
   const cierres = newSales.length
+
+  // % de cierre: clientes nuevos ÷ llamadas asistidas. Si aún no se marcó asistencia en el periodo,
+  // se usa la base disponible (llamadas agendadas, o leads) para no mostrar 0% engañoso.
+  let cierreBase = callsAttended
+  let cierreSobre: PeriodValues['cierreSobre'] = 'asistidas'
+  if (marked === 0) {
+    if (held.length > 0) { cierreBase = held.length; cierreSobre = 'agendadas' }
+    else { cierreBase = leads; cierreSobre = 'leads' }
+  }
+
+  // Base recurrente: MRR perdido, churn y clientes activos
+  const lost = d.sales.filter(s => s.status === 'cancelled' && s.cancelledAt && s.recurringValue > 0 && inRange(s.cancelledAt))
+  const mrrPerdido = lost.reduce((sum, s) => sum + s.recurringValue, 0)
+  const before = sumMrr(d.sales, new Date(range.start.getTime() - 1))
+  const mrrInicio = before.services + before.community
+  const clientesActivos = d.sales.filter(s => s.recurringValue > 0 && isRecurringAtMonthEnd(s, range.end)).length
 
   // MRR proyectado al cierre del periodo (lo que los clientes deberían pagar)
   const mrr = sumMrr(d.sales, range.end)
@@ -175,7 +210,8 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
       monto: proposals.reduce((s, p) => s + p.amount, 0)
     },
     cierres,
-    tasaCierre: leads > 0 ? (cierres / leads) * 100 : 0,
+    tasaCierre: cierreBase > 0 ? (cierres / cierreBase) * 100 : 0,
+    cierreSobre,
     onboarding,
     mrr: mrr.services + mrr.community,
     mrrServices: mrr.services,
@@ -183,6 +219,10 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
     mrrCobrado: cash.mrr,
     facturacion,
     clientesPerdidos: d.sales.filter(s => s.status === 'cancelled' && s.cancelledAt && inRange(s.cancelledAt)).length,
+    clientesActivos,
+    mrrPerdido,
+    churnPct: mrrInicio > 0 ? (mrrPerdido / mrrInicio) * 100 : 0,
+    mrrNeto: mrrNuevo - mrrPerdido,
     mrrNuevo,
     facturacionNuevas: onboarding + mrrNuevo,
     porCerrar: porCerrarPagoUnico + porCerrarMensual,
@@ -195,11 +235,11 @@ export async function computePeriodMetrics(period: Period, date: Date) {
   const range = periodRange(period, date)
   const prev = previousRange(period, range)
 
-  const [sales, proposals, weekly, calls, callCount, payments, paidReceivables] = await Promise.all([
+  const [sales, proposals, weekly, calls, callCount, payments, paidReceivables, callRefs] = await Promise.all([
     loadSales(),
     prisma.proposal.findMany({
       where: { date: { gte: prev.start, lte: range.end } },
-      select: { date: true, status: true, amount: true, recurringAmount: true, callId: true }
+      select: { clientName: true, date: true, status: true, amount: true, recurringAmount: true, callId: true }
     }),
     prisma.weeklyMetric.findMany({
       where: { weekStart: { gte: new Date(prev.start.getTime() - 12 * 3600_000), lte: range.end } },
@@ -219,6 +259,13 @@ export async function computePeriodMetrics(period: Period, date: Date) {
     prisma.accountEntry.findMany({
       where: { kind: 'receivable', status: 'paid', paidAt: { gte: prev.start, lte: range.end } },
       select: { amount: true, paidAt: true }
+    }),
+    prisma.call.findMany({
+      where: {
+        status: { not: 'canceled' },
+        scheduledAt: { gte: new Date(prev.start.getTime() - 45 * DAY), lte: new Date(range.end.getTime() + 2 * DAY) }
+      },
+      select: { leadName: true, scheduledAt: true }
     })
   ])
   const data: Data = {
@@ -227,6 +274,7 @@ export async function computePeriodMetrics(period: Period, date: Date) {
     weekly,
     calls,
     hasCalls: callCount > 0,
+    callRefs,
     payments,
     paidReceivables: paidReceivables.flatMap(a => (a.paidAt ? [{ amount: a.amount, paidAt: a.paidAt }] : []))
   }

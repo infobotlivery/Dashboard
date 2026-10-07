@@ -79,6 +79,7 @@ Dashboard/
 │   │   ├── dashboard/
 │   │   │   ├── BillingMetrics.tsx      # Facturación + utilidad del mes (selector de mes, importar ventas CSV)
 │   │   │   ├── AccountsBoxes.tsx       # Cuentas por pagar / por cobrar (pendientes a la fecha)
+│   │   │   ├── Legend.tsx              # Leyenda al final: qué significa cada número y qué es automático
 │   │   │   ├── ClientCharges.tsx       # Cobros de clientes (esta semana / este mes) con ✓ de cobrado
 │   │   │   ├── UpcomingClientPayments.tsx # (sin uso) antiguo "Cobros esta semana"
 │   │   │   ├── PeriodMetrics.tsx       # Métricas automáticas (semana/mes/trimestre) — portada y admin
@@ -418,8 +419,11 @@ El **selector de mes** de "Finanzas del Mes" controla toda la página: finanzas,
 - Se eliminaron los tabs Diario, Cierres, Propuestas y Configuración (las APIs `/api/daily`, `/api/settings` y `/api/scorecard` siguen existiendo)
 
 **Definición de métricas (src/lib/periodMetrics.ts):**
-- Leads = `WeeklyMetric.leadsEntrantes` (webhook Kommo) + llamadas agendadas en el periodo (por `Call.bookedAt`, sin reprogramaciones) + propuestas directas (sin `callId`)
+- **Panel en 4 bloques:** 1 Embudo (¿genero oportunidades?), 2 Ventas (¿cuánto vendí?), 3 Dinero (¿cuánto entró?), 4 Base recurrente MRR (¿qué tan sólida es la agencia?). ★ = números clave: % de cierre, Facturación cobrada, MRR activo
+- **Lead** = llamada agendada (por `Call.bookedAt`, sin reprogramaciones) + propuesta directa (sin `callId` y sin una llamada del mismo nombre hasta 45 días antes). Los leads de Kommo (`WeeklyMetric.leadsEntrantes`) se muestran aparte y NO suman
 - Personas agendadas = llamadas agendadas no canceladas en el periodo; si nunca hubo llamadas se usa `WeeklyMetric.personasAgendadas` (Kommo)
+- **% de cierre** = clientes nuevos ÷ llamadas asistidas; si no hay asistencia marcada en el periodo cae a llamadas agendadas (o leads) y la tarjeta lo indica (`cierreSobre`)
+- **MRR perdido** = recurringValue de los clientes cancelados en el periodo; **churn** = MRR perdido ÷ MRR al inicio del periodo; **MRR neto** = MRR nuevo − MRR perdido
 - Asistencia = asistió ÷ (asistió + no asistió) de las llamadas del periodo (por `scheduledAt`, sin canceladas); no-show = el complemento
 - Exportar: `GET /api/metrics/export?period=&date=` y `GET /api/calls/export?month=`
 - Cierres = cierres de venta (`SalesClose.createdAt`) del periodo; % cierre = cierres ÷ leads
@@ -802,7 +806,8 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-05 | Métricas de ventas nuevas / MRR nuevo / MRR por cerrar; deshacer ventas; Proposal.recurringAmount y SalesClose.proposalId | 9c79381 |
 | 2026-10-05 | Llamadas de Calendly (leads, personas agendadas, asistencia), propuesta desde llamada, exportar métricas a CSV; modelo Call y Proposal.callId | ea57959 |
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
-| 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | pendiente |
+| 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
+| 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | pendiente |
 
 ### Detalle del cambio 2026-10-07 (cobros):
 - Nuevo modelo `ClientPayment` y `GET/POST /api/collections`. Cada cliente activo genera una mensualidad esperada por mes; al marcarla cobrada se guarda el pago.
