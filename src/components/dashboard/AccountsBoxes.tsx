@@ -1,12 +1,15 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { apiFetch } from '@/lib/apiFetch'
 import type { AccountsTotals } from '@/types'
 
 interface AccountsBoxesProps {
   payable?: AccountsTotals
   receivable?: AccountsTotals
   asOfLabel: string
+  onChanged?: () => void
 }
 
 const fmt = (v: number) =>
@@ -15,12 +18,13 @@ const fmt = (v: number) =>
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 
-function Box({ title, tone, data, empty, delay }: {
+function Box({ title, tone, data, empty, delay, onPaid }: {
   title: string
   tone: 'red' | 'green'
   data?: AccountsTotals
   empty: string
   delay: number
+  onPaid?: (expenseId: number) => void
 }) {
   const red = tone === 'red'
   const items = data?.items ?? []
@@ -61,7 +65,18 @@ function Box({ title, tone, data, empty, delay }: {
                     {i.overdue ? 'Vencida ' : 'Vence '}{fmtDate(i.dueDate)}
                   </p>
                 </div>
-                <span className="text-sm font-semibold text-white shrink-0">{fmt(i.amount)}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm font-semibold text-white">{fmt(i.amount)}</span>
+                  {i.source === 'expense' && i.expenseId && onPaid && (
+                    <button
+                      onClick={() => onPaid(i.expenseId as number)}
+                      className="text-[11px] rounded-md border border-white/10 px-2 py-1 text-brand-muted hover:text-white hover:border-white/30"
+                      title="Marcar este gasto como pagado este mes"
+                    >
+                      ✓ Pagado
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
@@ -71,7 +86,21 @@ function Box({ title, tone, data, empty, delay }: {
   )
 }
 
-export function AccountsBoxes({ payable, receivable, asOfLabel }: AccountsBoxesProps) {
+export function AccountsBoxes({ payable, receivable, asOfLabel, onChanged }: AccountsBoxesProps) {
+  const [error, setError] = useState('')
+
+  async function markPaid(expenseId: number) {
+    setError('')
+    try {
+      const res = await apiFetch('/api/finance/expenses', { method: 'PATCH', body: JSON.stringify({ id: expenseId }) })
+      const data = await res.json()
+      if (data.success) onChanged?.()
+      else setError(data.error || 'No se pudo marcar como pagado')
+    } catch {
+      setError('Error de conexión')
+    }
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -79,9 +108,10 @@ export function AccountsBoxes({ payable, receivable, asOfLabel }: AccountsBoxesP
         <a href="/finanzas" className="text-xs text-brand-primary hover:underline">Gestionar en Finanzas →</a>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Box title="Cuentas por pagar" tone="red" data={payable} empty="Nada pendiente por pagar" delay={0.1} />
+        <Box title="Cuentas por pagar" tone="red" data={payable} empty="Nada pendiente por pagar" delay={0.1} onPaid={markPaid} />
         <Box title="Cuentas por cobrar" tone="green" data={receivable} empty="Nada pendiente por cobrar" delay={0.16} />
       </div>
+      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   )
 }

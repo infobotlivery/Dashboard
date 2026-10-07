@@ -113,7 +113,7 @@ export function CuentasPanel({ onChanged }: CuentasPanelProps) {
             <p className={`text-2xl font-bold ${meta.color}`}>{fmt(total)}</p>
             {overdue > 0 && <p className="text-xs text-yellow-400">{fmt(overdue)} vencido</p>}
           </div>
-          <Button size="sm" onClick={() => { setEditingId(null); setForm(emptyForm(kind)) }}>+ Agregar</Button>
+          <Button size="sm" onClick={() => { setEditingId(null); setForm(emptyForm(kind)) }}>+ Agregar manual</Button>
         </div>
 
         {loading ? (

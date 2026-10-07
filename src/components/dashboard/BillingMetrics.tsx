@@ -291,6 +291,7 @@ export function BillingMetrics({ summary, goal, selectedMonth, onMonthChange, on
       <AccountsBoxes
         payable={summary?.accounts?.payable}
         receivable={summary?.accounts?.receivable}
+        onChanged={onSalesImported}
         asOfLabel={selectedMonth && selectedMonth !== currentMonth ? `al cierre de ${formatMonthLabel(selectedMonth)}` : `al ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`}
       />
 
