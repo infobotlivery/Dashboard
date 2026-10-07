@@ -114,6 +114,7 @@ export interface FinanceSummary {
 export interface AccountItem {
   id: string
   source: 'account' | 'expense' | 'client'
+  expenseId?: number
   saleId?: number
   forMonth?: string
   concept: string

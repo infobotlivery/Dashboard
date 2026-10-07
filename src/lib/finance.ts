@@ -64,6 +64,7 @@ export function expenseAppliesToMonth(e: ExpenseLike, range: MonthRange): boolea
 export interface AccountItem {
   id: string
   source: 'account' | 'expense' | 'client'
+  expenseId?: number   // solo source 'expense': gasto que se puede marcar como pagado
   saleId?: number      // solo source 'client': cliente al que se le cobra
   forMonth?: string    // solo source 'client': mes de la mensualidad
   concept: string
@@ -107,8 +108,8 @@ function startOfDay(d: Date): Date {
 /**
  * Pendiente al día en que se consulta (o al cierre del mes si es un mes pasado):
  * - Por cobrar: cuentas manuales vencidas o por vencer dentro del mes y aún sin cobrar a esa fecha.
- * - Por pagar: cuentas manuales + gastos recurrentes del mes con día de cobro cuyo pago
- *   no se ha marcado (solo mes actual; en meses pasados se asumen pagados).
+ * - Por pagar: cuentas manuales + gastos mensuales (fijos y variables) del mes cuyo pago
+ *   no se ha marcado (vencen el día de cobro o, sin él, el día en que empezó el gasto) (solo mes actual; en meses pasados se asumen pagados).
  *   Los gastos que paga un cliente no cuentan.
  */
 export function buildAccounts(
@@ -148,14 +149,15 @@ export function buildAccounts(
 
   const expenseItems: AccountItem[] = isCurrentMonth
     ? expenses
-        .filter(e => (e.type === 'recurring' || e.type === 'variable') && e.billingDay !== null && !e.paidByClient)
+        .filter(e => (e.type === 'recurring' || e.type === 'variable') && !e.paidByClient)
         .filter(e => expenseAppliesToMonth(e, range))
         .filter(e => !e.lastPaymentDate || e.lastPaymentDate < range.start)
         .map(e => {
           const lastDay = range.end.getDate()
-          const due = new Date(range.start.getFullYear(), range.start.getMonth(), Math.min(e.billingDay as number, lastDay))
+          const due = new Date(range.start.getFullYear(), range.start.getMonth(), Math.min(e.billingDay ?? e.startDate.getDate(), lastDay))
           return {
             id: `expense-${e.id}`,
+            expenseId: e.id,
             source: 'expense' as const,
             concept: e.name,
             counterparty: '',

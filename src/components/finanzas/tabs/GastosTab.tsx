@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { GlassCard } from '../GlassCard'
 import { UpcomingPayments } from '../UpcomingPayments'
 import { CuentasPanel } from '../CuentasPanel'
+import { AutoAccounts } from '../AutoAccounts'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -280,7 +281,10 @@ export function GastosTab({
         loading={upcomingLoading}
       />
 
-      {/* Cuentas por cobrar / por pagar */}
+      {/* Cuentas automáticas (gastos del mes y mensualidades) */}
+      <AutoAccounts summary={summary} />
+
+      {/* Cuentas manuales: solo para casos extra */}
       <CuentasPanel onChanged={onAccountsChanged} />
 
       {/* 3 Tarjetas resumen estilo Fina Partner */}

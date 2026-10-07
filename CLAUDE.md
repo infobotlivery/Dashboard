@@ -105,6 +105,7 @@ Dashboard/
 │   │   │   ├── AnimatedNumber.tsx      # Números animados
 │   │   │   ├── ProgressBar.tsx         # Barra de progreso para metas
 │   │   │   ├── FinanceSidebar.tsx      # Sidebar lateral + mobile nav
+│   │   │   ├── AutoAccounts.tsx        # Cuentas automáticas del mes (gastos por pagar + mensualidades por cobrar) en tab Gastos
 │   │   │   ├── CuentasPanel.tsx        # Cuentas por cobrar / por pagar (en tab Gastos)
 │   │   │   ├── CsvImportCard.tsx       # Tarjeta genérica de importación CSV (vista previa + confirmar)
 │   │   │   ├── SalesCsvImport.tsx      # Wrappers: SalesCsvImport / ProposalsCsvImport
@@ -424,7 +425,7 @@ NEXT_PUBLIC_APP_URL="https://dashboard.elraperomarketero.com"
 ### Dashboard Público (`/`)
 El **selector de mes** de "Finanzas del Mes" controla toda la página: finanzas, cuentas, métricas y filtro de propuestas.
 - **BillingMetrics:** Facturación (COBRADA) y utilidad del mes + MRR proyectado + botón "Importar ventas (CSV)"
-- **AccountsBoxes:** Cuentas por pagar (cuentas manuales + gastos recurrentes con día de cobro sin marcar como pagados) y por cobrar (cuentas manuales), pendientes al día de consulta (o al cierre del mes si es un mes pasado)
+- **AccountsBoxes:** Cuentas por pagar (cuentas manuales + gastos mensuales —fijos y variables— del mes sin marcar como pagados; vencen el día de cobro o, si no tiene, el día en que empezó el gasto; botón ✓ Pagado) y por cobrar (cuentas manuales), pendientes al día de consulta (o al cierre del mes si es un mes pasado)
 - **ClientCharges ("Cobros de clientes"):** mensualidades de los clientes con casilla ✓. Vista "Esta semana" (vencidas + próximos 7 días) y "Este mes". Marcar ✓ = cobrado: sale de cuentas por cobrar y suma a facturación y utilidad
 - **CallsBoard:** (importar CSV, exportar CSV, sincronizar) llamadas de Calendly (lead, fecha y hora, presupuesto), botones Asistió / No asistió; al marcar "Asistió" pregunta qué propuesta se envió y la crea vinculada a la llamada. Sincroniza al abrir y cada 5 min; también se pueden agregar llamadas a mano
 - **PeriodMetrics:** (botón Exportar CSV) Leads, personas agendadas, propuestas enviadas, clientes nuevos, % de cierre, asistencia, llamadas por marcar, facturación de ventas nuevas, MRR de clientes nuevos, facturación por cerrar, facturación (cobrada), MRR proyectado y clientes perdidos — Semanal / Mensual / Trimestral, todo automático con comparación vs periodo anterior
@@ -826,9 +827,15 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-10-08 | Cuentas por pagar automáticas (todos los gastos mensuales del mes, con botón ✓ Pagado en la portada) y bloque "Automáticas" en tab Gastos | pendiente |
 | 2026-10-08 | Revisión mensual de gastos (tab Revisión + aviso en portada), tipo de gasto Variable, etiquetas Fijo mensual / Variable / Único | pendiente |
 | 2026-10-08 | Portada reordenada (finanzas, cobros, llamadas, propuestas, métricas, cadencia, leyenda), cadencia y leyenda desplegables, detalle "¿De dónde sale este mes?", historial hasta 5 años, Clientes muestra recurrentes vigentes del mes | pendiente |
 | 2026-10-07 | Carga del trimestre jul–sep 2026 (PDF): seguimiento de cobros desde julio 2026, importador de cobros CSV, exportación filtrable por fechas, borrado masivo con respaldo, "mensualidades por cobrar" real | pendiente |
+
+### Detalle del cambio 2026-10-08 (cuentas automáticas):
+- Las cuentas por pagar ya no dependen de `billingDay` ni de agregarlas a mano: todo gasto fijo mensual o variable vigente en el mes (que no pague un cliente) aparece hasta marcarlo pagado (`PATCH /api/finance/expenses`, `lastPaymentDate`). Los únicos no generan cuenta por pagar.
+- Las cuentas por cobrar automáticas son las mensualidades de clientes sin cobrar (✓ en "Cobros de clientes").
+- El botón manual quedó como "+ Agregar manual" (CuentasPanel) para casos extra; el tab Gastos muestra primero el bloque `AutoAccounts`.
 
 ### Detalle del cambio 2026-10-08 (revisión mensual de gastos):
 - **Tab Finanzas → Revisión** (`/finanzas?tab=revision`): gastos del mes agrupados por categoría con subtotales, totales fijo/variable/único y comparación con el mes anterior. Los gastos mensuales (fijo y variable) se confirman con **Sigue**, **Cambiar monto** o **Cancelar**; los únicos solo se muestran.
