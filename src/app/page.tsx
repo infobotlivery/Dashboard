@@ -9,6 +9,7 @@ import { ClientCharges, type ClientChargeRow } from '@/components/dashboard/Clie
 import { ProposalsBoard } from '@/components/dashboard/ProposalsBoard'
 import { CallsBoard } from '@/components/dashboard/CallsBoard'
 import { Legend } from '@/components/dashboard/Legend'
+import { ExportModal } from '@/components/dashboard/ExportModal'
 import type {
   Settings,
   FinanceSummary,
@@ -25,6 +26,7 @@ const currentYYYYMM = () => {
 export default function DashboardPage() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showExport, setShowExport] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Mes seleccionado ('' = mes actual). Controla finanzas, cuentas, métricas y propuestas.
@@ -211,6 +213,10 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <button onClick={() => setShowExport(true)} className="btn-secondary text-sm backdrop-blur-sm">
+                <span className="sm:hidden">⬇</span>
+                <span className="hidden sm:inline">⬇ Exportar</span>
+              </button>
               <motion.a
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -235,6 +241,8 @@ export default function DashboardPage() {
           </motion.div>
         </div>
       </header>
+
+      <ExportModal open={showExport} onClose={() => setShowExport(false)} />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">

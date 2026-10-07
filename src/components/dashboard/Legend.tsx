@@ -124,7 +124,7 @@ export function Legend() {
         </section>
 
         <p className="text-xs text-brand-muted border-t border-white/10 pt-4">
-          El seguimiento de cobros empieza en octubre de 2026. Los meses anteriores no tienen registro de pagos, así que se
+          El seguimiento de cobros empieza en julio de 2026. Los meses anteriores no tienen registro de pagos, así que se
           consideran cobrados (su facturación = onboarding + MRR) y no se pueden editar. Las conversaciones de Kommo se muestran
           aparte y no suman a los leads.
         </p>

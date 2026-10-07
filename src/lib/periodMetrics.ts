@@ -1,5 +1,5 @@
 import prisma from '@/lib/db'
-import { monthRange, sumMrr, collectedMrr, isRecurringAtMonthEnd, isTrackedMonth, type MonthRange, type PaymentLike } from '@/lib/finance'
+import { monthRange, sumMrr, collectedMrr, expectedCharges, monthKey, isRecurringAtMonthEnd, isTrackedMonth, type MonthRange, type PaymentLike } from '@/lib/finance'
 
 export type Period = 'week' | 'month' | 'quarter'
 
@@ -58,6 +58,7 @@ export interface PeriodValues {
   mrrServices: number
   mrrCommunity: number
   mrrCobrado: number     // parte del MRR que ya se marcó como cobrada
+  porCobrarMensualidades: number // mensualidades esperadas aún sin cobrar (solo vista mensual)
   facturacion: number    // FACTURACIÓN = lo cobrado: onboarding + mensualidades cobradas + otros cobros
   clientesPerdidos: number
   clientesActivos: number   // clientes con recurrencia vigente al cierre del periodo
@@ -84,7 +85,7 @@ interface Data {
 
 function loadSales() {
   return prisma.salesClose.findMany({
-    select: { id: true, status: true, createdAt: true, cancelledAt: true, recurringValue: true, onboardingValue: true, product: true }
+    select: { id: true, clientName: true, status: true, createdAt: true, cancelledAt: true, recurringValue: true, onboardingValue: true, product: true }
   })
 }
 
@@ -165,7 +166,7 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
   const porCerrarMensual = pending.reduce((sum, p) => sum + p.recurringAmount, 0)
 
   // Facturación = lo COBRADO. Mes: onboarding + mensualidades cobradas; trimestre: suma de sus meses ya
-  // iniciados; semana: onboarding + cobros de la semana. Antes de octubre 2026 no hay registro de cobros
+  // iniciados; semana: onboarding + cobros de la semana. Antes de julio 2026 no hay registro de cobros
   // y se asume cobrado todo el MRR (ver COLLECTIONS_START).
   const otherIn = (r: MonthRange) =>
     d.paidReceivables.filter(a => a.paidAt >= r.start && a.paidAt <= r.end).reduce((sum, a) => sum + a.amount, 0)
@@ -217,6 +218,10 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
     mrrServices: mrr.services,
     mrrCommunity: mrr.community,
     mrrCobrado: cash.mrr,
+    porCobrarMensualidades:
+      period === 'month' && isTrackedMonth(range)
+        ? expectedCharges(d.sales, d.payments, range, new Date()).filter(c => !c.paid).reduce((sum, c) => sum + c.amount, 0)
+        : 0,
     facturacion,
     clientesPerdidos: d.sales.filter(s => s.status === 'cancelled' && s.cancelledAt && inRange(s.cancelledAt)).length,
     clientesActivos,
@@ -255,7 +260,14 @@ export async function computePeriodMetrics(period: Period, date: Date) {
       select: { bookedAt: true, scheduledAt: true, status: true, attendance: true, isReschedule: true }
     }),
     prisma.call.count(),
-    prisma.clientPayment.findMany({ where: { paidAt: { gte: prev.start, lte: range.end } } }),
+    prisma.clientPayment.findMany({
+      where: {
+        OR: [
+          { paidAt: { gte: prev.start, lte: range.end } },
+          { forMonth: { in: monthsIn({ ...range, start: prev.start }).map(m => monthKey(m.start)) } }
+        ]
+      }
+    }),
     prisma.accountEntry.findMany({
       where: { kind: 'receivable', status: 'paid', paidAt: { gte: prev.start, lte: range.end } },
       select: { amount: true, paidAt: true }

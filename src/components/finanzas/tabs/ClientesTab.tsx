@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { GlassCard } from '@/components/finanzas/GlassCard'
 import { AnimatedNumber } from '@/components/finanzas/AnimatedNumber'
-import { SalesCsvImport } from '@/components/finanzas/SalesCsvImport'
+import { ResetButton } from '@/components/dashboard/ResetButton'
+import { SalesCsvImport, CollectionsCsvImport } from '@/components/finanzas/SalesCsvImport'
 import { apiFetch } from '@/lib/apiFetch'
 import type { SalesClose, SalesSummary } from '@/types'
 
@@ -132,6 +133,15 @@ export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onCh
   return (
     <div className="space-y-6">
       <SalesCsvImport onImported={onChanged} />
+      <CollectionsCsvImport onImported={onChanged} />
+      <div className="flex justify-end">
+        <ResetButton
+          target="sales"
+          label="Reiniciar ventas y cobros"
+          warning="Se borrarán TODOS los clientes (cierres de venta) y sus cobros. Úsalo solo para volver a cargar el historial desde cero."
+          onDone={() => onChanged?.()}
+        />
+      </div>
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-3 items-center">

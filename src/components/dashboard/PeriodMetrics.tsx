@@ -31,6 +31,7 @@ interface PeriodValues {
   mrrServices: number
   mrrCommunity: number
   mrrCobrado: number
+  porCobrarMensualidades: number
   facturacion: number
   clientesPerdidos: number
   mrrNuevo: number
@@ -285,8 +286,8 @@ export function PeriodMetrics({
           />
           <Card
             title="Mensualidades por cobrar"
-            value={period === 'month' ? fmtMoney(Math.max(c.mrr - c.mrrCobrado, 0)) : '—'}
-            sub={period === 'month' ? `De ${fmtMoney(c.mrr)} proyectado, ya cobrado ${fmtMoney(c.mrrCobrado)}` : 'Se calcula en la vista mensual'}
+            value={period === 'month' ? fmtMoney(c.porCobrarMensualidades) : '—'}
+            sub={period === 'month' ? `MRR proyectado ${fmtMoney(c.mrr)}; mensualidades ya cobradas ${fmtMoney(c.mrrCobrado)}` : 'Se calcula en la vista mensual'}
             delta={<span className="text-xs text-brand-muted">Márcalas en "Cobros de clientes"</span>}
             delay={0.04}
           />
