@@ -4,6 +4,8 @@ import { errorResponse, successResponse } from '@/lib/api'
 import { monthRange, monthKey, isTrackedMonth, isRecurringAtMonthEnd, collectedMrr } from '@/lib/finance'
 import { formatLocalDate, parseLocalDate } from '@/lib/dates'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/finance/breakdown?month=YYYY-MM
 // De dónde sale cada número del mes: facturación cobrada (por cliente y concepto) y MRR proyectado (por cliente).
 export async function GET(request: NextRequest) {

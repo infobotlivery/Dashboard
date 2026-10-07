@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 import { collectedMrr, expenseAppliesToMonth } from '@/lib/finance'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/finance/history?months=6|12|24|36|60 — histórico mensual (por defecto 6 meses)
 export async function GET(request: Request) {
   try {
