@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 
-export type FinanceTab = 'resumen' | 'gastos' | 'categorias' | 'historial' | 'metas' | 'clientes'
+export type FinanceTab = 'resumen' | 'gastos' | 'categorias' | 'historial' | 'metas' | 'clientes' | 'revision'
 
 interface FinanceSidebarProps {
   activeTab: FinanceTab
@@ -12,6 +12,7 @@ interface FinanceSidebarProps {
 
 const tabs = [
   { id: 'resumen' as FinanceTab, label: 'Resumen', icon: '📊' },
+  { id: 'revision' as FinanceTab, label: 'Revisión', icon: '✅' },
   { id: 'gastos' as FinanceTab, label: 'Gastos', icon: '💸' },
   { id: 'categorias' as FinanceTab, label: 'Categorias', icon: '🏷️' },
   { id: 'historial' as FinanceTab, label: 'Historial', icon: '📈' },

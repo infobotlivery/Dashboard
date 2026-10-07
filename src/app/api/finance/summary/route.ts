@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     const totalExpenses = monthExpenses.reduce((sum, e) => sum + e.amount, 0)
     const sumBy = (type: string) =>
       monthExpenses.filter(e => e.type === type).reduce((sum, e) => sum + e.amount, 0)
-    const expensesByType = { fixed: sumBy('fixed'), recurring: sumBy('recurring') }
+    const expensesByType = { fixed: sumBy('fixed'), recurring: sumBy('recurring'), variable: sumBy('variable') }
 
     const expensesByCategory = monthExpenses.reduce((acc, expense) => {
       const catName = expense.category.name
@@ -137,7 +137,8 @@ export async function GET(request: NextRequest) {
       previousMonth: {
         totalExpenses: prevSum(),
         fixedExpenses: prevSum('fixed'),
-        recurringExpenses: prevSum('recurring')
+        recurringExpenses: prevSum('recurring'),
+        variableExpenses: prevSum('variable')
       },
       accounts: {
         receivable,

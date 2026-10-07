@@ -225,3 +225,15 @@ model ClientPayment {
   @@unique([saleId, forMonth])
   @@index([paidAt])
 }
+
+// Revisión mensual de gastos: qué gastos se confirmaron (sigue / cambió / cancelado) en cada mes
+model ExpenseReview {
+  id        Int      @id @default(autoincrement())
+  expenseId Int
+  month     String                               // "YYYY-MM"
+  action    String                               // "keep" | "changed" | "cancelled"
+  createdAt DateTime @default(now())
+
+  @@unique([expenseId, month])
+  @@index([month])
+}

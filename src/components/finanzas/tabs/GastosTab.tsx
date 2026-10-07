@@ -75,7 +75,7 @@ function getCategoryIcon(name: string): string {
 
 type FilterStatus = 'all' | 'active' | 'cancelled'
 type ViewMode = 'cards' | 'list'
-type SubTab = 'all' | 'fixed' | 'variable'
+type SubTab = 'all' | 'fixed' | 'variable' | 'unique'
 
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -206,7 +206,8 @@ export function GastosTab({
 
       // Sub-tab filter
       if (subTab === 'fixed' && expense.type !== 'recurring') return false
-      if (subTab === 'variable' && expense.type !== 'fixed') return false
+      if (subTab === 'variable' && expense.type !== 'variable') return false
+      if (subTab === 'unique' && expense.type !== 'fixed') return false
 
       // Month/Year filter: check if expense was active in the selected month
       const selectedStart = new Date(filterYear, filterMonth, 1)
@@ -224,12 +225,14 @@ export function GastosTab({
     const active = expenses.filter(e => !e.endDate)
     const recurring = active.filter(e => e.type === 'recurring')
     const fixed = active.filter(e => e.type === 'fixed')
+    const variable = active.filter(e => e.type === 'variable')
 
     return {
       totalActive: active.length,
       totalAmount: active.reduce((sum, e) => sum + e.amount, 0),
       recurringAmount: recurring.reduce((sum, e) => sum + e.amount, 0),
       fixedAmount: fixed.reduce((sum, e) => sum + e.amount, 0),
+      variableAmount: variable.reduce((sum, e) => sum + e.amount, 0),
       cancelled: expenses.filter(e => e.endDate).length
     }
   }, [expenses])
@@ -238,7 +241,7 @@ export function GastosTab({
   const prevMonth = summary?.previousMonth
   const totalChange = calcPercentChange(stats.totalAmount, prevMonth?.totalExpenses ?? 0)
   const fixedChange = calcPercentChange(stats.recurringAmount, prevMonth?.recurringExpenses ?? 0)
-  const variableChange = calcPercentChange(stats.fixedAmount, prevMonth?.fixedExpenses ?? 0)
+  const variableChange = calcPercentChange(stats.variableAmount, prevMonth?.variableExpenses ?? 0)
 
   const handleEdit = (expense: Expense) => {
     setEditingExpenseId(expense.id)
@@ -333,10 +336,10 @@ export function GastosTab({
             )}
           </div>
           <p className="text-3xl font-bold text-purple-400">{formatCurrency(stats.recurringAmount)}</p>
-          <p className="text-xs text-gray-500 mt-1">Mensuales recurrentes</p>
+          <p className="text-xs text-gray-500 mt-1">Mismo monto cada mes</p>
         </motion.div>
 
-        {/* Gastos Variables (type=fixed) */}
+        {/* Gastos Variables (type=variable) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -345,7 +348,7 @@ export function GastosTab({
         >
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-400">Gastos Variables</p>
-            {prevMonth && prevMonth.fixedExpenses > 0 ? (
+            {prevMonth && (prevMonth.variableExpenses ?? 0) > 0 ? (
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                 variableChange.increased
                   ? 'bg-red-500/20 text-red-400'
@@ -359,8 +362,8 @@ export function GastosTab({
               </span>
             )}
           </div>
-          <p className="text-3xl font-bold text-orange-400">{formatCurrency(stats.fixedAmount)}</p>
-          <p className="text-xs text-gray-500 mt-1">Pagos unicos</p>
+          <p className="text-3xl font-bold text-orange-400">{formatCurrency(stats.variableAmount)}</p>
+          <p className="text-xs text-gray-500 mt-1">Cambian cada mes · Únicos: {formatCurrency(stats.fixedAmount)}</p>
         </motion.div>
       </div>
 
@@ -368,8 +371,9 @@ export function GastosTab({
       <div className="flex gap-2 border-b border-white/10 pb-0">
         {[
           { key: 'all' as SubTab, label: 'Todos' },
-          { key: 'fixed' as SubTab, label: 'Gastos fijos' },
-          { key: 'variable' as SubTab, label: 'Gastos variables' }
+          { key: 'fixed' as SubTab, label: 'Fijos mensuales' },
+          { key: 'variable' as SubTab, label: 'Variables' },
+          { key: 'unique' as SubTab, label: 'Únicos' }
         ].map(tab => (
           <button
             key={tab.key}
@@ -553,14 +557,15 @@ export function GastosTab({
                       value={newExpense.type}
                       onChange={(value) => setNewExpense({ ...newExpense, type: value })}
                       options={[
-                        { value: 'recurring', label: 'Fijo (mensual)' },
-                        { value: 'fixed', label: 'Variable (pago unico)' }
+                        { value: 'recurring', label: 'Fijo mensual (mismo monto)' },
+                        { value: 'variable', label: 'Variable (el monto cambia cada mes)' },
+                        { value: 'fixed', label: 'Único (un solo pago)' }
                       ]}
                     />
                   </div>
 
                   {/* Campos adicionales solo para gastos recurrentes */}
-                  {newExpense.type === 'recurring' && (
+                  {(newExpense.type === 'recurring' || newExpense.type === 'variable') && (
                     <div className="grid grid-cols-2 gap-4">
                       <Select
                         label="Dia de cobro (opcional)"
@@ -662,7 +667,7 @@ export function GastosTab({
                           {formatCurrency(expense.amount)}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {expense.type === 'recurring' ? '/mes' : 'unico'}
+                          {expense.type === 'fixed' ? 'único' : '/mes'}
                         </span>
                       </div>
 
@@ -671,9 +676,9 @@ export function GastosTab({
                         <span className={`px-2 py-1 rounded-lg text-xs ${
                           expense.type === 'recurring'
                             ? 'bg-purple-500/20 text-purple-400'
-                            : 'bg-orange-500/20 text-orange-400'
+                            : expense.type === 'variable' ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-500/20 text-gray-300'
                         }`}>
-                          {expense.type === 'recurring' ? 'Fijo' : 'Variable'}
+                          {expense.type === 'recurring' ? 'Fijo mensual' : expense.type === 'variable' ? 'Variable' : 'Único'}
                         </span>
                         {!expense.endDate && (
                           <span className="px-2 py-1 rounded-lg bg-green-500/20 text-green-400 text-xs">

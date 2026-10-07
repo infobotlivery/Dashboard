@@ -148,7 +148,7 @@ export function buildAccounts(
 
   const expenseItems: AccountItem[] = isCurrentMonth
     ? expenses
-        .filter(e => e.type === 'recurring' && e.billingDay !== null && !e.paidByClient)
+        .filter(e => (e.type === 'recurring' || e.type === 'variable') && e.billingDay !== null && !e.paidByClient)
         .filter(e => expenseAppliesToMonth(e, range))
         .filter(e => !e.lastPaymentDate || e.lastPaymentDate < range.start)
         .map(e => {
