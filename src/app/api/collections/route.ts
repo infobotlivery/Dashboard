@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     const range = monthRange(parseMonth(month))
     if (!isTrackedMonth(range)) {
-      return errorResponse('Los meses anteriores a octubre 2026 se consideran cobrados y no se pueden modificar')
+      return errorResponse('Los meses anteriores a julio 2026 se consideran cobrados y no se pueden modificar')
     }
 
     const sale = await prisma.salesClose.findUnique({ where: { id: Number(saleId) }, select: SALE_SELECT })

@@ -199,7 +199,7 @@ export function buildAccounts(
 // Desde COLLECTIONS_START se lleva el registro de cobros. Los meses anteriores no tienen
 // registro de pagos, así que se asumen cobrados (su facturación sigue siendo onboarding + MRR).
 
-export const COLLECTIONS_START = new Date(2026, 9, 1) // octubre de 2026
+export const COLLECTIONS_START = new Date(2026, 6, 1) // julio de 2026
 
 export const isTrackedMonth = (range: MonthRange): boolean => range.start >= COLLECTIONS_START
 

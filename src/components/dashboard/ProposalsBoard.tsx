@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { AnimatedNumber } from '@/components/finanzas/AnimatedNumber'
+import { ResetButton } from './ResetButton'
 import { ProposalsCsvImport } from '@/components/finanzas/SalesCsvImport'
 import { apiFetch } from '@/lib/apiFetch'
 import { Modal } from './Modal'
@@ -121,6 +122,7 @@ export function ProposalsBoard({ proposals, month, onChanged }: ProposalsBoardPr
           <span className="ml-2 text-sm font-normal text-brand-muted">({proposals.length} total)</span>
         </h2>
         <div className="flex gap-2 flex-wrap">
+          <ResetButton target="proposals" label="Borrar todas" warning="Se borrarán TODAS las propuestas. Las ventas y llamadas no se tocan." onDone={onChanged} />
           <button onClick={() => setShowImport(true)} className="btn-secondary text-sm">⬆ Importar CSV</button>
           <button onClick={() => { setEditing(null); setFormOpen(true) }} className="btn-primary text-sm">+ Agregar nueva propuesta</button>
         </div>

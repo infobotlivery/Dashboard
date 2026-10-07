@@ -45,6 +45,9 @@ Dashboard/
 │   │   ├── globals.css           # Estilos globales
 │   │   └── api/
 │   │       ├── collections/route.ts    # Cobros de mensualidades: listar del mes y marcar cobrada / no cobrada
+│   │       ├── collections/import/route.ts # Importar cobros históricos desde CSV (mensualidades + otros ingresos) / plantilla
+│   │       ├── export/route.ts         # CSV unificado filtrable por fechas: metrics|sales|collections|proposals|calls|expenses
+│   │       ├── admin/reset/route.ts    # Borrado masivo con respaldo previo: proposals | sales (+cobros)
 │   │       ├── calls/route.ts          # Llamadas: listar, agregar manual, marcar asistencia, eliminar
 │   │       ├── calls/sync/route.ts     # Sincroniza Calendly → llamadas
 │   │       ├── calls/import/route.ts   # Importar llamadas desde CSV (preview + confirmar) / plantilla
@@ -79,6 +82,8 @@ Dashboard/
 │   │   ├── dashboard/
 │   │   │   ├── BillingMetrics.tsx      # Facturación + utilidad del mes (selector de mes, importar ventas CSV)
 │   │   │   ├── AccountsBoxes.tsx       # Cuentas por pagar / por cobrar (pendientes a la fecha)
+│   │   │   ├── ExportModal.tsx         # Modal "Exportar" (tipo + desde/hasta) en el encabezado de la portada
+│   │   │   ├── ResetButton.tsx         # Botón de borrado masivo con confirmación escrita (BORRAR)
 │   │   │   ├── Legend.tsx              # Leyenda al final: qué significa cada número y qué es automático
 │   │   │   ├── ClientCharges.tsx       # Cobros de clientes (esta semana / este mes) con ✓ de cobrado
 │   │   │   ├── UpcomingClientPayments.tsx # (sin uso) antiguo "Cobros esta semana"
@@ -125,6 +130,8 @@ Dashboard/
 │       ├── db.ts                 # Cliente Prisma singleton
 │       ├── api.ts                # Utilidades API + verifyApiKey (webhooks)
 │       ├── apiFetch.ts           # fetch con JSON por defecto (sin auth)
+│       ├── collectionsCsv.ts     # Parser/validador del CSV de cobros
+│       ├── collectionsCsv.ts     # Parser/validador del CSV de cobros
 │       ├── calendly.ts           # Cliente de la API de Calendly (CALENDLY_API_TOKEN)
 │       ├── callsSync.ts          # Sincronización Calendly → tabla Call
 │       ├── callsCsv.ts           # Parser/validador del CSV de llamadas
@@ -429,7 +436,7 @@ El **selector de mes** de "Finanzas del Mes" controla toda la página: finanzas,
 - Cierres = cierres de venta (`SalesClose.createdAt`) del periodo; % cierre = cierres ÷ leads
 - **Facturación = lo COBRADO:** mes = onboarding + mensualidades marcadas como cobradas (por fecha de cobro) + otras cuentas por cobrar cobradas; trimestre = suma de sus meses ya iniciados; semana = onboarding + cobros de la semana
 - **MRR proyectado** = lo que los clientes deberían pagar (recurrencia vigente al cierre del periodo). **Por cobrar** = proyectado − cobrado
-- **Seguimiento de cobros desde octubre 2026** (`COLLECTIONS_START` en `src/lib/finance.ts`): los meses anteriores no tienen registro de pagos y se asumen cobrados (facturación = onboarding + MRR, como antes) y no se pueden editar
+- **Seguimiento de cobros desde julio 2026** (`COLLECTIONS_START` en `src/lib/finance.ts`; antes era octubre 2026): los meses anteriores no tienen registro de pagos y se asumen cobrados (facturación = onboarding + MRR, como antes) y no se pueden editar
 - Día de cobro de cada cliente = día del mes en que se cerró la venta (ajustado a fin de mes)
 - Facturación de ventas nuevas = onboarding + MRR de los clientes cerrados en el periodo; MRR de clientes nuevos = recurringValue de esos cierres (activos)
 - **Facturación por cerrar** = suma de `amount` (pago único) + `recurringAmount` (mensual) de las propuestas del periodo en estado por_aprobacion
@@ -807,7 +814,16 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-05 | Llamadas de Calendly (leads, personas agendadas, asistencia), propuesta desde llamada, exportar métricas a CSV; modelo Call y Proposal.callId | ea57959 |
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
-| 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | pendiente |
+| 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-10-07 | Carga del trimestre jul–sep 2026 (PDF): seguimiento de cobros desde julio 2026, importador de cobros CSV, exportación filtrable por fechas, borrado masivo con respaldo, "mensualidades por cobrar" real | pendiente |
+
+### Detalle del cambio 2026-10-07 (carga histórica jul–sep 2026):
+- `COLLECTIONS_START` pasa a **2026-07-01**: jul–sep 2026 tienen cobros registrados (`ClientPayment`); lo anterior se asume cobrado.
+- **CSV de cobros** (`POST /api/collections/import`, plantilla en GET): `tipo (mensualidad|otro), cliente, concepto, mes (AAAA-MM), monto, fecha_cobro`. `mensualidad` busca la venta por nombre exacto y guarda un `ClientPayment` (monto 0 permitido: primer mes cubierto por el onboarding); `otro` crea una cuenta por cobrar ya cobrada. Duplicados = misma venta+mes / mismo cliente+concepto+monto+fecha.
+- **Exportar**: `GET /api/export?type=metrics|sales|collections|proposals|calls|expenses&from=&to=` (sin fechas = todo). `metrics` = una fila por mes (máx. 60). Botón "Exportar" en el encabezado de la portada.
+- **Borrado masivo**: `POST /api/admin/reset {target:'proposals'|'sales', confirm:'BORRAR'}`; copia la BD a `backups/pre-reset-<target>-<fecha>.db` antes de borrar (`sales` borra también los cobros). Botones en Propuestas ("Borrar todas") y Finanzas → Clientes ("Reiniciar ventas y cobros").
+- `PeriodValues.porCobrarMensualidades` = suma de mensualidades esperadas sin cobrar (ya no `mrr − mrrCobrado`, que fallaba con cobros de $0).
+- Orden recomendado de carga: (opcional) reiniciar ventas → importar ventas → importar cobros.
 
 ### Detalle del cambio 2026-10-07 (cobros):
 - Nuevo modelo `ClientPayment` y `GET/POST /api/collections`. Cada cliente activo genera una mensualidad esperada por mes; al marcarla cobrada se guarda el pago.
@@ -1080,4 +1096,4 @@ model MonthlyGoal {
 
 ---
 
-*Última actualización: 2026-10-05*
+*Última actualización: 2026-10-07*

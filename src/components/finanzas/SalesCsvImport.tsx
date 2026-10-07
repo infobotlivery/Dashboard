@@ -41,3 +41,15 @@ export function CallsCsvImport({ onImported }: Props) {
     />
   )
 }
+
+export function CollectionsCsvImport({ onImported }: Props) {
+  return (
+    <CsvImportCard
+      title="Importar cobros desde CSV"
+      description="Columnas: tipo (mensualidad u otro), cliente, concepto, mes (AAAA-MM), monto, fecha_cobro. Importa primero las ventas."
+      endpoint="/api/collections/import"
+      noun="cobros"
+      onImported={onImported}
+    />
+  )
+}

@@ -89,7 +89,7 @@ export function ClientCharges({ charges, tracked, isCurrentMonth, monthLabel, on
           <p className="text-xs text-brand-muted">
             {tracked
               ? `Por cobrar ${fmt(total(pending))} (${pending.length}) · ${fmt(total(monthPending))} en todo el mes. Marca ✓ al cobrar: pasa a la facturación y a la utilidad.`
-              : 'Los meses anteriores a octubre 2026 se consideran cobrados.'}
+              : 'Los meses anteriores a julio 2026 se consideran cobrados.'}
           </p>
         </div>
         {isCurrentMonth && (
