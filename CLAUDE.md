@@ -44,6 +44,7 @@ Dashboard/
 │   │   ├── layout.tsx            # Layout principal
 │   │   ├── globals.css           # Estilos globales
 │   │   └── api/
+│   │       ├── collections/route.ts    # Cobros de mensualidades: listar del mes y marcar cobrada / no cobrada
 │   │       ├── calls/route.ts          # Llamadas: listar, agregar manual, marcar asistencia, eliminar
 │   │       ├── calls/sync/route.ts     # Sincroniza Calendly → llamadas
 │   │       ├── calls/import/route.ts   # Importar llamadas desde CSV (preview + confirmar) / plantilla
@@ -78,7 +79,8 @@ Dashboard/
 │   │   ├── dashboard/
 │   │   │   ├── BillingMetrics.tsx      # Facturación + utilidad del mes (selector de mes, importar ventas CSV)
 │   │   │   ├── AccountsBoxes.tsx       # Cuentas por pagar / por cobrar (pendientes a la fecha)
-│   │   │   ├── UpcomingClientPayments.tsx # Cobros de clientes próximos 7 días
+│   │   │   ├── ClientCharges.tsx       # Cobros de clientes (esta semana / este mes) con ✓ de cobrado
+│   │   │   ├── UpcomingClientPayments.tsx # (sin uso) antiguo "Cobros esta semana"
 │   │   │   ├── PeriodMetrics.tsx       # Métricas automáticas (semana/mes/trimestre) — portada y admin
 │   │   │   ├── CallsBoard.tsx          # Llamadas (Calendly): lead, fecha, presupuesto, asistencia, propuesta
 │   │   │   ├── ProposalsBoard.tsx      # Propuestas: agregar, editar, estado, filtros, importar CSV
@@ -319,6 +321,16 @@ model Call {
 }
 ```
 
+### ClientPayment
+Mensualidades (MRR) COBRADAS a clientes: una fila por cliente y mes. La mensualidad esperada no se guarda; se calcula desde `SalesClose`.
+```prisma
+model ClientPayment {
+  id Int @id; saleId Int; forMonth String // "YYYY-MM"
+  amount Float; paidAt DateTime           // cuenta como facturación del mes de paidAt
+  @@unique([saleId, forMonth])
+}
+```
+
 ### AccountEntry
 Cuentas por cobrar (`receivable`) y por pagar (`payable`), gestionadas en el tab Gastos.
 ```prisma
@@ -392,11 +404,11 @@ NEXT_PUBLIC_APP_URL="https://dashboard.elraperomarketero.com"
 
 ### Dashboard Público (`/`)
 El **selector de mes** de "Finanzas del Mes" controla toda la página: finanzas, cuentas, métricas y filtro de propuestas.
-- **BillingMetrics:** Facturación y utilidad del mes + botón "Importar ventas (CSV)"
+- **BillingMetrics:** Facturación (COBRADA) y utilidad del mes + MRR proyectado + botón "Importar ventas (CSV)"
 - **AccountsBoxes:** Cuentas por pagar (cuentas manuales + gastos recurrentes con día de cobro sin marcar como pagados) y por cobrar (cuentas manuales), pendientes al día de consulta (o al cierre del mes si es un mes pasado)
-- **UpcomingClientPayments:** Clientes con cobros próximos en 7 días
+- **ClientCharges ("Cobros de clientes"):** mensualidades de los clientes con casilla ✓. Vista "Esta semana" (vencidas + próximos 7 días) y "Este mes". Marcar ✓ = cobrado: sale de cuentas por cobrar y suma a facturación y utilidad
 - **CallsBoard:** (importar CSV, exportar CSV, sincronizar) llamadas de Calendly (lead, fecha y hora, presupuesto), botones Asistió / No asistió; al marcar "Asistió" pregunta qué propuesta se envió y la crea vinculada a la llamada. Sincroniza al abrir y cada 5 min; también se pueden agregar llamadas a mano
-- **PeriodMetrics:** (botón Exportar CSV) Leads, personas agendadas, propuestas enviadas, cierres, % de cierre, facturación, MRR y clientes perdidos — Semanal / Mensual / Trimestral, todo automático con comparación vs periodo anterior
+- **PeriodMetrics:** (botón Exportar CSV) Leads, personas agendadas, propuestas enviadas, clientes nuevos, % de cierre, asistencia, llamadas por marcar, facturación de ventas nuevas, MRR de clientes nuevos, facturación por cerrar, facturación (cobrada), MRR proyectado y clientes perdidos — Semanal / Mensual / Trimestral, todo automático con comparación vs periodo anterior
 - **ProposalsBoard:** "Agregar nueva propuesta" (cuenta como lead), cambio de estado en la tabla, filtros por estado y mes, importar CSV. Al pasar una propuesta a **Aprobada** se abre el modal de **registro de cierre de venta** (no hay formulario de cierres aparte)
 - **CadenceTree:** Árbol visual de cadencias de revisión (pendiente de rediseño)
 
@@ -411,9 +423,12 @@ El **selector de mes** de "Finanzas del Mes" controla toda la página: finanzas,
 - Asistencia = asistió ÷ (asistió + no asistió) de las llamadas del periodo (por `scheduledAt`, sin canceladas); no-show = el complemento
 - Exportar: `GET /api/metrics/export?period=&date=` y `GET /api/calls/export?month=`
 - Cierres = cierres de venta (`SalesClose.createdAt`) del periodo; % cierre = cierres ÷ leads
-- Facturación: semana = onboarding; mes = onboarding + MRR al cierre; trimestre = suma de sus meses ya iniciados
+- **Facturación = lo COBRADO:** mes = onboarding + mensualidades marcadas como cobradas (por fecha de cobro) + otras cuentas por cobrar cobradas; trimestre = suma de sus meses ya iniciados; semana = onboarding + cobros de la semana
+- **MRR proyectado** = lo que los clientes deberían pagar (recurrencia vigente al cierre del periodo). **Por cobrar** = proyectado − cobrado
+- **Seguimiento de cobros desde octubre 2026** (`COLLECTIONS_START` en `src/lib/finance.ts`): los meses anteriores no tienen registro de pagos y se asumen cobrados (facturación = onboarding + MRR, como antes) y no se pueden editar
+- Día de cobro de cada cliente = día del mes en que se cerró la venta (ajustado a fin de mes)
 - Facturación de ventas nuevas = onboarding + MRR de los clientes cerrados en el periodo; MRR de clientes nuevos = recurringValue de esos cierres (activos)
-- MRR por cerrar = suma de `Proposal.recurringAmount` de las propuestas del periodo en estado por_aprobacion
+- **Facturación por cerrar** = suma de `amount` (pago único) + `recurringAmount` (mensual) de las propuestas del periodo en estado por_aprobacion
 
 **Deshacer una venta:**
 - Desde la propuesta: al sacarla de "Aprobada" se ofrece eliminar el cierre vinculado (`SalesClose.proposalId`); al eliminar la propuesta también.
@@ -434,7 +449,8 @@ El **selector de mes** de "Finanzas del Mes" controla toda la página: finanzas,
 
 **Cálculo automático de ingresos (src/lib/finance.ts):**
 - Onboarding = SUM(SalesClose.onboardingValue) de cierres firmados en el mes
-- MRR del mes = SUM(recurringValue) de TODOS los clientes con recurrencia vigente al cierre del mes:
+- Facturación del mes = onboarding + mensualidades cobradas (ver arriba); utilidad neta = facturación − gastos
+- MRR proyectado del mes = SUM(recurringValue) de TODOS los clientes con recurrencia vigente al cierre del mes:
   `active` siempre cuenta; `cancelled` solo hasta su `cancelledAt`; `completed` no cuenta.
   Servicios = product ≠ 'Comunidad'; Comunidad = product 'Comunidad'.
 
@@ -785,7 +801,15 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-05 | Portada: cuentas por pagar/cobrar, métricas automáticas, propuestas editables, cierre desde propuesta; admin reducido a 3 tabs | 23e3cba |
 | 2026-10-05 | Métricas de ventas nuevas / MRR nuevo / MRR por cerrar; deshacer ventas; Proposal.recurringAmount y SalesClose.proposalId | 9c79381 |
 | 2026-10-05 | Llamadas de Calendly (leads, personas agendadas, asistencia), propuesta desde llamada, exportar métricas a CSV; modelo Call y Proposal.callId | ea57959 |
-| 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | pendiente |
+| 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
+| 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | pendiente |
+
+### Detalle del cambio 2026-10-07 (cobros):
+- Nuevo modelo `ClientPayment` y `GET/POST /api/collections`. Cada cliente activo genera una mensualidad esperada por mes; al marcarla cobrada se guarda el pago.
+- `summary`, `history`, `export` y `periodMetrics` usan lo cobrado para la facturación (helpers `expectedCharges` y `collectedMrr` en `src/lib/finance.ts`).
+- Cuentas por cobrar (portada) incluye TODAS las mensualidades pendientes de clientes + las cuentas manuales.
+- Al eliminar un cierre (o su propuesta) se borran también sus cobros.
+- Se retiran de las métricas "MRR por cerrar" y "No asistencia".
 
 ### Detalle del cambio 2026-10-06:
 - **Respaldo automático:** `docker-entrypoint.sh` copia `metrics.db` a `/app/data/backups/metrics-AAAAMMDD-HHMMSS.db`

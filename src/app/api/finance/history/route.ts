@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
-import { sumMrr, expenseAppliesToMonth } from '@/lib/finance'
+import { collectedMrr, expenseAppliesToMonth } from '@/lib/finance'
 
 // GET - Histórico de últimos 6 meses (solo 2026+)
 export async function GET() {
@@ -25,7 +25,7 @@ export async function GET() {
     const latestEnd = months[0].end
 
     // 2. Bulk fetch all data in parallel (4 queries total)
-    const [snapshots, allSalesInRange, activeSales, expenses] = await Promise.all([
+    const [snapshots, allSalesInRange, activeSales, expenses, payments, paidReceivables] = await Promise.all([
       prisma.monthlyFinance.findMany({
         where: { month: { gte: earliestStart, lte: latestEnd } }
       }),
@@ -35,7 +35,7 @@ export async function GET() {
       }),
       prisma.salesClose.findMany({
         where: { recurringValue: { gt: 0 } },
-        select: { recurringValue: true, createdAt: true, product: true, status: true, cancelledAt: true }
+        select: { id: true, recurringValue: true, createdAt: true, product: true, status: true, cancelledAt: true }
       }),
       prisma.expense.findMany({
         where: {
@@ -46,6 +46,12 @@ export async function GET() {
           ]
         },
         select: { amount: true, type: true, startDate: true, endDate: true }
+      }),
+      // Facturación = lo cobrado: mensualidades marcadas como cobradas y cuentas por cobrar cobradas
+      prisma.clientPayment.findMany({ where: { paidAt: { gte: earliestStart, lte: latestEnd } } }),
+      prisma.accountEntry.findMany({
+        where: { kind: 'receivable', status: 'paid', paidAt: { gte: earliestStart, lte: latestEnd } },
+        select: { amount: true, paidAt: true }
       })
     ])
 
@@ -77,11 +83,14 @@ export async function GET() {
         .filter(s => s.createdAt >= monthStart && s.createdAt <= monthEnd)
         .reduce((sum, s) => sum + s.onboardingValue, 0)
 
-      const mrr = sumMrr(activeSales, monthEnd)
+      const mrr = collectedMrr(activeSales, payments, { start: monthStart, end: monthEnd })
+      const otherCollected = paidReceivables
+        .filter(a => a.paidAt && a.paidAt >= monthStart && a.paidAt <= monthEnd)
+        .reduce((sum, a) => sum + a.amount, 0)
       const totalMrrServices = mrr.services
       const totalMrrCommunity = mrr.community
 
-      const totalIncome = totalOnboarding + totalMrrServices + totalMrrCommunity
+      const totalIncome = totalOnboarding + totalMrrServices + totalMrrCommunity + otherCollected
 
       const totalExpenses = expenses
         .filter(e => expenseAppliesToMonth(e, { start: monthStart, end: monthEnd }))

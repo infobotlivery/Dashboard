@@ -63,7 +63,9 @@ export function expenseAppliesToMonth(e: ExpenseLike, range: MonthRange): boolea
 
 export interface AccountItem {
   id: string
-  source: 'account' | 'expense'
+  source: 'account' | 'expense' | 'client'
+  saleId?: number      // solo source 'client': cliente al que se le cobra
+  forMonth?: string    // solo source 'client': mes de la mensualidad
   concept: string
   counterparty: string
   amount: number
@@ -113,7 +115,8 @@ export function buildAccounts(
   entries: AccountEntryLike[],
   expenses: RecurringExpenseLike[],
   range: MonthRange,
-  now: Date
+  now: Date,
+  clientCharges: ClientCharge[] = []
 ): { receivable: AccountsBucket; payable: AccountsBucket } {
   const asOf = now < range.end ? now : range.end
   const today = startOfDay(asOf)
@@ -163,8 +166,120 @@ export function buildAccounts(
         })
     : []
 
+  // Mensualidades de clientes aún sin cobrar (mes en seguimiento)
+  const clientItems: AccountItem[] = clientCharges
+    .filter(c => !c.paid)
+    .map(c => ({
+      id: `client-${c.saleId}-${monthKey(range.start)}`,
+      source: 'client' as const,
+      saleId: c.saleId,
+      forMonth: monthKey(range.start),
+      concept: c.clientName,
+      counterparty: `Mensualidad · ${c.product}`,
+      amount: c.amount,
+      dueDate: c.dueDate.toISOString(),
+      overdue: c.dueDate < today
+    }))
+
   return {
-    receivable: toBucket(fromEntries('receivable')),
+    receivable: toBucket([...clientItems, ...fromEntries('receivable')]),
     payable: toBucket([...fromEntries('payable'), ...expenseItems])
   }
+}
+
+// ---------------------------------------------------------------------------
+// Cobros de mensualidades: proyectado vs. cobrado
+// ---------------------------------------------------------------------------
+//
+// - MRR proyectado = lo que los clientes deberían pagar en el mes (sumMrr).
+// - Facturación    = lo que realmente se cobró: onboarding + mensualidades marcadas como cobradas
+//                    (por fecha de cobro) + cuentas por cobrar manuales cobradas.
+// - Por cobrar     = mensualidades esperadas que aún no se marcan como cobradas.
+//
+// Desde COLLECTIONS_START se lleva el registro de cobros. Los meses anteriores no tienen
+// registro de pagos, así que se asumen cobrados (su facturación sigue siendo onboarding + MRR).
+
+export const COLLECTIONS_START = new Date(2026, 9, 1) // octubre de 2026
+
+export const isTrackedMonth = (range: MonthRange): boolean => range.start >= COLLECTIONS_START
+
+export function monthKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+interface ChargeSale extends SaleLike {
+  id: number
+  clientName: string
+  customProduct?: string | null
+}
+
+export interface PaymentLike {
+  saleId: number
+  forMonth: string
+  amount: number
+  paidAt: Date
+}
+
+export interface ClientCharge {
+  saleId: number
+  clientName: string
+  product: string
+  amount: number
+  dueDate: Date
+  paid: boolean
+  paidAt: Date | null
+}
+
+/**
+ * Mensualidades esperadas de un mes (una por cliente con recurrencia vigente al cierre del mes).
+ * El día de cobro es el día del mes en que se cerró la venta (ajustado a fin de mes).
+ * `asOf`: un pago hecho después de esa fecha todavía contaba como pendiente.
+ */
+export function expectedCharges(
+  sales: ChargeSale[],
+  payments: PaymentLike[],
+  range: MonthRange,
+  asOf: Date
+): ClientCharge[] {
+  const tracked = isTrackedMonth(range)
+  const key = monthKey(range.start)
+  const lastDay = range.end.getDate()
+
+  return sales
+    .filter(s => s.recurringValue > 0 && isRecurringAtMonthEnd(s, range.end))
+    .map(s => {
+      const dueDate = new Date(range.start.getFullYear(), range.start.getMonth(), Math.min(s.createdAt.getDate(), lastDay))
+      const pay = payments.find(p => p.saleId === s.id && p.forMonth === key && p.paidAt <= asOf)
+      return {
+        saleId: s.id,
+        clientName: s.clientName,
+        product: s.customProduct || s.product,
+        amount: s.recurringValue,
+        dueDate,
+        paid: !tracked || !!pay, // meses anteriores: se asumen cobrados
+        paidAt: pay?.paidAt ?? null
+      }
+    })
+    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+}
+
+/** MRR efectivamente cobrado en el mes (por fecha de cobro). Meses sin registro: todo el MRR proyectado. */
+export function collectedMrr(
+  sales: SaleLike[] & { id?: number }[],
+  payments: PaymentLike[],
+  range: MonthRange
+): { services: number; community: number } {
+  if (!isTrackedMonth(range)) return sumMrr(sales as SaleLike[], range.end)
+
+  const community = new Set(
+    (sales as (SaleLike & { id?: number })[]).filter(s => s.product === 'Comunidad').map(s => s.id)
+  )
+  let services = 0
+  let comm = 0
+  for (const p of payments) {
+    if (p.paidAt < range.start || p.paidAt > range.end) continue
+    if (community.has(p.saleId)) comm += p.amount
+    else services += p.amount
+  }
+  return { services, community: comm }
 }

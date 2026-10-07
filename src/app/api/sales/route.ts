@@ -192,6 +192,8 @@ export async function DELETE(request: NextRequest) {
       return errorResponse('ID es requerido', 400)
     }
 
+    // Al borrar el cierre también se borran sus cobros registrados
+    await prisma.clientPayment.deleteMany({ where: { saleId: Number(id) } })
     await prisma.salesClose.delete({
       where: { id: Number(id) }
     })

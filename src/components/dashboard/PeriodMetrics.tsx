@@ -25,11 +25,14 @@ interface PeriodValues {
   mrr: number
   mrrServices: number
   mrrCommunity: number
+  mrrCobrado: number
   facturacion: number
   clientesPerdidos: number
   mrrNuevo: number
   facturacionNuevas: number
-  mrrPorCerrar: number
+  porCerrar: number
+  porCerrarPagoUnico: number
+  porCerrarMensual: number
 }
 
 interface PeriodResponse {
@@ -172,6 +175,38 @@ export function PeriodMetrics({
 
       {c && p && (
         <>
+        {/* Embudo: leads → llamadas → propuestas → clientes */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card title="Leads" value={String(c.leads)} sub={`${c.leadsKommo} Kommo + ${c.leadsCalls} llamadas + ${c.leadsProposals} propuestas`} delta={<Delta value={c.leads} previous={p.leads} />} delay={0} />
+          <Card title="Personas agendadas" value={String(c.agendadas)} sub="Llamadas agendadas" delta={<Delta value={c.agendadas} previous={p.agendadas} />} delay={0.04} />
+          <Card
+            title="Propuestas enviadas"
+            value={String(c.propuestas.total)}
+            sub={`${c.propuestas.aprobada} aprobadas · ${c.propuestas.porAprobacion} por aprobar · ${fmtMoney(c.propuestas.monto)}`}
+            delta={<Delta value={c.propuestas.total} previous={p.propuestas.total} />}
+            delay={0.08}
+          />
+          <Card title="Clientes nuevos" value={String(c.cierres)} sub="Cierres de venta" delta={<Delta value={c.cierres} previous={p.cierres} />} delay={0.12} />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card title="% de cierre" value={`${c.tasaCierre.toFixed(1)}%`} sub="Clientes nuevos ÷ leads" delta={<Delta value={c.tasaCierre} previous={p.tasaCierre} unit="pts" />} delay={0} />
+          <Card
+            title="Asistencia a llamadas"
+            value={`${c.asistencia.toFixed(0)}%`}
+            sub={`${c.callsAttended} asistieron · ${c.callsNoShow} no asistieron`}
+            delta={<Delta value={c.asistencia} previous={p.asistencia} unit="pts" />}
+            delay={0.04}
+          />
+          <Card
+            title="Llamadas por marcar"
+            value={String(c.callsPending)}
+            sub="Ya ocurrieron y no marcaste asistencia"
+            delta={<span className="text-xs text-brand-muted">Márcalas en "Llamadas"</span>}
+            delay={0.08}
+          />
+        </div>
+
+        {/* Dinero: ventas nuevas y por cerrar */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card
             title="Facturación de ventas nuevas"
@@ -183,62 +218,40 @@ export function PeriodMetrics({
           <Card
             title="MRR de clientes nuevos"
             value={fmtMoney(c.mrrNuevo)}
-            sub={`${c.cierres} cierre${c.cierres === 1 ? '' : 's'} en el periodo`}
+            sub={`${c.cierres} cliente${c.cierres === 1 ? '' : 's'} nuevo${c.cierres === 1 ? '' : 's'}`}
             delta={<Delta value={c.mrrNuevo} previous={p.mrrNuevo} />}
             delay={0.04}
           />
           <Card
-            title="MRR por cerrar"
-            value={fmtMoney(c.mrrPorCerrar)}
-            sub={`${c.propuestas.porAprobacion} propuesta${c.propuestas.porAprobacion === 1 ? '' : 's'} por aprobar`}
-            delta={<Delta value={c.mrrPorCerrar} previous={p.mrrPorCerrar} />}
+            title="Facturación por cerrar"
+            value={fmtMoney(c.porCerrar)}
+            sub={`${c.propuestas.porAprobacion} propuesta${c.propuestas.porAprobacion === 1 ? '' : 's'} por aprobar · pago único ${fmtMoney(c.porCerrarPagoUnico)} + mensual ${fmtMoney(c.porCerrarMensual)}`}
+            delta={<Delta value={c.porCerrar} previous={p.porCerrar} />}
             delay={0.08}
           />
         </div>
+
+        {/* Dinero: proyectado vs cobrado */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card
-            title="Asistencia a llamadas"
-            value={`${c.asistencia.toFixed(0)}%`}
-            sub={`${c.callsAttended} asistieron · ${c.callsNoShow} no asistieron`}
-            delta={<Delta value={c.asistencia} previous={p.asistencia} unit="pts" />}
+            title="Facturación (cobrada)"
+            value={fmtMoney(c.facturacion)}
+            sub={`Onboarding ${fmtMoney(c.onboarding)} + MRR cobrado ${fmtMoney(c.mrrCobrado)}`}
+            delta={<Delta value={c.facturacion} previous={p.facturacion} />}
             delay={0}
           />
           <Card
-            title="No asistencia (no-show)"
-            value={`${c.noShow.toFixed(0)}%`}
-            sub="No asistieron ÷ llamadas marcadas"
-            delta={<Delta value={c.noShow} previous={p.noShow} unit="pts" inverse />}
+            title="MRR proyectado"
+            value={fmtMoney(c.mrr)}
+            sub={
+              period === 'month'
+                ? `Cobrado ${fmtMoney(c.mrrCobrado)} · Por cobrar ${fmtMoney(Math.max(c.mrr - c.mrrCobrado, 0))}`
+                : `Servicios ${fmtMoney(c.mrrServices)} · Comunidad ${fmtMoney(c.mrrCommunity)}`
+            }
+            delta={<Delta value={c.mrr} previous={p.mrr} />}
             delay={0.04}
           />
-          <Card
-            title="Llamadas por marcar"
-            value={String(c.callsPending)}
-            sub="Ya ocurrieron y no marcaste asistencia"
-            delta={<span className="text-xs text-brand-muted">Márcalas en "Llamadas"</span>}
-            delay={0.08}
-          />
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card title="Leads" value={String(c.leads)} sub={`${c.leadsKommo} Kommo + ${c.leadsCalls} llamadas + ${c.leadsProposals} propuestas`} delta={<Delta value={c.leads} previous={p.leads} />} delay={0} />
-          <Card title="Personas agendadas" value={String(c.agendadas)} sub="Llamadas agendadas" delta={<Delta value={c.agendadas} previous={p.agendadas} />} delay={0.04} />
-          <Card
-            title="Propuestas enviadas"
-            value={String(c.propuestas.total)}
-            sub={`${c.propuestas.aprobada} aprobadas · ${c.propuestas.porAprobacion} por aprobar · ${fmtMoney(c.propuestas.monto)}`}
-            delta={<Delta value={c.propuestas.total} previous={p.propuestas.total} />}
-            delay={0.08}
-          />
-          <Card title="Cierres (clientes nuevos)" value={String(c.cierres)} delta={<Delta value={c.cierres} previous={p.cierres} />} delay={0.12} />
-          <Card title="% de cierre" value={`${c.tasaCierre.toFixed(1)}%`} sub="Cierres ÷ leads" delta={<Delta value={c.tasaCierre} previous={p.tasaCierre} unit="pts" />} delay={0.16} />
-          <Card
-            title={period === 'week' ? 'Onboarding' : 'Facturación'}
-            value={fmtMoney(c.facturacion)}
-            sub={period === 'week' ? undefined : `Onboarding ${fmtMoney(c.onboarding)}`}
-            delta={<Delta value={c.facturacion} previous={p.facturacion} />}
-            delay={0.2}
-          />
-          <Card title="MRR clientes" value={fmtMoney(c.mrr)} sub={`Servicios ${fmtMoney(c.mrrServices)} · Comunidad ${fmtMoney(c.mrrCommunity)}`} delta={<Delta value={c.mrr} previous={p.mrr} />} delay={0.24} />
-          <Card title="Clientes perdidos" value={String(c.clientesPerdidos)} delta={<Delta value={c.clientesPerdidos} previous={p.clientesPerdidos} inverse />} delay={0.28} />
+          <Card title="Clientes perdidos" value={String(c.clientesPerdidos)} delta={<Delta value={c.clientesPerdidos} previous={p.clientesPerdidos} inverse />} delay={0.08} />
         </div>
         </>
       )}

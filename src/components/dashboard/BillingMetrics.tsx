@@ -63,8 +63,11 @@ export function BillingMetrics({ summary, goal, selectedMonth, onMonthChange, on
   const totalExpenses = summary?.expenses.total ?? 0
   const netProfit = summary?.netProfit ?? 0
   const onboarding = summary?.income.onboarding ?? 0
-  const mrrServices = summary?.income.mrrServices ?? 0
-  const mrrCommunity = summary?.income.mrrCommunity ?? 0
+  // Facturación = lo cobrado. El MRR proyectado es lo que los clientes deberían pagar este mes.
+  const mrrCollected = (summary?.income.mrrServices ?? 0) + (summary?.income.mrrCommunity ?? 0)
+  const mrrProjected = summary?.income.projected?.mrr ?? mrrCollected
+  const mrrPending = Math.max(mrrProjected - mrrCollected, 0)
+  const otherCollected = summary?.income.otherCollected ?? 0
 
   const incomeTarget = goal?.incomeTarget ?? 0
   const margin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0
@@ -147,7 +150,7 @@ export function BillingMetrics({ summary, goal, selectedMonth, onMonthChange, on
                     <path d="M7 1v12M10.5 4H5.25a2.25 2.25 0 0 0 0 4.5h3.5a2.25 2.25 0 0 1 0 4.5H3.5" stroke="#44e1fc" strokeWidth="1.3" strokeLinecap="round" />
                   </svg>
                 </div>
-                <span className="text-brand-muted text-sm font-medium">Facturación del Mes</span>
+                <span className="text-brand-muted text-sm font-medium">Facturación del Mes <span className="text-[11px] text-brand-muted/70">(cobrada)</span></span>
               </div>
               {incomeTarget > 0 && (
                 <span className="text-xs text-[#44e1fc]/60 px-2 py-1 rounded-lg bg-[#44e1fc]/5 border border-[#44e1fc]/10">
@@ -178,14 +181,18 @@ export function BillingMetrics({ summary, goal, selectedMonth, onMonthChange, on
                 <p className="text-sm font-bold text-green-400 leading-none">{fmt(onboarding)}</p>
               </div>
               <div className="rounded-xl p-3 bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1.5">MRR Serv.</p>
-                <p className="text-sm font-bold text-[#44e1fc] leading-none">{fmt(mrrServices)}</p>
+                <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1.5">MRR cobrado</p>
+                <p className="text-sm font-bold text-[#44e1fc] leading-none">{fmt(mrrCollected)}</p>
               </div>
               <div className="rounded-xl p-3 bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1.5">MRR Com.</p>
-                <p className="text-sm font-bold text-blue-400 leading-none">{fmt(mrrCommunity)}</p>
+                <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1.5">MRR proyectado</p>
+                <p className="text-sm font-bold text-blue-400 leading-none">{fmt(mrrProjected)}</p>
+                {mrrPending > 0 && <p className="text-[10px] text-yellow-400 mt-1">{fmt(mrrPending)} por cobrar</p>}
               </div>
             </div>
+            {otherCollected > 0 && (
+              <p className="text-[11px] text-brand-muted">Incluye {fmt(otherCollected)} de otras cuentas por cobrar cobradas</p>
+            )}
           </div>
         </motion.div>
 

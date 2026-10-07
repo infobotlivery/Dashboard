@@ -1,5 +1,5 @@
 import prisma from '@/lib/db'
-import { monthRange, sumMrr, type MonthRange } from '@/lib/finance'
+import { monthRange, sumMrr, collectedMrr, isTrackedMonth, type MonthRange, type PaymentLike } from '@/lib/finance'
 
 export type Period = 'week' | 'month' | 'quarter'
 
@@ -53,19 +53,24 @@ export interface PeriodValues {
   cierres: number        // clientes nuevos (cierres de venta firmados en el periodo)
   tasaCierre: number     // cierres / leads * 100
   onboarding: number
-  mrr: number            // MRR de clientes (servicios + comunidad) vigente al cierre del periodo
+  mrr: number            // MRR PROYECTADO: lo que los clientes deberían pagar (vigente al cierre del periodo)
   mrrServices: number
   mrrCommunity: number
-  facturacion: number
+  mrrCobrado: number     // parte del MRR que ya se marcó como cobrada
+  facturacion: number    // FACTURACIÓN = lo cobrado: onboarding + mensualidades cobradas + otros cobros
   clientesPerdidos: number
   mrrNuevo: number          // MRR de los clientes que cerraron en el periodo
   facturacionNuevas: number // Ventas nuevas: onboarding + MRR nuevo
-  mrrPorCerrar: number      // MRR esperado de propuestas del periodo aún por aprobar
+  porCerrar: number         // Facturación por cerrar: monto de las propuestas del periodo aún por aprobar
+  porCerrarPagoUnico: number
+  porCerrarMensual: number
 }
 
 interface Data {
   sales: Awaited<ReturnType<typeof loadSales>>
   proposals: { date: Date; status: string; amount: number; recurringAmount: number; callId: number | null }[]
+  payments: PaymentLike[]                       // mensualidades cobradas
+  paidReceivables: { amount: number; paidAt: Date }[] // otras cuentas por cobrar cobradas
   hasCalls: boolean // ¿existe alguna llamada registrada? (si no, se usa el dato de Kommo)
   calls: { bookedAt: Date; scheduledAt: Date; status: string; attendance: string; isReschedule: boolean }[]
   weekly: { weekStart: Date; leadsEntrantes: number; personasAgendadas: number }[]
@@ -73,7 +78,7 @@ interface Data {
 
 function loadSales() {
   return prisma.salesClose.findMany({
-    select: { status: true, createdAt: true, cancelledAt: true, recurringValue: true, onboardingValue: true, product: true }
+    select: { id: true, status: true, createdAt: true, cancelledAt: true, recurringValue: true, onboardingValue: true, product: true }
   })
 }
 
@@ -117,21 +122,39 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
   const onboarding = newSales.reduce((s, x) => s + x.onboardingValue, 0)
   const cierres = newSales.length
 
+  // MRR proyectado al cierre del periodo (lo que los clientes deberían pagar)
   const mrr = sumMrr(d.sales, range.end)
   const mrrNuevo = newSales.filter(s => s.status === 'active').reduce((sum, s) => sum + s.recurringValue, 0)
-  const mrrPorCerrar = proposals.filter(p => p.status === 'por_aprobacion').reduce((sum, p) => sum + p.recurringAmount, 0)
+  const pending = proposals.filter(p => p.status === 'por_aprobacion')
+  const porCerrarPagoUnico = pending.reduce((sum, p) => sum + p.amount, 0)
+  const porCerrarMensual = pending.reduce((sum, p) => sum + p.recurringAmount, 0)
 
-  // Facturación: semana = onboarding; mes = onboarding + MRR; trimestre = suma de sus meses
-  let facturacion = onboarding
-  if (period === 'month') facturacion = onboarding + mrr.services + mrr.community
-  if (period === 'quarter') {
-    // Solo meses ya iniciados: el trimestre en curso no proyecta meses futuros
-    facturacion = monthsIn(range).filter(m => m.start <= new Date()).reduce((sum, m) => {
-      const onb = d.sales.filter(s => s.createdAt >= m.start && s.createdAt <= m.end).reduce((a, s) => a + s.onboardingValue, 0)
-      const r = sumMrr(d.sales, m.end)
-      return sum + onb + r.services + r.community
-    }, 0)
+  // Facturación = lo COBRADO. Mes: onboarding + mensualidades cobradas; trimestre: suma de sus meses ya
+  // iniciados; semana: onboarding + cobros de la semana. Antes de octubre 2026 no hay registro de cobros
+  // y se asume cobrado todo el MRR (ver COLLECTIONS_START).
+  const otherIn = (r: MonthRange) =>
+    d.paidReceivables.filter(a => a.paidAt >= r.start && a.paidAt <= r.end).reduce((sum, a) => sum + a.amount, 0)
+  const onboardingIn = (r: MonthRange) =>
+    d.sales.filter(s => s.createdAt >= r.start && s.createdAt <= r.end).reduce((sum, s) => sum + s.onboardingValue, 0)
+  const monthCash = (m: MonthRange) => {
+    const c = collectedMrr(d.sales, d.payments, m)
+    return { onboarding: onboardingIn(m), mrr: c.services + c.community, other: otherIn(m) }
   }
+
+  let cash: { onboarding: number; mrr: number; other: number }
+  if (period === 'month') {
+    cash = monthCash(range)
+  } else if (period === 'quarter') {
+    cash = monthsIn(range)
+      .filter(m => m.start <= new Date())
+      .map(monthCash)
+      .reduce((a, c) => ({ onboarding: a.onboarding + c.onboarding, mrr: a.mrr + c.mrr, other: a.other + c.other }),
+        { onboarding: 0, mrr: 0, other: 0 })
+  } else {
+    const paid = d.payments.filter(p => p.paidAt >= range.start && p.paidAt <= range.end).reduce((sum, p) => sum + p.amount, 0)
+    cash = { onboarding, mrr: isTrackedMonth(range) ? paid : 0, other: otherIn(range) }
+  }
+  const facturacion = cash.onboarding + cash.mrr + cash.other
 
   return {
     leads,
@@ -157,11 +180,14 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
     mrr: mrr.services + mrr.community,
     mrrServices: mrr.services,
     mrrCommunity: mrr.community,
+    mrrCobrado: cash.mrr,
     facturacion,
     clientesPerdidos: d.sales.filter(s => s.status === 'cancelled' && s.cancelledAt && inRange(s.cancelledAt)).length,
     mrrNuevo,
     facturacionNuevas: onboarding + mrrNuevo,
-    mrrPorCerrar
+    porCerrar: porCerrarPagoUnico + porCerrarMensual,
+    porCerrarPagoUnico,
+    porCerrarMensual
   }
 }
 
@@ -169,7 +195,7 @@ export async function computePeriodMetrics(period: Period, date: Date) {
   const range = periodRange(period, date)
   const prev = previousRange(period, range)
 
-  const [sales, proposals, weekly, calls, callCount] = await Promise.all([
+  const [sales, proposals, weekly, calls, callCount, payments, paidReceivables] = await Promise.all([
     loadSales(),
     prisma.proposal.findMany({
       where: { date: { gte: prev.start, lte: range.end } },
@@ -188,9 +214,22 @@ export async function computePeriodMetrics(period: Period, date: Date) {
       },
       select: { bookedAt: true, scheduledAt: true, status: true, attendance: true, isReschedule: true }
     }),
-    prisma.call.count()
+    prisma.call.count(),
+    prisma.clientPayment.findMany({ where: { paidAt: { gte: prev.start, lte: range.end } } }),
+    prisma.accountEntry.findMany({
+      where: { kind: 'receivable', status: 'paid', paidAt: { gte: prev.start, lte: range.end } },
+      select: { amount: true, paidAt: true }
+    })
   ])
-  const data: Data = { sales, proposals, weekly, calls, hasCalls: callCount > 0 }
+  const data: Data = {
+    sales,
+    proposals,
+    weekly,
+    calls,
+    hasCalls: callCount > 0,
+    payments,
+    paidReceivables: paidReceivables.flatMap(a => (a.paidAt ? [{ amount: a.amount, paidAt: a.paidAt }] : []))
+  }
 
   return {
     period,
