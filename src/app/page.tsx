@@ -8,6 +8,7 @@ import { BillingMetrics } from '@/components/dashboard/BillingMetrics'
 import { ClientCharges, type ClientChargeRow } from '@/components/dashboard/ClientCharges'
 import { ProposalsBoard } from '@/components/dashboard/ProposalsBoard'
 import { CallsBoard } from '@/components/dashboard/CallsBoard'
+import { Legend } from '@/components/dashboard/Legend'
 import type {
   Settings,
   FinanceSummary,
@@ -290,6 +291,11 @@ export default function DashboardPage() {
         {/* Cadencia de Revisión */}
         <section>
           <CadenceTree />
+        </section>
+
+        {/* Leyenda: cómo leer el panel */}
+        <section>
+          <Legend />
         </section>
       </main>
 
