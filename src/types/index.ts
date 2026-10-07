@@ -91,6 +91,7 @@ export interface FinanceSummary {
     byType: {
       fixed: number
       recurring: number
+      variable?: number
     }
     byCategory: Record<string, { total: number; color: string; items: { name: string; amount: number }[] }>
     list?: { id: number; name: string; amount: number; type: string; category: string; categoryColor: string }[]
@@ -99,6 +100,7 @@ export interface FinanceSummary {
     totalExpenses: number
     fixedExpenses: number
     recurringExpenses: number
+    variableExpenses?: number
   }
   accounts?: {
     receivable: AccountsTotals

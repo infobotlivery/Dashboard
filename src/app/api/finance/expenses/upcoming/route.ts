@@ -7,7 +7,7 @@ export async function GET() {
     // Obtener gastos recurrentes activos con día de cobro definido
     const expenses = await prisma.expense.findMany({
       where: {
-        type: 'recurring',
+        type: { in: ['recurring', 'variable'] },
         endDate: null,
         billingDay: { not: null }
       },

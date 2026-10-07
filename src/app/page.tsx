@@ -10,6 +10,7 @@ import { ProposalsBoard } from '@/components/dashboard/ProposalsBoard'
 import { CallsBoard } from '@/components/dashboard/CallsBoard'
 import { Legend } from '@/components/dashboard/Legend'
 import { ExportModal } from '@/components/dashboard/ExportModal'
+import { ExpenseReviewAlert } from '@/components/dashboard/ExpenseReviewAlert'
 import type {
   Settings,
   FinanceSummary,
@@ -246,6 +247,8 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+        <ExpenseReviewAlert refreshKey={refreshKey} />
+
         {/* Finanzas del Mes */}
         <section>
           <BillingMetrics

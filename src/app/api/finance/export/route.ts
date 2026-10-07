@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         const endDateStr = expense.endDate
           ? new Date(expense.endDate).toLocaleDateString('es-MX')
           : '-'
-        csv += `"${expense.name}","${expense.category.name}",${expense.amount},"${expense.type === 'recurring' ? 'Recurrente' : 'Fijo'}","${new Date(expense.startDate).toLocaleDateString('es-MX')}","${endDateStr}","${status}","${expense.notes || ''}"\n`
+        csv += `"${expense.name}","${expense.category.name}",${expense.amount},"${expense.type === 'recurring' ? 'Fijo mensual' : expense.type === 'variable' ? 'Variable' : 'Único'}","${new Date(expense.startDate).toLocaleDateString('es-MX')}","${endDateStr}","${status}","${expense.notes || ''}"\n`
       })
 
       csv += '\n'

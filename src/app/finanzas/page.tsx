@@ -14,7 +14,8 @@ import {
   CategoriasTab,
   HistorialTab,
   MetasTab,
-  ClientesTab
+  ClientesTab,
+  RevisionTab
 } from '@/components/finanzas/tabs'
 import type { FinanceSummary, MonthlyHistory, Category, Expense, UpcomingPayment, MonthlyGoal, SalesClose, SalesSummary } from '@/types'
 
@@ -24,11 +25,18 @@ const tabTitles: Record<FinanceTab, string> = {
   categorias: 'Categorias de Gastos',
   historial: 'Historial Mensual',
   metas: 'Metas Mensuales',
-  clientes: 'Clientes'
+  clientes: 'Clientes',
+  revision: 'Revisión mensual de gastos'
 }
 
 export default function FinanzasPage() {
   const [activeTab, setActiveTab] = useState<FinanceTab>('resumen')
+
+  // Enlace directo a una pestaña: /finanzas?tab=revision
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    if (t && t in tabTitles) setActiveTab(t as FinanceTab)
+  }, [])
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -385,6 +393,8 @@ export default function FinanzasPage() {
                 {activeTab === 'metas' && (
                   <MetasTab summary={summary} onMessage={showMessage} />
                 )}
+
+                {activeTab === 'revision' && <RevisionTab />}
 
                 {activeTab === 'clientes' && (
                   <ClientesTab

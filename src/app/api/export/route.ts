@@ -10,6 +10,7 @@ const q = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
 const day = (d: Date | null | undefined) => (d ? formatLocalDate(d) : '')
 const ST_SALE: Record<string, string> = { active: 'Activo', cancelled: 'Cancelado', completed: 'Completado' }
 const ST_PROP: Record<string, string> = { por_aprobacion: 'Por aprobación', aprobada: 'Aprobada', no_cerrada: 'No cerrada' }
+const TYPE_LABEL: Record<string, string> = { recurring: 'Fijo mensual', variable: 'Variable', fixed: 'Único' }
 const ATT: Record<string, string> = { pending: 'Pendiente', attended: 'Asistió', no_show: 'No asistió' }
 
 export const dynamic = 'force-dynamic'
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { startDate: 'asc' }
     })
-    for (const e of list) push(e.name, e.amount, e.type === 'fixed' ? 'Fijo' : 'Recurrente', day(e.startDate), day(e.endDate), e.billingDay ?? '', e.paidByClient, e.notes)
+    for (const e of list) push(e.name, e.amount, TYPE_LABEL[e.type] ?? e.type, day(e.startDate), day(e.endDate), e.billingDay ?? '', e.paidByClient, e.notes)
   } else {
     // Una fila por mes: métricas automáticas del dashboard
     const first = await prisma.salesClose.findFirst({ orderBy: { createdAt: 'asc' }, select: { createdAt: true } })

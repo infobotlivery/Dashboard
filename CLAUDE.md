@@ -46,6 +46,7 @@ Dashboard/
 │   │   └── api/
 │   │       ├── collections/route.ts    # Cobros de mensualidades: listar del mes y marcar cobrada / no cobrada
 │   │       ├── collections/import/route.ts # Importar cobros históricos desde CSV (mensualidades + otros ingresos) / plantilla
+│   │       ├── finance/review/route.ts # Revisión mensual de gastos: GET agrupado por categoría, POST sigue/cancelar/cambiar monto
 │   │       ├── finance/breakdown/route.ts # Detalle del mes: clientes y montos detrás de facturación cobrada y MRR
 │   │       ├── export/route.ts         # CSV unificado filtrable por fechas: metrics|sales|collections|proposals|calls|expenses
 │   │       ├── admin/reset/route.ts    # Borrado masivo con respaldo previo: proposals | sales (+cobros)
@@ -83,6 +84,7 @@ Dashboard/
 │   │   ├── dashboard/
 │   │   │   ├── BillingMetrics.tsx      # Facturación + utilidad del mes (selector de mes, importar ventas CSV)
 │   │   │   ├── AccountsBoxes.tsx       # Cuentas por pagar / por cobrar (pendientes a la fecha)
+│   │   │   ├── ExpenseReviewAlert.tsx  # Aviso en la portada: gastos del mes sin revisar
 │   │   │   ├── MonthBreakdown.tsx      # Desplegable "¿De dónde sale este mes?" (clientes detrás de facturación y MRR)
 │   │   │   ├── ExportModal.tsx         # Modal "Exportar" (tipo + desde/hasta) en el encabezado de la portada
 │   │   │   ├── ResetButton.tsx         # Botón de borrado masivo con confirmación escrita (BORRAR)
@@ -115,7 +117,8 @@ Dashboard/
 │   │   │       ├── CategoriasTab.tsx   # Tab categorías
 │   │   │       ├── HistorialTab.tsx    # Tab historial mensual
 │   │   │       ├── MetasTab.tsx        # Tab metas mensuales
-│   │   │       └── ClientesTab.tsx     # Tab clientes (registro de ventas + filtros)
+│   │   │       ├── RevisionTab.tsx     # Tab revisión mensual de gastos (Sigue / Cancelar / Cambiar monto)
+│   │       └── ClientesTab.tsx     # Tab clientes (registro de ventas + filtros)
 │   │   └── ui/
 │   │       ├── Button.tsx
 │   │       ├── Card.tsx
@@ -270,7 +273,7 @@ model ExpenseCategory {
 ```
 
 ### Expense
-Registro de gastos fijos y recurrentes.
+Registro de gastos (fijo mensual, variable o único).
 ```prisma
 model Expense {
   id           Int              @id @default(autoincrement())
@@ -289,13 +292,20 @@ model Expense {
 }
 ```
 
-**Tipos de gasto:**
-- `recurring` → Se contabiliza cada mes mientras esté activo (endDate = null)
-- `fixed` → Pago único, se contabiliza solo en el mes de creación
+**Tipos de gasto** (etiquetas en la UI):
+- `recurring` = **Fijo mensual**: mismo monto cada mes mientras esté activo (endDate = null)
+- `variable` = **Variable**: se cobra cada mes pero el monto cambia; se ajusta en la revisión mensual
+- `fixed` = **Único**: un solo pago, se contabiliza solo en el mes de creación (el nombre interno `fixed` es histórico)
 
 **Campos de fecha de pago:**
 - `billingDay` → Día del mes (1-31) cuando se cobra. Permite ver "Próximos Pagos"
 - `paidByClient` → Si un cliente paga este gasto, su nombre. Mostrado con badge amarillo
+
+### ExpenseReview
+Revisión mensual de gastos: una fila por gasto y mes (`@@unique([expenseId, month])`).
+```prisma
+model ExpenseReview { id Int @id; expenseId Int; month String /* "YYYY-MM" */; action String /* keep | changed | cancelled */; createdAt DateTime }
+```
 
 ### MonthlyFinance
 Snapshot mensual de finanzas (para histórico).
@@ -816,8 +826,15 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-10-08 | Revisión mensual de gastos (tab Revisión + aviso en portada), tipo de gasto Variable, etiquetas Fijo mensual / Variable / Único | pendiente |
 | 2026-10-08 | Portada reordenada (finanzas, cobros, llamadas, propuestas, métricas, cadencia, leyenda), cadencia y leyenda desplegables, detalle "¿De dónde sale este mes?", historial hasta 5 años, Clientes muestra recurrentes vigentes del mes | pendiente |
 | 2026-10-07 | Carga del trimestre jul–sep 2026 (PDF): seguimiento de cobros desde julio 2026, importador de cobros CSV, exportación filtrable por fechas, borrado masivo con respaldo, "mensualidades por cobrar" real | pendiente |
+
+### Detalle del cambio 2026-10-08 (revisión mensual de gastos):
+- **Tab Finanzas → Revisión** (`/finanzas?tab=revision`): gastos del mes agrupados por categoría con subtotales, totales fijo/variable/único y comparación con el mes anterior. Los gastos mensuales (fijo y variable) se confirman con **Sigue**, **Cambiar monto** o **Cancelar**; los únicos solo se muestran.
+- `POST /api/finance/review`: `keep` registra la revisión; `cancel` fija `endDate` = último día del mes anterior (el gasto deja de contarse desde ese mes); `change` cierra la versión vieja el mes anterior y crea una nueva con el monto nuevo desde el 1 del mes, así el historial no se reescribe.
+- Portada: `ExpenseReviewAlert` avisa cuántos gastos del mes en curso faltan por revisar y enlaza a la pestaña.
+- Tabla `ExpenseReview` creada en `docker-entrypoint.sh`.
 
 ### Detalle del cambio 2026-10-08 (orden de la portada y trazabilidad):
 - **Orden de la portada:** 1 Finanzas del mes, 2 Cobros de clientes, 3 Llamadas, 4 Propuestas, 5 Métricas, 6 Cadencia de revisión (desplegable), Leyenda (desplegable). Ambos desplegables arrancan cerrados.

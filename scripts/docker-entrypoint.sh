@@ -426,6 +426,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS \"ClientPayment_saleId_forMonth_key\" ON \"Cli
 CREATE INDEX IF NOT EXISTS \"ClientPayment_paidAt_idx\" ON \"ClientPayment\"(\"paidAt\");
 " 2>&1 || echo "Error creando tabla ClientPayment"
 
+# Revisión mensual de gastos (ExpenseReview)
+echo "=== Verificando tabla ExpenseReview ==="
+sqlite3 "$DB_PATH" "
+CREATE TABLE IF NOT EXISTS \"ExpenseReview\" (
+    \"id\" INTEGER PRIMARY KEY AUTOINCREMENT,
+    \"expenseId\" INTEGER NOT NULL,
+    \"month\" TEXT NOT NULL,
+    \"action\" TEXT NOT NULL,
+    \"createdAt\" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS \"ExpenseReview_expenseId_month_key\" ON \"ExpenseReview\"(\"expenseId\", \"month\");
+CREATE INDEX IF NOT EXISTS \"ExpenseReview_month_idx\" ON \"ExpenseReview\"(\"month\");
+" 2>&1 || echo "Error creando tabla ExpenseReview"
+
 # =====================================================
 # INDEXES - Asegurar que existan para performance
 # =====================================================
