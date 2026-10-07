@@ -38,24 +38,21 @@ export function CadenceTree() {
   ]
 
   return (
-    <motion.div
+    <motion.details
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.8 }}
-      className="space-y-6"
+      className="glass-card p-0 overflow-hidden group"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Cadencia de Revisión</h2>
-          <p className="text-brand-muted">
-            Tu sistema de control operativo
-          </p>
-        </div>
-      </div>
+      <summary className="cursor-pointer select-none list-none px-6 py-4 flex items-center justify-between">
+        <span>
+          <span className="text-xl font-bold text-white">Cadencia de Revisión</span>
+          <span className="block text-sm text-brand-muted">Tu sistema de control operativo</span>
+        </span>
+        <span className="text-brand-muted text-sm group-open:rotate-180 transition-transform">▾</span>
+      </summary>
 
       {/* Árbol de cadencias */}
-      <div className="card">
+      <div className="px-6 pb-6 border-t border-white/10 pt-4">
         <div className="space-y-0">
           {cadences.map((cadence, idx) => (
             <motion.div
@@ -96,6 +93,6 @@ export function CadenceTree() {
           ))}
         </div>
       </div>
-    </motion.div>
+    </motion.details>
   )
 }

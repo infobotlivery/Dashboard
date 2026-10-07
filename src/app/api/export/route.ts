@@ -12,6 +12,8 @@ const ST_SALE: Record<string, string> = { active: 'Activo', cancelled: 'Cancelad
 const ST_PROP: Record<string, string> = { por_aprobacion: 'Por aprobación', aprobada: 'Aprobada', no_cerrada: 'No cerrada' }
 const ATT: Record<string, string> = { pending: 'Pendiente', attended: 'Asistió', no_show: 'No asistió' }
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/export?type=sales|proposals|calls|collections|expenses|metrics&from=YYYY-MM-DD&to=YYYY-MM-DD
 // Sin from/to exporta todo el historial.
 export async function GET(request: NextRequest) {

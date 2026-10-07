@@ -2,17 +2,19 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 import { collectedMrr, expenseAppliesToMonth } from '@/lib/finance'
 
-// GET - Histórico de últimos 6 meses (solo 2026+)
-export async function GET() {
+export const dynamic = 'force-dynamic'
+
+// GET /api/finance/history?months=6|12|24|36|60 — histórico mensual (por defecto 6 meses)
+export async function GET(request: Request) {
   try {
     const now = new Date()
+    const asked = Number(new URL(request.url).searchParams.get('months'))
+    const limit = Number.isInteger(asked) && asked > 0 ? Math.min(asked, 60) : 6
 
     // 1. Determine valid months
     const months: { start: Date; end: Date }[] = []
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < limit; i++) {
       const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      if (monthStart.getFullYear() < 2026) continue
-      if (months.length >= 6) break
       const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999)
       months.push({ start: monthStart, end: monthEnd })
     }
