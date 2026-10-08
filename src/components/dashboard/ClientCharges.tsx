@@ -8,6 +8,8 @@ export interface ClientChargeRow {
   clientName: string
   product: string
   amount: number
+  baseAmount?: number
+  adjusted?: boolean
   dueDate: string
   paid: boolean
   paidAt: string | null
@@ -24,6 +26,8 @@ interface ClientChargesProps {
   monthLabel: string
   /** Marca / desmarca el cobro y recarga los datos de la página. */
   onToggle: (saleId: number, paid: boolean) => Promise<void>
+  /** Cambia el monto de ESTE cobro (solo este cliente y este mes). amount=null quita el ajuste. */
+  onAdjust?: (saleId: number, amount: number | null) => Promise<void>
 }
 
 const fmt = (v: number) =>
@@ -39,7 +43,7 @@ function statusLabel(c: ClientChargeRow): { text: string; cls: string } {
   return { text: `${c.daysUntil} días`, cls: c.daysUntil <= 3 ? 'text-red-400 bg-red-400/10' : 'text-yellow-400 bg-yellow-400/10' }
 }
 
-export function ClientCharges({ charges, tracked, isCurrentMonth, monthLabel, onToggle }: ClientChargesProps) {
+export function ClientCharges({ charges, tracked, isCurrentMonth, monthLabel, onToggle, onAdjust }: ClientChargesProps) {
   const [view, setView] = useState<'week' | 'month'>('week')
   const [busy, setBusy] = useState<number | null>(null)
   // Estado optimista: la casilla cambia al instante y se corrige si el servidor falla
@@ -72,6 +76,28 @@ export function ClientCharges({ charges, tracked, isCurrentMonth, monthLabel, on
         void _done
         return rest
       })
+      setBusy(null)
+    }
+  }
+
+  async function adjust(c: ClientChargeRow) {
+    if (!onAdjust) return
+    const normal = c.baseAmount ?? c.amount
+    const raw = window.prompt(
+      `Monto a cobrar a ${c.clientName} en ${monthLabel} (normal: ${fmt(normal)}).\nSolo cambia este mes. Deja vacío para volver al monto normal:`,
+      String(c.amount)
+    )
+    if (raw === null) return
+    const trimmed = raw.trim()
+    let amount: number | null = null
+    if (trimmed !== '') {
+      amount = Number(trimmed.replace(',', '.'))
+      if (!Number.isFinite(amount) || amount < 0) { alert('Escribe un monto válido (0 o mayor)'); return }
+    }
+    setBusy(c.saleId)
+    try {
+      await onAdjust(c.saleId, amount)
+    } finally {
       setBusy(null)
     }
   }
@@ -146,7 +172,23 @@ export function ClientCharges({ charges, tracked, isCurrentMonth, monthLabel, on
                       </td>
                       <td className={`py-3 px-4 font-medium text-white ${c.paid ? 'line-through' : ''}`}>{c.clientName}</td>
                       <td className="py-3 px-4 text-brand-muted hidden sm:table-cell">{c.product}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-brand-primary">{fmt(c.amount)}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-brand-primary whitespace-nowrap">
+                        {fmt(c.amount)}
+                        {c.adjusted && c.baseAmount !== undefined && (
+                          <span className="block text-[11px] font-normal text-yellow-400">Ajustado (normal {fmt(c.baseAmount)})</span>
+                        )}
+                        {!c.paid && tracked && onAdjust && (
+                          <button
+                            onClick={() => adjust(c)}
+                            disabled={busy === c.saleId}
+                            className="ml-2 text-xs text-brand-muted hover:text-white"
+                            title="Cambiar el monto de este cobro (solo este mes)"
+                            aria-label={`Cambiar monto del cobro de ${c.clientName}`}
+                          >
+                            ✎
+                          </button>
+                        )}
+                      </td>
                       <td className="py-3 px-4 text-center text-brand-muted text-sm">{fmtDate(c.dueDate)}</td>
                       <td className="py-3 px-4 text-center">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${st.cls}`}>{st.text}</span>

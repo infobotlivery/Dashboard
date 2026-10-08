@@ -1,5 +1,5 @@
 import prisma from '@/lib/db'
-import { monthRange, sumMrr, collectedMrr, expectedCharges, monthKey, isRecurringAtMonthEnd, isTrackedMonth, type MonthRange, type PaymentLike } from '@/lib/finance'
+import { monthRange, sumMrr, collectedMrr, expectedCharges, monthKey, isRecurringAtMonthEnd, isTrackedMonth, type MonthRange, type PaymentLike, type AdjustmentLike } from '@/lib/finance'
 
 export type Period = 'week' | 'month' | 'quarter'
 
@@ -77,6 +77,7 @@ interface Data {
   proposals: { clientName: string; date: Date; status: string; amount: number; recurringAmount: number; callId: number | null }[]
   callRefs: { leadName: string; scheduledAt: Date }[] // llamadas cercanas, para no contar dos veces el lead de una propuesta
   payments: PaymentLike[]                       // mensualidades cobradas
+  adjustments: AdjustmentLike[]                 // montos ajustados de una mensualidad (cliente + mes)
   paidReceivables: { amount: number; paidAt: Date }[] // otras cuentas por cobrar cobradas
   hasCalls: boolean // ¿existe alguna llamada registrada? (si no, se usa el dato de Kommo)
   calls: { bookedAt: Date; scheduledAt: Date; status: string; attendance: string; isReschedule: boolean }[]
@@ -220,7 +221,7 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
     mrrCobrado: cash.mrr,
     porCobrarMensualidades:
       period === 'month' && isTrackedMonth(range)
-        ? expectedCharges(d.sales, d.payments, range, new Date()).filter(c => !c.paid).reduce((sum, c) => sum + c.amount, 0)
+        ? expectedCharges(d.sales, d.payments, range, new Date(), d.adjustments).filter(c => !c.paid).reduce((sum, c) => sum + c.amount, 0)
         : 0,
     facturacion,
     clientesPerdidos: d.sales.filter(s => s.status === 'cancelled' && s.cancelledAt && inRange(s.cancelledAt)).length,
@@ -240,7 +241,7 @@ export async function computePeriodMetrics(period: Period, date: Date) {
   const range = periodRange(period, date)
   const prev = previousRange(period, range)
 
-  const [sales, proposals, weekly, calls, callCount, payments, paidReceivables, callRefs] = await Promise.all([
+  const [sales, proposals, weekly, calls, callCount, payments, paidReceivables, callRefs, adjustments] = await Promise.all([
     loadSales(),
     prisma.proposal.findMany({
       where: { date: { gte: prev.start, lte: range.end } },
@@ -278,6 +279,9 @@ export async function computePeriodMetrics(period: Period, date: Date) {
         scheduledAt: { gte: new Date(prev.start.getTime() - 45 * DAY), lte: new Date(range.end.getTime() + 2 * DAY) }
       },
       select: { leadName: true, scheduledAt: true }
+    }),
+    prisma.chargeAdjustment.findMany({
+      where: { forMonth: { in: monthsIn({ ...range, start: prev.start }).map(m => monthKey(m.start)) } }
     })
   ])
   const data: Data = {
@@ -288,6 +292,7 @@ export async function computePeriodMetrics(period: Period, date: Date) {
     hasCalls: callCount > 0,
     callRefs,
     payments,
+    adjustments,
     paidReceivables: paidReceivables.flatMap(a => (a.paidAt ? [{ amount: a.amount, paidAt: a.paidAt }] : []))
   }
 

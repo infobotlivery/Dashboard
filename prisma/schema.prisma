@@ -237,3 +237,15 @@ model ExpenseReview {
   @@unique([expenseId, month])
   @@index([month])
 }
+
+// Ajuste del monto de UNA mensualidad (un cliente y un mes): descuento, cobro parcial, etc.
+// No cambia el precio del cliente ni el MRR contratado; solo lo que se espera cobrar ese mes.
+model ChargeAdjustment {
+  id        Int      @id @default(autoincrement())
+  saleId    Int
+  forMonth  String                               // "YYYY-MM"
+  amount    Float                                // Monto a cobrar ese mes
+  createdAt DateTime @default(now())
+
+  @@unique([saleId, forMonth])
+}

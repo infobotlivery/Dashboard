@@ -222,11 +222,19 @@ export interface PaymentLike {
   paidAt: Date
 }
 
+export interface AdjustmentLike {
+  saleId: number
+  forMonth: string
+  amount: number
+}
+
 export interface ClientCharge {
   saleId: number
   clientName: string
   product: string
-  amount: number
+  amount: number          // monto esperado ese mes (ajustado si hay ajuste)
+  baseAmount: number      // mensualidad normal del cliente
+  adjusted: boolean
   dueDate: Date
   paid: boolean
   paidAt: Date | null
@@ -241,7 +249,8 @@ export function expectedCharges(
   sales: ChargeSale[],
   payments: PaymentLike[],
   range: MonthRange,
-  asOf: Date
+  asOf: Date,
+  adjustments: AdjustmentLike[] = []
 ): ClientCharge[] {
   const tracked = isTrackedMonth(range)
   const key = monthKey(range.start)
@@ -252,11 +261,14 @@ export function expectedCharges(
     .map(s => {
       const dueDate = new Date(range.start.getFullYear(), range.start.getMonth(), Math.min(s.createdAt.getDate(), lastDay))
       const pay = payments.find(p => p.saleId === s.id && p.forMonth === key && p.paidAt <= asOf)
+      const adj = adjustments.find(a => a.saleId === s.id && a.forMonth === key)
       return {
         saleId: s.id,
         clientName: s.clientName,
         product: s.customProduct || s.product,
-        amount: s.recurringValue,
+        amount: adj ? adj.amount : s.recurringValue,
+        baseAmount: s.recurringValue,
+        adjusted: !!adj,
         dueDate,
         paid: !tracked || !!pay, // meses anteriores: se asumen cobrados
         paidAt: pay?.paidAt ?? null
