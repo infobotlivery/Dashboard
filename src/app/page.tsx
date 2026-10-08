@@ -144,6 +144,19 @@ export default function DashboardPage() {
     setRefreshKey(k => k + 1)
   }, [fetchBilling, selectedMonth])
 
+  // Cambiar el monto de UN cobro (cliente + mes): no toca el precio del cliente ni los otros meses
+  const adjustCharge = useCallback(async (saleId: number, amount: number | null) => {
+    const res = await fetch('/api/collections', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saleId, month: selectedMonth || currentYYYYMM(), amount })
+    })
+    const d = await res.json()
+    if (!d.success) alert(d.error || 'No se pudo cambiar el monto')
+    await fetchBilling(selectedMonth)
+    setRefreshKey(k => k + 1)
+  }, [fetchBilling, selectedMonth])
+
   // Tras crear/editar propuestas o registrar ventas: recarga todo y recalcula métricas
   const reloadAll = useCallback(async () => {
     try {
@@ -268,6 +281,7 @@ export default function DashboardPage() {
             isCurrentMonth={!selectedMonth || selectedMonth === currentYYYYMM()}
             monthLabel={new Date(`${selectedMonth || currentYYYYMM()}-01T12:00:00`).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
             onToggle={toggleCharge}
+            onAdjust={adjustCharge}
           />
         </section>
 

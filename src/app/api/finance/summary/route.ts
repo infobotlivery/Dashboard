@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const now = new Date()
 
     // Todas las consultas en paralelo
-    const [sales, expenses, accounts, payments] = await Promise.all([
+    const [sales, expenses, accounts, payments, adjustments] = await Promise.all([
       prisma.salesClose.findMany({
         select: {
           id: true,
@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
       // Pagos de la mensualidad de este mes (cualquier fecha) o cobrados dentro del mes
       prisma.clientPayment.findMany({
         where: { OR: [{ forMonth: monthKey(range.start) }, { paidAt: { gte: range.start, lte: range.end } }] }
-      })
+      }),
+      prisma.chargeAdjustment.findMany({ where: { forMonth: monthKey(range.start) } })
     ])
 
     // 1. Ingresos del mes
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
 
     // 4. Cuentas por cobrar / por pagar pendientes al día de consulta
     const asOf = now < range.end ? now : range.end
-    const charges = expectedCharges(sales, payments, range, asOf)
+    const charges = expectedCharges(sales, payments, range, asOf, adjustments)
     const { receivable, payable } = buildAccounts(accounts, expenses, range, now, charges)
 
     const netProfit = totalIncome - totalExpenses

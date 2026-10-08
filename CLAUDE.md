@@ -341,6 +341,12 @@ model Call {
 }
 ```
 
+### ChargeAdjustment
+Ajuste del monto de UNA mensualidad (cliente + mes): descuento, cobro parcial, etc. No cambia el precio del cliente ni el MRR contratado.
+```prisma
+model ChargeAdjustment { id Int @id; saleId Int; forMonth String /* "YYYY-MM" */; amount Float; @@unique([saleId, forMonth]) }
+```
+
 ### ClientPayment
 Mensualidades (MRR) COBRADAS a clientes: una fila por cliente y mes. La mensualidad esperada no se guarda; se calcula desde `SalesClose`.
 ```prisma
@@ -827,11 +833,18 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-10-08 | Cambiar el monto de UN cobro de cliente (solo ese mes) con ✎ en "Cobros de clientes"; modelo ChargeAdjustment | pendiente |
 | 2026-10-08 | Buscador de gastos por nombre (tabs Gastos y Revisión) y botón ✓ Pagado en el bloque "Automáticas" | pendiente |
 | 2026-10-08 | Cuentas por pagar automáticas (todos los gastos mensuales del mes, con botón ✓ Pagado en la portada) y bloque "Automáticas" en tab Gastos | pendiente |
 | 2026-10-08 | Revisión mensual de gastos (tab Revisión + aviso en portada), tipo de gasto Variable, etiquetas Fijo mensual / Variable / Único | pendiente |
 | 2026-10-08 | Portada reordenada (finanzas, cobros, llamadas, propuestas, métricas, cadencia, leyenda), cadencia y leyenda desplegables, detalle "¿De dónde sale este mes?", historial hasta 5 años, Clientes muestra recurrentes vigentes del mes | pendiente |
 | 2026-10-07 | Carga del trimestre jul–sep 2026 (PDF): seguimiento de cobros desde julio 2026, importador de cobros CSV, exportación filtrable por fechas, borrado masivo con respaldo, "mensualidades por cobrar" real | pendiente |
+
+### Detalle del cambio 2026-10-08 (ajuste de un cobro):
+- `PUT /api/collections { saleId, month, amount|null }` ajusta el monto de una mensualidad pendiente (solo ese cliente y mes; `null` quita el ajuste). Si el cobro ya está cobrado devuelve 409: primero se desmarca el ✓.
+- `expectedCharges(..., adjustments)` usa el monto ajustado (`amount`) y expone `baseAmount` y `adjusted`; lo usan cobros, cuentas por cobrar (`summary`) y "mensualidades por cobrar" (`periodMetrics`). Al marcar ✓ se guarda el monto ajustado en `ClientPayment`.
+- El MRR proyectado/activo sigue usando el precio contratado (`recurringValue`).
+- UI: botón ✎ junto al monto en "Cobros de clientes" (solo cobros pendientes de meses con seguimiento).
 
 ### Detalle del cambio 2026-10-08 (buscador y pagado):
 - `GastosTab` y `RevisionTab`: buscador por nombre (sin tildes ni mayúsculas). `AutoAccounts` muestra ✓ Pagado en cada gasto por pagar (usa `PATCH /api/finance/expenses` y refresca el resumen).

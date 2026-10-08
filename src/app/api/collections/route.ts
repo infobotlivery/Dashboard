@@ -20,17 +20,20 @@ export async function GET(request: NextRequest) {
     const now = new Date()
     const asOf = now < range.end ? now : range.end
 
-    const [sales, payments] = await Promise.all([
+    const [sales, payments, adjustments] = await Promise.all([
       prisma.salesClose.findMany({ where: { recurringValue: { gt: 0 } }, select: SALE_SELECT }),
-      prisma.clientPayment.findMany({ where: { forMonth: monthKey(range.start) } })
+      prisma.clientPayment.findMany({ where: { forMonth: monthKey(range.start) } }),
+      prisma.chargeAdjustment.findMany({ where: { forMonth: monthKey(range.start) } })
     ])
 
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const charges = expectedCharges(sales, payments, range, asOf).map(c => ({
+    const charges = expectedCharges(sales, payments, range, asOf, adjustments).map(c => ({
       saleId: c.saleId,
       clientName: c.clientName,
       product: c.product,
       amount: c.amount,
+      baseAmount: c.baseAmount,
+      adjusted: c.adjusted,
       dueDate: c.dueDate.toISOString(),
       paid: c.paid,
       paidAt: c.paidAt?.toISOString() ?? null,
@@ -73,9 +76,10 @@ export async function POST(request: NextRequest) {
 
     const where = { saleId_forMonth: { saleId: sale.id, forMonth: month } }
     if (paid) {
+      const adj = await prisma.chargeAdjustment.findUnique({ where })
       await prisma.clientPayment.upsert({
         where,
-        create: { saleId: sale.id, forMonth: month, amount: sale.recurringValue, paidAt: new Date() },
+        create: { saleId: sale.id, forMonth: month, amount: adj ? adj.amount : sale.recurringValue, paidAt: new Date() },
         update: {}
       })
     } else {
@@ -85,5 +89,45 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error updating collection:', error)
     return errorResponse('Error al actualizar el cobro', 500)
+  }
+}
+
+// PUT /api/collections — { saleId, month: "YYYY-MM", amount: number | null }
+// Ajusta el monto de UNA mensualidad (solo ese cliente y ese mes). amount=null quita el ajuste.
+// Solo se puede ajustar un cobro pendiente: si ya está cobrado, primero se desmarca.
+export async function PUT(request: NextRequest) {
+  try {
+    const { saleId, month, amount } = await request.json()
+    if (!saleId || typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month)) {
+      return errorResponse('saleId y month (AAAA-MM) son requeridos')
+    }
+    if (amount !== null && !(typeof amount === 'number' && Number.isFinite(amount) && amount >= 0)) {
+      return errorResponse('El monto debe ser un número mayor o igual a 0 (o null para quitar el ajuste)')
+    }
+    const range = monthRange(parseMonth(month))
+    if (!isTrackedMonth(range)) {
+      return errorResponse('Los meses anteriores a julio 2026 se consideran cobrados y no se pueden modificar')
+    }
+    const sale = await prisma.salesClose.findUnique({ where: { id: Number(saleId) }, select: SALE_SELECT })
+    if (!sale || sale.recurringValue <= 0 || !isRecurringAtMonthEnd(sale, range.end)) {
+      return errorResponse('Ese cliente no tiene una mensualidad vigente en ese mes', 404)
+    }
+    const where = { saleId_forMonth: { saleId: sale.id, forMonth: month } }
+    if (await prisma.clientPayment.findUnique({ where })) {
+      return errorResponse('Ese cobro ya está marcado como cobrado: desmárcalo primero para cambiar el monto', 409)
+    }
+    if (amount === null || amount === sale.recurringValue) {
+      await prisma.chargeAdjustment.deleteMany({ where: { saleId: sale.id, forMonth: month } })
+    } else {
+      await prisma.chargeAdjustment.upsert({
+        where,
+        create: { saleId: sale.id, forMonth: month, amount },
+        update: { amount }
+      })
+    }
+    return successResponse({ saleId: sale.id, month, amount })
+  } catch (error) {
+    console.error('Error adjusting collection:', error)
+    return errorResponse('Error al ajustar el cobro', 500)
   }
 }
