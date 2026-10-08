@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       .reduce((sum, s) => sum + s.onboardingValue, 0)
 
     // MRR proyectado: lo que TODOS los clientes con recurrencia vigente deberían pagar este mes
-    const projected = sumMrr(sales, range.end)
+    const projected = sumMrr(sales, range.end, adjustments)
 
     // Facturación = lo realmente cobrado: onboarding + mensualidades cobradas + otras cuentas por cobrar cobradas
     const collected = collectedMrr(sales, payments, range)

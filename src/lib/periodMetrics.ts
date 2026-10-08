@@ -155,12 +155,12 @@ function compute(period: Period, range: MonthRange, d: Data): PeriodValues {
   // Base recurrente: MRR perdido, churn y clientes activos
   const lost = d.sales.filter(s => s.status === 'cancelled' && s.cancelledAt && s.recurringValue > 0 && inRange(s.cancelledAt))
   const mrrPerdido = lost.reduce((sum, s) => sum + s.recurringValue, 0)
-  const before = sumMrr(d.sales, new Date(range.start.getTime() - 1))
+  const before = sumMrr(d.sales, new Date(range.start.getTime() - 1), d.adjustments)
   const mrrInicio = before.services + before.community
   const clientesActivos = d.sales.filter(s => s.recurringValue > 0 && isRecurringAtMonthEnd(s, range.end)).length
 
   // MRR proyectado al cierre del periodo (lo que los clientes deberían pagar)
-  const mrr = sumMrr(d.sales, range.end)
+  const mrr = sumMrr(d.sales, range.end, d.adjustments)
   const mrrNuevo = newSales.filter(s => s.status === 'active').reduce((sum, s) => sum + s.recurringValue, 0)
   const pending = proposals.filter(p => p.status === 'por_aprobacion')
   const porCerrarPagoUnico = pending.reduce((sum, p) => sum + p.amount, 0)
