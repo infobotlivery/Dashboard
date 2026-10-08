@@ -34,13 +34,18 @@ export function isRecurringAtMonthEnd(sale: SaleLike, monthEnd: Date): boolean {
   return false
 }
 
-export function sumMrr(sales: SaleLike[], monthEnd: Date) {
+export function sumMrr(sales: SaleLike[], monthEnd: Date, adjustments: AdjustmentLike[] = []) {
   let services = 0
   let community = 0
+  const key = monthKey(monthEnd)
   for (const s of sales) {
     if (!isRecurringAtMonthEnd(s, monthEnd)) continue
-    if (s.product === 'Comunidad') community += s.recurringValue
-    else services += s.recurringValue
+    // Si ese mes se ajustó el cobro de este cliente, el MRR del mes usa el monto ajustado
+    const id = (s as { id?: number }).id
+    const adj = id === undefined ? undefined : adjustments.find(a => a.saleId === id && a.forMonth === key)
+    const value = adj ? adj.amount : s.recurringValue
+    if (s.product === 'Comunidad') community += value
+    else services += value
   }
   return { services, community }
 }

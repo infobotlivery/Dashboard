@@ -833,6 +833,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-10-08 | El ajuste de un cobro también actualiza el MRR proyectado/activo de ese mes | pendiente |
 | 2026-10-08 | Cambiar el monto de UN cobro de cliente (solo ese mes) con ✎ en "Cobros de clientes"; modelo ChargeAdjustment | pendiente |
 | 2026-10-08 | Buscador de gastos por nombre (tabs Gastos y Revisión) y botón ✓ Pagado en el bloque "Automáticas" | pendiente |
 | 2026-10-08 | Cuentas por pagar automáticas (todos los gastos mensuales del mes, con botón ✓ Pagado en la portada) y bloque "Automáticas" en tab Gastos | pendiente |
@@ -843,7 +844,7 @@ docker logs <container>  # Ver logs del contenedor
 ### Detalle del cambio 2026-10-08 (ajuste de un cobro):
 - `PUT /api/collections { saleId, month, amount|null }` ajusta el monto de una mensualidad pendiente (solo ese cliente y mes; `null` quita el ajuste). Si el cobro ya está cobrado devuelve 409: primero se desmarca el ✓.
 - `expectedCharges(..., adjustments)` usa el monto ajustado (`amount`) y expone `baseAmount` y `adjusted`; lo usan cobros, cuentas por cobrar (`summary`) y "mensualidades por cobrar" (`periodMetrics`). Al marcar ✓ se guarda el monto ajustado en `ClientPayment`.
-- El MRR proyectado/activo sigue usando el precio contratado (`recurringValue`).
+- El MRR proyectado/activo **de ese mes** también usa el monto ajustado (`sumMrr(..., adjustments)` en summary, periodMetrics y breakdown); los otros meses y el precio contratado del cliente no cambian.
 - UI: botón ✎ junto al monto en "Cobros de clientes" (solo cobros pendientes de meses con seguimiento).
 
 ### Detalle del cambio 2026-10-08 (buscador y pagado):

@@ -16,12 +16,13 @@ export async function GET(request: NextRequest) {
     const tracked = isTrackedMonth(range)
     const key = monthKey(range.start)
 
-    const [sales, payments, others] = await Promise.all([
+    const [sales, payments, others, adjustments] = await Promise.all([
       prisma.salesClose.findMany({
         select: { id: true, clientName: true, product: true, customProduct: true, onboardingValue: true, recurringValue: true, status: true, createdAt: true, cancelledAt: true }
       }),
       prisma.clientPayment.findMany({ where: { paidAt: { gte: range.start, lte: range.end } } }),
-      prisma.accountEntry.findMany({ where: { kind: 'receivable', status: 'paid', paidAt: { gte: range.start, lte: range.end } } })
+      prisma.accountEntry.findMany({ where: { kind: 'receivable', status: 'paid', paidAt: { gte: range.start, lte: range.end } } }),
+      prisma.chargeAdjustment.findMany({ where: { forMonth: key } })
     ])
     const byId = new Map(sales.map(s => [s.id, s]))
     const label = (s: { product: string; customProduct: string | null }) => s.customProduct || s.product
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     const mrr = sales
       .filter(s => s.recurringValue > 0 && isRecurringAtMonthEnd(s, range.end))
-      .map(s => ({ client: s.clientName, product: label(s), amount: s.recurringValue, since: formatLocalDate(s.createdAt), cancelledAt: s.cancelledAt ? formatLocalDate(s.cancelledAt) : null }))
+      .map(s => ({ client: s.clientName, product: label(s), amount: adjustments.find(a => a.saleId === s.id)?.amount ?? s.recurringValue, since: formatLocalDate(s.createdAt), cancelledAt: s.cancelledAt ? formatLocalDate(s.cancelledAt) : null }))
       .sort((a, b) => b.amount - a.amount)
 
     const sum = (rows: { amount: number }[]) => rows.reduce((t, r) => t + r.amount, 0)
