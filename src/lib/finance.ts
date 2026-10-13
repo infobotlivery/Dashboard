@@ -84,6 +84,7 @@ export interface AccountsBucket {
   overdue: number
   count: number
   items: AccountItem[]
+  upcoming?: AccountItem[] // cuotas de meses posteriores (no suman a pendiente: aún no vencen)
 }
 
 interface AccountEntryLike {
@@ -316,6 +317,46 @@ export function expectedCharges(
     })
   }
   return out.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+}
+
+/**
+ * Cuotas de asesorías que vencen en meses POSTERIORES al consultado y siguen sin cobrarse.
+ * Sirven para ver el saldo pendiente de cada cliente (cuánto falta por cobrar en total).
+ */
+export function upcomingInstallments(
+  sales: ChargeSale[],
+  payments: PaymentLike[],
+  adjustments: AdjustmentLike[],
+  range: MonthRange
+): AccountItem[] {
+  const items: AccountItem[] = []
+  for (const s of sales) {
+    const n = s.installmentCount ?? 0
+    const base = s.installmentAmount ?? 0
+    if (n <= 0 || base <= 0) continue
+    for (let k = 1; k <= n; k++) {
+      const due = new Date(s.createdAt.getFullYear(), s.createdAt.getMonth() + k, 1)
+      if (due <= range.start) continue // meses ya cubiertos por el cobro normal del mes
+      const month = monthRange(due)
+      if (baseChargeFor(s, month)?.kind !== 'cuota') continue // cancelado antes de esa cuota
+      const key = monthKey(due)
+      if (payments.some(p => p.saleId === s.id && p.forMonth === key)) continue
+      const adj = adjustments.find(a => a.saleId === s.id && a.forMonth === key)
+      const day = Math.min(s.createdAt.getDate(), month.end.getDate())
+      items.push({
+        id: `cuota-${s.id}-${key}`,
+        source: 'client',
+        saleId: s.id,
+        forMonth: key,
+        concept: s.clientName,
+        counterparty: `Cuota ${k}/${n} · ${s.customProduct || s.product}`,
+        amount: adj ? adj.amount : base,
+        dueDate: new Date(due.getFullYear(), due.getMonth(), day).toISOString(),
+        overdue: false
+      })
+    }
+  }
+  return items.sort((a, b) => a.dueDate.localeCompare(b.dueDate))
 }
 
 /** MRR efectivamente cobrado en el mes (por fecha de cobro). Meses sin registro: todo el MRR proyectado. */

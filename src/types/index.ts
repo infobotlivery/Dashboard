@@ -131,6 +131,7 @@ export interface AccountsTotals {
   overdue: number
   count: number
   items?: AccountItem[]
+  upcoming?: AccountItem[]
 }
 
 export interface AccountEntry {
