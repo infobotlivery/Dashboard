@@ -835,6 +835,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-10-13 | La portada se recarga sola al volver a la pestaña (evita números viejos tras editar en Finanzas) | pendiente |
 | 2026-10-13 | Propuestas no aprobadas con cierre aún activo: aviso "⚠ Cierre aún activo: quitar" en la tabla (vínculo por id o por nombre + montos iguales) | pendiente |
 | 2026-10-13 | Asesorías en cuotas (pago inicial + N cuotas pendientes de monto fijo, una por mes, fuera del MRR) al aprobar una propuesta; al sacar una propuesta de "Aprobada" el cierre sale de la facturación (también cuando se asocia por nombre) | pendiente |
 | 2026-10-08 | El ajuste de un cobro también actualiza el MRR proyectado/activo de ese mes | pendiente |
