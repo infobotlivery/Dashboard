@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import prisma from '@/lib/db'
 import { errorResponse, successResponse } from '@/lib/api'
-import { expectedCharges, isRecurringAtMonthEnd, isTrackedMonth, monthKey, monthRange } from '@/lib/finance'
+import { baseChargeFor, expectedCharges, isTrackedMonth, monthKey, monthRange } from '@/lib/finance'
 
 function parseMonth(value: string | null): Date {
   const m = value && /^(\d{4})-(\d{2})$/.exec(value)
@@ -10,7 +10,8 @@ function parseMonth(value: string | null): Date {
 
 const SALE_SELECT = {
   id: true, clientName: true, customProduct: true, product: true, status: true,
-  createdAt: true, cancelledAt: true, recurringValue: true
+  createdAt: true, cancelledAt: true, recurringValue: true,
+  installmentCount: true, installmentAmount: true
 } as const
 
 // GET /api/collections?month=YYYY-MM — mensualidades de clientes del mes (cobradas y por cobrar)
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     const asOf = now < range.end ? now : range.end
 
     const [sales, payments, adjustments] = await Promise.all([
-      prisma.salesClose.findMany({ where: { recurringValue: { gt: 0 } }, select: SALE_SELECT }),
+      prisma.salesClose.findMany({ where: { OR: [{ recurringValue: { gt: 0 } }, { installmentCount: { gt: 0 } }] }, select: SALE_SELECT }),
       prisma.clientPayment.findMany({ where: { forMonth: monthKey(range.start) } }),
       prisma.chargeAdjustment.findMany({ where: { forMonth: monthKey(range.start) } })
     ])
@@ -33,6 +34,8 @@ export async function GET(request: NextRequest) {
       product: c.product,
       amount: c.amount,
       baseAmount: c.baseAmount,
+      kind: c.kind,
+      label: c.label,
       adjusted: c.adjusted,
       dueDate: c.dueDate.toISOString(),
       paid: c.paid,
@@ -70,8 +73,9 @@ export async function POST(request: NextRequest) {
     }
 
     const sale = await prisma.salesClose.findUnique({ where: { id: Number(saleId) }, select: SALE_SELECT })
-    if (!sale || sale.recurringValue <= 0 || !isRecurringAtMonthEnd(sale, range.end)) {
-      return errorResponse('Ese cliente no tiene una mensualidad vigente en ese mes', 404)
+    const base = sale ? baseChargeFor(sale, range) : null
+    if (!sale || !base) {
+      return errorResponse('Ese cliente no tiene un cobro (mensualidad o cuota) en ese mes', 404)
     }
 
     const where = { saleId_forMonth: { saleId: sale.id, forMonth: month } }
@@ -79,7 +83,7 @@ export async function POST(request: NextRequest) {
       const adj = await prisma.chargeAdjustment.findUnique({ where })
       await prisma.clientPayment.upsert({
         where,
-        create: { saleId: sale.id, forMonth: month, amount: adj ? adj.amount : sale.recurringValue, paidAt: new Date() },
+        create: { saleId: sale.id, forMonth: month, amount: adj ? adj.amount : base.amount, paidAt: new Date() },
         update: {}
       })
     } else {
@@ -109,14 +113,15 @@ export async function PUT(request: NextRequest) {
       return errorResponse('Los meses anteriores a julio 2026 se consideran cobrados y no se pueden modificar')
     }
     const sale = await prisma.salesClose.findUnique({ where: { id: Number(saleId) }, select: SALE_SELECT })
-    if (!sale || sale.recurringValue <= 0 || !isRecurringAtMonthEnd(sale, range.end)) {
-      return errorResponse('Ese cliente no tiene una mensualidad vigente en ese mes', 404)
+    const base = sale ? baseChargeFor(sale, range) : null
+    if (!sale || !base) {
+      return errorResponse('Ese cliente no tiene un cobro (mensualidad o cuota) en ese mes', 404)
     }
     const where = { saleId_forMonth: { saleId: sale.id, forMonth: month } }
     if (await prisma.clientPayment.findUnique({ where })) {
       return errorResponse('Ese cobro ya está marcado como cobrado: desmárcalo primero para cambiar el monto', 409)
     }
-    if (amount === null || amount === sale.recurringValue) {
+    if (amount === null || amount === base.amount) {
       await prisma.chargeAdjustment.deleteMany({ where: { saleId: sale.id, forMonth: month } })
     } else {
       await prisma.chargeAdjustment.upsert({

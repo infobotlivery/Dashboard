@@ -411,6 +411,16 @@ if ! sqlite3 "$DB_PATH" "PRAGMA table_info(Proposal);" 2>/dev/null | grep -q "ca
     echo "Columna Proposal.callId agregada"
 fi
 
+# Cuotas pendientes de asesorías (SalesClose.installmentCount / installmentAmount)
+if ! sqlite3 "$DB_PATH" "PRAGMA table_info(SalesClose);" 2>/dev/null | grep -q "installmentCount"; then
+    sqlite3 "$DB_PATH" "ALTER TABLE SalesClose ADD COLUMN installmentCount INTEGER;" 2>&1 || echo "Error agregando SalesClose.installmentCount"
+    echo "Columna SalesClose.installmentCount agregada"
+fi
+if ! sqlite3 "$DB_PATH" "PRAGMA table_info(SalesClose);" 2>/dev/null | grep -q "installmentAmount"; then
+    sqlite3 "$DB_PATH" "ALTER TABLE SalesClose ADD COLUMN installmentAmount REAL;" 2>&1 || echo "Error agregando SalesClose.installmentAmount"
+    echo "Columna SalesClose.installmentAmount agregada"
+fi
+
 # Cobros de mensualidades de clientes (ClientPayment)
 echo "=== Verificando tabla ClientPayment ==="
 sqlite3 "$DB_PATH" "

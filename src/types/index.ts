@@ -61,6 +61,8 @@ export interface SalesClose {
   createdAt: string
   cancelledAt: string | null
   proposalId?: number | null
+  installmentCount?: number | null
+  installmentAmount?: number | null
 }
 
 export interface SalesSummary {

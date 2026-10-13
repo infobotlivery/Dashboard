@@ -72,6 +72,8 @@ model SalesClose {
   createdAt       DateTime  @default(now())           // Fecha registro
   cancelledAt     DateTime?                           // Fecha de cancelación
   proposalId      Int?                                // Propuesta que originó el cierre (para deshacerlo)
+  installmentCount  Int?                              // Cuotas pendientes después del pago inicial (asesorías)
+  installmentAmount Float?                            // Monto de cada cuota (una por mes, no cuenta como MRR)
   updatedAt       DateTime  @updatedAt
 
   @@index([status, createdAt])

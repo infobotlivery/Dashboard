@@ -19,7 +19,8 @@ interface CloseSaleModalProps {
 export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProps) {
   const [form, setForm] = useState({
     clientName: '', product: 'CRM', customProduct: '',
-    onboardingValue: '', recurringValue: '', contractMonths: '', createdAt: formatLocalDate(new Date())
+    onboardingValue: '', recurringValue: '', contractMonths: '',
+    installmentCount: '', installmentAmount: '', createdAt: formatLocalDate(new Date())
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -34,6 +35,8 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
       onboardingValue: String(proposal.amount || ''),
       recurringValue: proposal.recurringAmount ? String(proposal.recurringAmount) : '',
       contractMonths: '',
+      installmentCount: '',
+      installmentAmount: '',
       createdAt: formatLocalDate(new Date())
     })
     setError('')
@@ -43,6 +46,9 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
     if (!proposal) return
     if (!form.clientName.trim()) return setError('El nombre del cliente es requerido')
     if (form.product === 'Otro' && !form.customProduct.trim()) return setError('Indica el producto')
+    if (isAdvisory && (Number(form.installmentCount) > 0) !== (Number(form.installmentAmount) > 0)) {
+      return setError('Indica el número de cuotas y el monto por cuota (o deja ambos vacíos si ya pagó todo)')
+    }
 
     setSaving(true)
     setError('')
@@ -54,8 +60,11 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
           product: form.product,
           customProduct: form.product === 'Otro' ? form.customProduct.trim() : null,
           onboardingValue: Number(form.onboardingValue) || 0,
-          recurringValue: Number(form.recurringValue) || 0,
-          contractMonths: form.contractMonths ? Number(form.contractMonths) : null,
+          // Asesoría: se cobra en cuotas (no es MRR)
+          recurringValue: isAdvisory ? 0 : Number(form.recurringValue) || 0,
+          contractMonths: !isAdvisory && form.contractMonths ? Number(form.contractMonths) : null,
+          installmentCount: isAdvisory ? Number(form.installmentCount) || 0 : 0,
+          installmentAmount: isAdvisory ? Number(form.installmentAmount) || 0 : 0,
           status: 'active',
           proposalId: proposal.id,
           createdAt: parseLocalDate(form.createdAt).toISOString()
@@ -78,6 +87,10 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
       setSaving(false)
     }
   }
+
+  const isAdvisory = form.product === 'Asesoría'
+  const cuotas = Number(form.installmentCount) || 0
+  const montoCuota = Number(form.installmentAmount) || 0
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm({ ...form, [k]: e.target.value })
@@ -105,15 +118,33 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
             <input type="date" className={modalInputCls} value={form.createdAt} onChange={set('createdAt')} />
           </Field>
         )}
-        <Field label="Onboarding (pago único)">
+        <Field label={isAdvisory ? 'Pago inicial (onboarding)' : 'Onboarding (pago único)'}>
           <input type="number" min="0" step="0.01" className={modalInputCls} value={form.onboardingValue} onChange={set('onboardingValue')} />
         </Field>
-        <Field label="Mensual (MRR)">
-          <input type="number" min="0" step="0.01" className={modalInputCls} value={form.recurringValue} onChange={set('recurringValue')} placeholder="0 si no es recurrente" />
-        </Field>
-        <Field label="Meses de contrato">
-          <input type="number" min="1" className={modalInputCls} value={form.contractMonths} onChange={set('contractMonths')} placeholder="Opcional" />
-        </Field>
+        {isAdvisory ? (
+          <>
+            <Field label="Cuotas pendientes (número)">
+              <input type="number" min="0" step="1" className={modalInputCls} value={form.installmentCount} onChange={set('installmentCount')} placeholder="Ej. 3" />
+            </Field>
+            <Field label="Monto por cuota">
+              <input type="number" min="0" step="0.01" className={modalInputCls} value={form.installmentAmount} onChange={set('installmentAmount')} placeholder="Ej. 150" />
+            </Field>
+            <p className="sm:col-span-2 text-xs text-brand-muted">
+              {cuotas > 0 && montoCuota > 0
+                ? `Se cobrará ${cuotas} cuota${cuotas === 1 ? '' : 's'} de $${montoCuota}, una por mes a partir del mes siguiente (total en cuotas: $${(cuotas * montoCuota).toLocaleString('en-US')}). Las marcas con ✓ en "Cobros de clientes"; no cuentan como MRR.`
+                : 'Si el cliente ya pagó todo, deja las cuotas vacías.'}
+            </p>
+          </>
+        ) : (
+          <>
+            <Field label="Mensual (MRR)">
+              <input type="number" min="0" step="0.01" className={modalInputCls} value={form.recurringValue} onChange={set('recurringValue')} placeholder="0 si no es recurrente" />
+            </Field>
+            <Field label="Meses de contrato">
+              <input type="number" min="1" className={modalInputCls} value={form.contractMonths} onChange={set('contractMonths')} placeholder="Opcional" />
+            </Field>
+          </>
+        )}
         {form.product === 'Otro' && (
           <Field label="Fecha del cierre">
             <input type="date" className={modalInputCls} value={form.createdAt} onChange={set('createdAt')} />

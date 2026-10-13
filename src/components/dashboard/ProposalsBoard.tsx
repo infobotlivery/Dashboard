@@ -76,21 +76,24 @@ export function ProposalsBoard({ proposals, month, onChanged }: ProposalsBoardPr
     // Aprobar = cerrar la venta: se pide el registro del cierre en el momento
     if (status === 'aprobada') return setClosing(p)
 
-    // Salir de "aprobada": ofrecer deshacer el cierre de venta vinculado
+    // Salir de "aprobada": el cierre de venta sale también de la facturación (se confirma una sola vez)
     let undoSale = false
     if (p.status === 'aprobada') {
       if (p.sale) {
-        undoSale = confirm(
-          `Esta propuesta tiene un cierre registrado (${p.sale.clientName}).\n\n` +
-          'Aceptar = deshacer también el cierre de venta.\nCancelar = conservar el cierre y solo cambiar el estado.'
+        const ok = confirm(
+          `Esta propuesta está aprobada y tiene un cierre registrado (${p.sale.clientName}).\n\n` +
+          'Al cambiarla se elimina también ese cierre: sale de la facturación, del MRR y de los cobros de clientes.\n\n' +
+          '¿Continuar?'
         )
+        if (!ok) return
+        undoSale = true
       } else {
-        alert('Esta propuesta no tiene un cierre vinculado. Si registraste el cierre antes, elimínalo en Finanzas → Clientes.')
+        alert('Esta propuesta no tiene un cierre vinculado. Si registraste el cierre aparte, elimínalo en Finanzas → Clientes.')
       }
     }
     setError('')
     try {
-      const res = await apiFetch('/api/proposals', { method: 'PUT', body: JSON.stringify({ id: p.id, status, undoSale }) })
+      const res = await apiFetch('/api/proposals', { method: 'PUT', body: JSON.stringify({ id: p.id, status, undoSale, saleId: undoSale ? p.sale?.id : undefined }) })
       const data = await res.json()
       if (!data.success) return setError(data.error || 'No se pudo cambiar el estado')
       onChanged()
@@ -105,7 +108,7 @@ export function ProposalsBoard({ proposals, month, onChanged }: ProposalsBoardPr
       `Esta propuesta tiene un cierre de venta registrado (${p.sale!.clientName}).\n\nAceptar = eliminar también el cierre.\nCancelar = conservar el cierre.`
     )
     try {
-      const res = await apiFetch(`/api/proposals?id=${p.id}${deleteSale ? '&deleteSale=true' : ''}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/proposals?id=${p.id}${deleteSale ? `&deleteSale=true&saleId=${p.sale?.id ?? ''}` : ''}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.success) onChanged()
       else setError(data.error || 'No se pudo eliminar')

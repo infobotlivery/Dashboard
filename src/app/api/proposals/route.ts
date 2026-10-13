@@ -7,7 +7,15 @@ async function deleteLinkedSales(proposalId: number) {
   const sales = await prisma.salesClose.findMany({ where: { proposalId }, select: { id: true } })
   const ids = sales.map(s => s.id)
   await prisma.clientPayment.deleteMany({ where: { saleId: { in: ids } } })
+  await prisma.chargeAdjustment.deleteMany({ where: { saleId: { in: ids } } })
   await prisma.salesClose.deleteMany({ where: { id: { in: ids } } })
+}
+
+// Borra un cierre de venta concreto junto con sus cobros registrados
+async function deleteSaleById(saleId: number) {
+  await prisma.clientPayment.deleteMany({ where: { saleId } })
+  await prisma.chargeAdjustment.deleteMany({ where: { saleId } })
+  await prisma.salesClose.deleteMany({ where: { id: saleId } })
 }
 
 // GET /api/proposals — lista completa, soporta ?status= y ?month=YYYY-MM
@@ -42,6 +50,23 @@ export async function GET(request: NextRequest) {
       select: { id: true, proposalId: true, clientName: true, onboardingValue: true, recurringValue: true }
     })
     const saleByProposal = new Map(sales.map(s => [s.proposalId, s]))
+
+    // Propuestas aprobadas sin vínculo (el cierre se registró por otra vía, p. ej. Finanzas → Clientes o CSV):
+    // se asocia por nombre de cliente al cierre más reciente que no pertenezca a otra propuesta.
+    const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
+    const unlinkedApproved = proposals.filter(p => p.status === 'aprobada' && !saleByProposal.has(p.id))
+    if (unlinkedApproved.length > 0) {
+      const free = await prisma.salesClose.findMany({
+        where: { proposalId: null },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, proposalId: true, clientName: true, onboardingValue: true, recurringValue: true }
+      })
+      const taken = new Set<number>()
+      for (const p of unlinkedApproved) {
+        const match = free.find(s => !taken.has(s.id) && norm(s.clientName) === norm(p.clientName))
+        if (match) { taken.add(match.id); saleByProposal.set(p.id, match) }
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -102,7 +127,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id, clientName, company, service, amount, recurringAmount, date, status, notes, undoSale } = body
+    const { id, clientName, company, service, amount, recurringAmount, date, status, notes, undoSale, saleId } = body
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'id es requerido' }, { status: 400 })
@@ -111,6 +136,8 @@ export async function PUT(request: NextRequest) {
     // Deshacer el cierre vinculado cuando la propuesta deja de estar aprobada
     if (undoSale === true) {
       await deleteLinkedSales(Number(id))
+      // Cierre asociado por nombre (sin vínculo directo): se borra por su id
+      if (saleId) await deleteSaleById(Number(saleId))
     }
 
     const proposal = await prisma.proposal.update({
@@ -155,6 +182,8 @@ export async function DELETE(request: NextRequest) {
     // ?deleteSale=true elimina también el cierre de venta vinculado
     if (searchParams.get('deleteSale') === 'true') {
       await deleteLinkedSales(Number(id))
+      const saleId = searchParams.get('saleId')
+      if (saleId) await deleteSaleById(Number(saleId))
     }
     await prisma.proposal.delete({ where: { id: Number(id) } })
 

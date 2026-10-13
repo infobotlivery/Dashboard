@@ -86,7 +86,7 @@ interface Data {
 
 function loadSales() {
   return prisma.salesClose.findMany({
-    select: { id: true, clientName: true, status: true, createdAt: true, cancelledAt: true, recurringValue: true, onboardingValue: true, product: true }
+    select: { id: true, clientName: true, status: true, createdAt: true, cancelledAt: true, recurringValue: true, onboardingValue: true, product: true, installmentCount: true, installmentAmount: true }
   })
 }
 

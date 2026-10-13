@@ -235,6 +235,8 @@ model SalesClose {
   createdAt       DateTime  @default(now())
   cancelledAt     DateTime?
   proposalId      Int?                                // Propuesta que originó el cierre (para deshacerlo)
+  installmentCount  Int?                              // Cuotas pendientes tras el pago inicial (asesorías)
+  installmentAmount Float?                            // Monto por cuota
   updatedAt       DateTime  @updatedAt
 }
 ```
@@ -833,6 +835,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-10-13 | Asesorías en cuotas (pago inicial + N cuotas pendientes de monto fijo, una por mes, fuera del MRR) al aprobar una propuesta; al sacar una propuesta de "Aprobada" el cierre sale de la facturación (también cuando se asocia por nombre) | pendiente |
 | 2026-10-08 | El ajuste de un cobro también actualiza el MRR proyectado/activo de ese mes | pendiente |
 | 2026-10-08 | Cambiar el monto de UN cobro de cliente (solo ese mes) con ✎ en "Cobros de clientes"; modelo ChargeAdjustment | pendiente |
 | 2026-10-08 | Buscador de gastos por nombre (tabs Gastos y Revisión) y botón ✓ Pagado en el bloque "Automáticas" | pendiente |
@@ -840,6 +843,13 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-08 | Revisión mensual de gastos (tab Revisión + aviso en portada), tipo de gasto Variable, etiquetas Fijo mensual / Variable / Único | pendiente |
 | 2026-10-08 | Portada reordenada (finanzas, cobros, llamadas, propuestas, métricas, cadencia, leyenda), cadencia y leyenda desplegables, detalle "¿De dónde sale este mes?", historial hasta 5 años, Clientes muestra recurrentes vigentes del mes | pendiente |
 | 2026-10-07 | Carga del trimestre jul–sep 2026 (PDF): seguimiento de cobros desde julio 2026, importador de cobros CSV, exportación filtrable por fechas, borrado masivo con respaldo, "mensualidades por cobrar" real | pendiente |
+
+### Detalle del cambio 2026-10-13 (cuotas de asesorías y deshacer cierre):
+- **Cuotas:** si el producto del cierre es **Asesoría**, `CloseSaleModal` pide pago inicial (onboarding), **número de cuotas pendientes** y **monto por cuota** en vez de mensual/meses de contrato. Se guarda en `SalesClose.installmentCount/installmentAmount` (recurringValue = 0: no es MRR).
+- `baseChargeFor(sale, range)` (`src/lib/finance.ts`) decide qué se cobra cada mes: mensualidad (recurrente) o **cuota k/N** (una por mes desde el mes siguiente al cierre; si el cliente se cancela dejan de cobrarse las siguientes). `expectedCharges` expone `kind` y `label`; las cuotas salen en "Cobros de clientes" (insignia "Cuota 2/4") y en cuentas por cobrar, se marcan con ✓ (`ClientPayment`) y se pueden ajustar con ✎. Suman a la facturación al cobrarse, no al MRR.
+- Los textos "MRR cobrado" pasan a "mensualidades y cuotas cobradas".
+- **Deshacer cierre:** al pasar una propuesta de Aprobada a otro estado se pide UNA confirmación y el cierre se elimina (con sus cobros y ajustes); Cancelar aborta el cambio. Si el cierre no está vinculado por `proposalId`, `GET /api/proposals` lo asocia por nombre de cliente (cierre más reciente sin propuesta) y `PUT/DELETE` aceptan `saleId`.
+- Columnas nuevas creadas en `docker-entrypoint.sh` (`ALTER TABLE` con guarda).
 
 ### Detalle del cambio 2026-10-08 (ajuste de un cobro):
 - `PUT /api/collections { saleId, month, amount|null }` ajusta el monto de una mensualidad pendiente (solo ese cliente y mes; `null` quita el ajuste). Si el cobro ya está cobrado devuelve 409: primero se desmarca el ✓.
