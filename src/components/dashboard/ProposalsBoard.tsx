@@ -102,6 +102,26 @@ export function ProposalsBoard({ proposals, month, onChanged }: ProposalsBoardPr
     }
   }
 
+  // Propuesta que ya no está aprobada pero cuyo cierre sigue sumando a la facturación: quitarlo
+  async function removeLeftoverSale(p: Proposal) {
+    if (!p.sale) return
+    const ok = confirm(
+      `${p.clientName} ya no está aprobada, pero su cierre sigue registrado (${fmtMoney(p.sale.onboardingValue)}` +
+      `${p.sale.recurringValue > 0 ? ` + ${fmtMoney(p.sale.recurringValue)}/mes` : ''}).\n\n` +
+      'Al quitarlo sale de la facturación, del MRR y de los cobros de clientes.\n\n¿Quitar el cierre?'
+    )
+    if (!ok) return
+    setError('')
+    try {
+      const res = await apiFetch('/api/proposals', { method: 'PUT', body: JSON.stringify({ id: p.id, undoSale: true, saleId: p.sale.id }) })
+      const data = await res.json()
+      if (!data.success) return setError(data.error || 'No se pudo quitar el cierre')
+      onChanged()
+    } catch {
+      setError('Error de conexión')
+    }
+  }
+
   async function remove(p: Proposal) {
     if (!confirm(`¿Eliminar la propuesta de ${p.clientName}?`)) return
     const deleteSale = !!p.sale && confirm(
@@ -186,7 +206,16 @@ export function ProposalsBoard({ proposals, month, onChanged }: ProposalsBoardPr
                       <tr key={p.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                         <td className="py-3 px-4 font-medium text-white">
                           {p.clientName}
-                          {p.sale && <span title="Cierre de venta registrado" className="ml-1.5 text-xs">💰</span>}
+                          {p.sale && p.status === 'aprobada' && <span title="Cierre de venta registrado" className="ml-1.5 text-xs">💰</span>}
+                          {p.sale && p.status !== 'aprobada' && (
+                            <button
+                              onClick={() => removeLeftoverSale(p)}
+                              title="Esta propuesta no está aprobada pero su cierre sigue sumando a la facturación"
+                              className="mt-1 block text-[11px] font-normal text-yellow-400 hover:text-yellow-300 underline"
+                            >
+                              ⚠ Cierre aún activo ({fmtMoney(p.sale.onboardingValue)}): quitar
+                            </button>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-brand-muted hidden md:table-cell">{p.company || '-'}</td>
                         <td className="py-3 px-4 text-brand-muted hidden sm:table-cell">{p.service || '-'}</td>
