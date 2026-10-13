@@ -167,6 +167,22 @@ export default function DashboardPage() {
     setRefreshKey(k => k + 1)
   }, [fetchBilling, fetchLists, fetchCalls, selectedMonth])
 
+  // Al volver a esta pestaña (p. ej. tras editar clientes en Finanzas) se recargan los datos para no mostrar números viejos
+  useEffect(() => {
+    let last = Date.now()
+    const refresh = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < 5000) return
+      last = Date.now()
+      reloadAll()
+    }
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('focus', refresh)
+    return () => {
+      document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('focus', refresh)
+    }
+  }, [reloadAll])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
