@@ -10,6 +10,8 @@ export interface ClientChargeRow {
   amount: number
   baseAmount?: number
   adjusted?: boolean
+  kind?: 'mensualidad' | 'cuota'
+  label?: string
   dueDate: string
   paid: boolean
   paidAt: string | null
@@ -138,7 +140,7 @@ export function ClientCharges({ charges, tracked, isCurrentMonth, monthLabel, on
       {rows.length === 0 ? (
         <div className="glass-card py-6 text-center">
           <p className="text-brand-muted text-sm">
-            {mode === 'week' ? 'No hay cobros de clientes esta semana' : 'No hay mensualidades de clientes en este mes'}
+            {mode === 'week' ? 'No hay cobros de clientes esta semana' : 'No hay mensualidades ni cuotas de clientes en este mes'}
           </p>
         </div>
       ) : (
@@ -171,7 +173,12 @@ export function ClientCharges({ charges, tracked, isCurrentMonth, monthLabel, on
                         />
                       </td>
                       <td className={`py-3 px-4 font-medium text-white ${c.paid ? 'line-through' : ''}`}>{c.clientName}</td>
-                      <td className="py-3 px-4 text-brand-muted hidden sm:table-cell">{c.product}</td>
+                      <td className="py-3 px-4 text-brand-muted hidden sm:table-cell">
+                        {c.product}
+                        {c.kind === 'cuota' && c.label && (
+                          <span className="ml-2 text-[11px] rounded-full bg-purple-500/15 text-purple-300 px-2 py-0.5">{c.label}</span>
+                        )}
+                      </td>
                       <td className="py-3 px-4 text-right font-semibold text-brand-primary whitespace-nowrap">
                         {fmt(c.amount)}
                         {c.adjusted && c.baseAmount !== undefined && (

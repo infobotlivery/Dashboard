@@ -67,7 +67,10 @@ export function BillingMetrics({ summary, goal, selectedMonth, onMonthChange, on
   // Facturación = lo cobrado. El MRR proyectado es lo que los clientes deberían pagar este mes.
   const mrrCollected = (summary?.income.mrrServices ?? 0) + (summary?.income.mrrCommunity ?? 0)
   const mrrProjected = summary?.income.projected?.mrr ?? mrrCollected
-  const mrrPending = Math.max(mrrProjected - mrrCollected, 0)
+  // Por cobrar bajo el MRR proyectado: solo mensualidades pendientes (las cuotas de asesorías no son MRR)
+  const mrrPending = (summary?.accounts?.receivable.items ?? [])
+    .filter(i => i.source === 'client' && i.counterparty.startsWith('Mensualidad'))
+    .reduce((sum, i) => sum + i.amount, 0)
   const otherCollected = summary?.income.otherCollected ?? 0
 
   const incomeTarget = goal?.incomeTarget ?? 0
@@ -182,7 +185,7 @@ export function BillingMetrics({ summary, goal, selectedMonth, onMonthChange, on
                 <p className="text-sm font-bold text-green-400 leading-none">{fmt(onboarding)}</p>
               </div>
               <div className="rounded-xl p-3 bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1.5">MRR cobrado</p>
+                <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1.5">Mensualidades y cuotas cobradas</p>
                 <p className="text-sm font-bold text-[#44e1fc] leading-none">{fmt(mrrCollected)}</p>
               </div>
               <div className="rounded-xl p-3 bg-white/[0.03] border border-white/[0.06]">

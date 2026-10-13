@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const [sales, payments, others, adjustments] = await Promise.all([
       prisma.salesClose.findMany({
-        select: { id: true, clientName: true, product: true, customProduct: true, onboardingValue: true, recurringValue: true, status: true, createdAt: true, cancelledAt: true }
+        select: { id: true, clientName: true, product: true, customProduct: true, onboardingValue: true, recurringValue: true, status: true, createdAt: true, cancelledAt: true, installmentCount: true }
       }),
       prisma.clientPayment.findMany({ where: { paidAt: { gte: range.start, lte: range.end } } }),
       prisma.accountEntry.findMany({ where: { kind: 'receivable', status: 'paid', paidAt: { gte: range.start, lte: range.end } } }),
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       for (const p of payments) {
         const s = byId.get(p.saleId)
         if (!s || p.amount <= 0) continue
-        cobrado.push({ type: 'mensualidad', client: s.clientName, detail: `Mensualidad de ${p.forMonth} · ${label(s)}`, date: formatLocalDate(p.paidAt), amount: p.amount, assumed: false })
+        cobrado.push({ type: 'mensualidad', client: s.clientName, detail: `${s.installmentCount ? 'Cuota' : 'Mensualidad'} de ${p.forMonth} · ${label(s)}`, date: formatLocalDate(p.paidAt), amount: p.amount, assumed: false })
       }
     } else {
       // Meses sin registro de cobros: se asume cobrada la mensualidad de cada cliente vigente

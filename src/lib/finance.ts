@@ -182,7 +182,7 @@ export function buildAccounts(
       saleId: c.saleId,
       forMonth: monthKey(range.start),
       concept: c.clientName,
-      counterparty: `Mensualidad · ${c.product}`,
+      counterparty: `${c.label} · ${c.product}`,
       amount: c.amount,
       dueDate: c.dueDate.toISOString(),
       overdue: c.dueDate < today
@@ -214,10 +214,41 @@ export function monthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-interface ChargeSale extends SaleLike {
+export interface ChargeSale extends SaleLike {
   id: number
   clientName: string
   customProduct?: string | null
+  installmentCount?: number | null   // cuotas pendientes tras el pago inicial (asesorías)
+  installmentAmount?: number | null  // monto de cada cuota
+}
+
+export interface BaseCharge {
+  amount: number
+  kind: 'mensualidad' | 'cuota'
+  label: string // "Mensualidad" | "Cuota 2/4"
+}
+
+/**
+ * ¿Qué se le cobra a este cliente en este mes?
+ *  - Mensualidad: cliente con recurrencia vigente al cierre del mes (cuenta como MRR).
+ *  - Cuota: asesorías con cuotas pendientes; una por mes, empezando el mes siguiente al pago inicial
+ *    (no es MRR). Si el cliente se cancela, dejan de cobrarse las cuotas posteriores.
+ * Devuelve null si ese mes no le toca cobro.
+ */
+export function baseChargeFor(sale: ChargeSale, range: MonthRange): BaseCharge | null {
+  if (sale.recurringValue > 0 && isRecurringAtMonthEnd(sale, range.end)) {
+    return { amount: sale.recurringValue, kind: 'mensualidad', label: 'Mensualidad' }
+  }
+  const n = sale.installmentCount ?? 0
+  const amount = sale.installmentAmount ?? 0
+  if (n > 0 && amount > 0) {
+    const k =
+      (range.start.getFullYear() - sale.createdAt.getFullYear()) * 12 +
+      (range.start.getMonth() - sale.createdAt.getMonth())
+    const cancelled = sale.status === 'cancelled' && !(sale.cancelledAt && sale.cancelledAt > range.end)
+    if (k >= 1 && k <= n && !cancelled) return { amount, kind: 'cuota', label: `Cuota ${k}/${n}` }
+  }
+  return null
 }
 
 export interface PaymentLike {
@@ -238,8 +269,10 @@ export interface ClientCharge {
   clientName: string
   product: string
   amount: number          // monto esperado ese mes (ajustado si hay ajuste)
-  baseAmount: number      // mensualidad normal del cliente
+  baseAmount: number      // mensualidad (o cuota) normal del cliente
   adjusted: boolean
+  kind: 'mensualidad' | 'cuota'
+  label: string           // "Mensualidad" | "Cuota 2/4"
   dueDate: Date
   paid: boolean
   paidAt: Date | null
@@ -261,25 +294,28 @@ export function expectedCharges(
   const key = monthKey(range.start)
   const lastDay = range.end.getDate()
 
-  return sales
-    .filter(s => s.recurringValue > 0 && isRecurringAtMonthEnd(s, range.end))
-    .map(s => {
-      const dueDate = new Date(range.start.getFullYear(), range.start.getMonth(), Math.min(s.createdAt.getDate(), lastDay))
-      const pay = payments.find(p => p.saleId === s.id && p.forMonth === key && p.paidAt <= asOf)
-      const adj = adjustments.find(a => a.saleId === s.id && a.forMonth === key)
-      return {
-        saleId: s.id,
-        clientName: s.clientName,
-        product: s.customProduct || s.product,
-        amount: adj ? adj.amount : s.recurringValue,
-        baseAmount: s.recurringValue,
-        adjusted: !!adj,
-        dueDate,
-        paid: !tracked || !!pay, // meses anteriores: se asumen cobrados
-        paidAt: pay?.paidAt ?? null
-      }
+  const out: ClientCharge[] = []
+  for (const s of sales) {
+    const base = baseChargeFor(s, range)
+    if (!base) continue
+    const dueDate = new Date(range.start.getFullYear(), range.start.getMonth(), Math.min(s.createdAt.getDate(), lastDay))
+    const pay = payments.find(p => p.saleId === s.id && p.forMonth === key && p.paidAt <= asOf)
+    const adj = adjustments.find(a => a.saleId === s.id && a.forMonth === key)
+    out.push({
+      saleId: s.id,
+      clientName: s.clientName,
+      product: s.customProduct || s.product,
+      amount: adj ? adj.amount : base.amount,
+      baseAmount: base.amount,
+      adjusted: !!adj,
+      kind: base.kind,
+      label: base.label,
+      dueDate,
+      paid: !tracked || !!pay, // meses anteriores: se asumen cobrados
+      paidAt: pay?.paidAt ?? null
     })
-    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+  }
+  return out.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
 }
 
 /** MRR efectivamente cobrado en el mes (por fecha de cobro). Meses sin registro: todo el MRR proyectado. */

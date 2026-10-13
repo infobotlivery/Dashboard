@@ -40,7 +40,9 @@ export async function GET(request: NextRequest) {
           cancelledAt: true,
           recurringValue: true,
           onboardingValue: true,
-          product: true
+          product: true,
+          installmentCount: true,
+          installmentAmount: true
         }
       }),
       prisma.expense.findMany({

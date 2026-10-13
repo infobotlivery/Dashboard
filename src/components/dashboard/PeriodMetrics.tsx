@@ -280,7 +280,7 @@ export function PeriodMetrics({
             star
             title="Facturación cobrada"
             value={fmtMoney(c.facturacion)}
-            sub={`Onboarding ${fmtMoney(c.onboarding)} + MRR cobrado ${fmtMoney(c.mrrCobrado)}`}
+            sub={`Onboarding ${fmtMoney(c.onboarding)} + mensualidades y cuotas cobradas ${fmtMoney(c.mrrCobrado)}`}
             delta={<Delta value={c.facturacion} previous={p.facturacion} />}
             delay={0}
           />

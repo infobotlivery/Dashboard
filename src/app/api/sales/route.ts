@@ -81,7 +81,9 @@ export async function POST(request: NextRequest) {
       contractMonths,
       status,
       createdAt,
-      proposalId
+      proposalId,
+      installmentCount,
+      installmentAmount
     } = body
 
     // Validación básica
@@ -104,6 +106,8 @@ export async function POST(request: NextRequest) {
         contractMonths: contractMonths ? Number(contractMonths) : null,
         status: status || 'active',
         proposalId: proposalId ? Number(proposalId) : null,
+        installmentCount: Number(installmentCount) > 0 ? Math.floor(Number(installmentCount)) : null,
+        installmentAmount: Number(installmentCount) > 0 && Number(installmentAmount) > 0 ? Number(installmentAmount) : null,
         ...(parsedCreatedAt && { createdAt: parsedCreatedAt })
       }
     })
