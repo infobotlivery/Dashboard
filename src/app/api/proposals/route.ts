@@ -51,19 +51,24 @@ export async function GET(request: NextRequest) {
     })
     const saleByProposal = new Map(sales.map(s => [s.proposalId, s]))
 
-    // Propuestas aprobadas sin vínculo (el cierre se registró por otra vía, p. ej. Finanzas → Clientes o CSV):
-    // se asocia por nombre de cliente al cierre más reciente que no pertenezca a otra propuesta.
+    // Propuestas sin vínculo directo: el cierre pudo registrarse por otra vía (Finanzas → Clientes, CSV) o la propuesta
+    // dejó de estar aprobada sin deshacer el cierre. Se asocia por nombre de cliente al cierre más reciente que no
+    // pertenezca a otra propuesta; si la propuesta NO está aprobada, además deben coincidir los montos (evita falsos positivos).
     const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
-    const unlinkedApproved = proposals.filter(p => p.status === 'aprobada' && !saleByProposal.has(p.id))
-    if (unlinkedApproved.length > 0) {
+    const unlinked = proposals.filter(p => !saleByProposal.has(p.id))
+    if (unlinked.length > 0) {
       const free = await prisma.salesClose.findMany({
         where: { proposalId: null },
         orderBy: { createdAt: 'desc' },
         select: { id: true, proposalId: true, clientName: true, onboardingValue: true, recurringValue: true }
       })
       const taken = new Set<number>()
-      for (const p of unlinkedApproved) {
-        const match = free.find(s => !taken.has(s.id) && norm(s.clientName) === norm(p.clientName))
+      for (const p of unlinked) {
+        const match = free.find(s =>
+          !taken.has(s.id) &&
+          norm(s.clientName) === norm(p.clientName) &&
+          (p.status === 'aprobada' || (s.onboardingValue === p.amount && s.recurringValue === p.recurringAmount))
+        )
         if (match) { taken.add(match.id); saleByProposal.set(p.id, match) }
       }
     }

@@ -835,6 +835,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-10-13 | Propuestas no aprobadas con cierre aún activo: aviso "⚠ Cierre aún activo: quitar" en la tabla (vínculo por id o por nombre + montos iguales) | pendiente |
 | 2026-10-13 | Asesorías en cuotas (pago inicial + N cuotas pendientes de monto fijo, una por mes, fuera del MRR) al aprobar una propuesta; al sacar una propuesta de "Aprobada" el cierre sale de la facturación (también cuando se asocia por nombre) | pendiente |
 | 2026-10-08 | El ajuste de un cobro también actualiza el MRR proyectado/activo de ese mes | pendiente |
 | 2026-10-08 | Cambiar el monto de UN cobro de cliente (solo ese mes) con ✎ en "Cobros de clientes"; modelo ChargeAdjustment | pendiente |
@@ -843,6 +844,10 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-08 | Revisión mensual de gastos (tab Revisión + aviso en portada), tipo de gasto Variable, etiquetas Fijo mensual / Variable / Único | pendiente |
 | 2026-10-08 | Portada reordenada (finanzas, cobros, llamadas, propuestas, métricas, cadencia, leyenda), cadencia y leyenda desplegables, detalle "¿De dónde sale este mes?", historial hasta 5 años, Clientes muestra recurrentes vigentes del mes | pendiente |
 | 2026-10-07 | Carga del trimestre jul–sep 2026 (PDF): seguimiento de cobros desde julio 2026, importador de cobros CSV, exportación filtrable por fechas, borrado masivo con respaldo, "mensualidades por cobrar" real | pendiente |
+
+### Detalle del cambio 2026-10-13 (cierre huérfano de una propuesta no aprobada):
+- Si una propuesta ya no está aprobada pero su cierre sigue sumando a la facturación, la fila muestra **"⚠ Cierre aún activo ($X): quitar"**; al confirmar (`PUT /api/proposals { id, undoSale: true, saleId }`) se elimina el cierre con sus cobros y ajustes.
+- `GET /api/proposals` asocia por nombre de cliente los cierres sin `proposalId`: para propuestas aprobadas basta el nombre; para las no aprobadas también deben coincidir onboarding y mensual con la propuesta.
 
 ### Detalle del cambio 2026-10-13 (cuotas de asesorías y deshacer cierre):
 - **Cuotas:** si el producto del cierre es **Asesoría**, `CloseSaleModal` pide pago inicial (onboarding), **número de cuotas pendientes** y **monto por cuota** en vez de mensual/meses de contrato. Se guarda en `SalesClose.installmentCount/installmentAmount` (recurringValue = 0: no es MRR).
