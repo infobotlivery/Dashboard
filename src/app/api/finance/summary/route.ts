@@ -7,6 +7,7 @@ import {
   expenseAppliesToMonth,
   buildAccounts,
   expectedCharges,
+  upcomingInstallments,
   collectedMrr,
   monthKey
 } from '@/lib/finance'
@@ -106,6 +107,16 @@ export async function GET(request: NextRequest) {
     const asOf = now < range.end ? now : range.end
     const charges = expectedCharges(sales, payments, range, asOf, adjustments)
     const { receivable, payable } = buildAccounts(accounts, expenses, range, now, charges)
+
+    // Saldo de cuotas de asesorías que vencen en meses siguientes (se muestra aparte, no suma a lo pendiente del mes)
+    const installmentSales = sales.filter(s => (s.installmentCount ?? 0) > 0)
+    if (installmentSales.length > 0 && range.end >= new Date(now.getFullYear(), now.getMonth(), 1)) {
+      const [futurePayments, futureAdjustments] = await Promise.all([
+        prisma.clientPayment.findMany({ where: { saleId: { in: installmentSales.map(s => s.id) } } }),
+        prisma.chargeAdjustment.findMany({ where: { saleId: { in: installmentSales.map(s => s.id) } } })
+      ])
+      receivable.upcoming = upcomingInstallments(installmentSales, futurePayments, futureAdjustments, range)
+    }
 
     const netProfit = totalIncome - totalExpenses
 

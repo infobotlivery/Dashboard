@@ -81,6 +81,22 @@ function Box({ title, tone, data, empty, delay, onPaid }: {
             ))}
           </ul>
         )}
+
+        {(data?.upcoming?.length ?? 0) > 0 && (
+          <div className="pt-2 border-t border-white/10">
+            <p className="text-xs text-brand-muted mb-1.5">
+              Próximas cuotas ({fmt(data!.upcoming!.reduce((s, i) => s + i.amount, 0))} en meses siguientes)
+            </p>
+            <ul className="space-y-1">
+              {data!.upcoming!.map(i => (
+                <li key={i.id} className="flex items-center justify-between gap-3 text-xs text-brand-muted">
+                  <span className="truncate">{i.concept} · {i.counterparty}</span>
+                  <span className="shrink-0">{fmt(i.amount)} · {fmtDate(i.dueDate)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </motion.div>
   )
