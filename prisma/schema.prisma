@@ -251,3 +251,15 @@ model ChargeAdjustment {
 
   @@unique([saleId, forMonth])
 }
+
+// Cuotas pendientes de una venta (asesorías): cada una con su fecha y monto, definidos al registrar el cierre.
+// Se cobran con el ✓ de "Cobros de clientes" (ClientPayment con forMonth = "c<id>").
+model SaleInstallment {
+  id        Int      @id @default(autoincrement())
+  saleId    Int
+  dueDate   DateTime
+  amount    Float
+  createdAt DateTime @default(now())
+
+  @@index([saleId])
+}

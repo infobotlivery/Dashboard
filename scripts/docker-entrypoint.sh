@@ -450,6 +450,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS \"ExpenseReview_expenseId_month_key\" ON \"Exp
 CREATE INDEX IF NOT EXISTS \"ExpenseReview_month_idx\" ON \"ExpenseReview\"(\"month\");
 " 2>&1 || echo "Error creando tabla ExpenseReview"
 
+# Cuotas con fecha y monto propios (SaleInstallment)
+echo "=== Verificando tabla SaleInstallment ==="
+sqlite3 "$DB_PATH" "
+CREATE TABLE IF NOT EXISTS \"SaleInstallment\" (
+    \"id\" INTEGER PRIMARY KEY AUTOINCREMENT,
+    \"saleId\" INTEGER NOT NULL,
+    \"dueDate\" DATETIME NOT NULL,
+    \"amount\" REAL NOT NULL,
+    \"createdAt\" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS \"SaleInstallment_saleId_idx\" ON \"SaleInstallment\"(\"saleId\");
+" 2>&1 || echo "Error creando tabla SaleInstallment"
+
 # Ajustes del monto de una mensualidad por mes (ChargeAdjustment)
 echo "=== Verificando tabla ChargeAdjustment ==="
 sqlite3 "$DB_PATH" "

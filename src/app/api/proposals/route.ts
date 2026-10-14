@@ -8,6 +8,7 @@ async function deleteLinkedSales(proposalId: number) {
   const ids = sales.map(s => s.id)
   await prisma.clientPayment.deleteMany({ where: { saleId: { in: ids } } })
   await prisma.chargeAdjustment.deleteMany({ where: { saleId: { in: ids } } })
+  await prisma.saleInstallment.deleteMany({ where: { saleId: { in: ids } } })
   await prisma.salesClose.deleteMany({ where: { id: { in: ids } } })
 }
 
@@ -15,6 +16,7 @@ async function deleteLinkedSales(proposalId: number) {
 async function deleteSaleById(saleId: number) {
   await prisma.clientPayment.deleteMany({ where: { saleId } })
   await prisma.chargeAdjustment.deleteMany({ where: { saleId } })
+  await prisma.saleInstallment.deleteMany({ where: { saleId } })
   await prisma.salesClose.deleteMany({ where: { id: saleId } })
 }
 

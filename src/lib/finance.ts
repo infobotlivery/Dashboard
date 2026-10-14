@@ -178,10 +178,10 @@ export function buildAccounts(
   const clientItems: AccountItem[] = clientCharges
     .filter(c => !c.paid)
     .map(c => ({
-      id: `client-${c.saleId}-${monthKey(range.start)}`,
+      id: `client-${c.saleId}-${c.key}`,
       source: 'client' as const,
       saleId: c.saleId,
-      forMonth: monthKey(range.start),
+      forMonth: c.key,
       concept: c.clientName,
       counterparty: `${c.label} · ${c.product}`,
       amount: c.amount,
@@ -215,12 +215,19 @@ export function monthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+export interface InstallmentLike {
+  id: number
+  dueDate: Date
+  amount: number
+}
+
 export interface ChargeSale extends SaleLike {
   id: number
   clientName: string
   customProduct?: string | null
-  installmentCount?: number | null   // cuotas pendientes tras el pago inicial (asesorías)
-  installmentAmount?: number | null  // monto de cada cuota
+  installments?: InstallmentLike[]   // cuotas con fecha y monto propios (asesorías)
+  installmentCount?: number | null   // legado: N cuotas mensuales de igual monto
+  installmentAmount?: number | null
 }
 
 export interface BaseCharge {
@@ -229,26 +236,55 @@ export interface BaseCharge {
   label: string // "Mensualidad" | "Cuota 2/4"
 }
 
+export interface ScheduledInstallment {
+  key: string      // clave del cobro: "c<id>" (cuotas con fecha propia) o "AAAA-MM" (legado)
+  number: number
+  total: number
+  dueDate: Date
+  amount: number
+}
+
 /**
- * ¿Qué se le cobra a este cliente en este mes?
- *  - Mensualidad: cliente con recurrencia vigente al cierre del mes (cuenta como MRR).
- *  - Cuota: asesorías con cuotas pendientes; una por mes, empezando el mes siguiente al pago inicial
- *    (no es MRR). Si el cliente se cancela, dejan de cobrarse las cuotas posteriores.
- * Devuelve null si ese mes no le toca cobro.
+ * Calendario de cuotas de una venta: las que se definieron al registrar el cierre (cada una con su fecha y monto).
+ * Las ventas creadas antes con "N cuotas mensuales" siguen funcionando (una por mes, desde el mes siguiente).
+ * Si el cliente se cancela, no se cobran las cuotas posteriores a la cancelación.
  */
-export function baseChargeFor(sale: ChargeSale, range: MonthRange): BaseCharge | null {
+export function installmentSchedule(sale: ChargeSale): ScheduledInstallment[] {
+  let list: ScheduledInstallment[] = []
+  const rows = sale.installments ?? []
+  if (rows.length > 0) {
+    const sorted = [...rows].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+    list = sorted.map((r, i) => ({ key: `c${r.id}`, number: i + 1, total: sorted.length, dueDate: r.dueDate, amount: r.amount }))
+  } else {
+    const n = sale.installmentCount ?? 0
+    const amount = sale.installmentAmount ?? 0
+    for (let k = 1; n > 0 && amount > 0 && k <= n; k++) {
+      const first = new Date(sale.createdAt.getFullYear(), sale.createdAt.getMonth() + k, 1)
+      const day = Math.min(sale.createdAt.getDate(), new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate())
+      const due = new Date(first.getFullYear(), first.getMonth(), day)
+      list.push({ key: monthKey(due), number: k, total: n, dueDate: due, amount })
+    }
+  }
+  if (sale.status === 'cancelled' && sale.cancelledAt) {
+    const cut = sale.cancelledAt
+    list = list.filter(i => i.dueDate <= cut)
+  }
+  return list
+}
+
+/** Mensualidad del mes (cliente con recurrencia vigente al cierre del mes; cuenta como MRR). */
+export function recurringChargeFor(sale: ChargeSale, range: MonthRange): BaseCharge | null {
   if (sale.recurringValue > 0 && isRecurringAtMonthEnd(sale, range.end)) {
     return { amount: sale.recurringValue, kind: 'mensualidad', label: 'Mensualidad' }
   }
-  const n = sale.installmentCount ?? 0
-  const amount = sale.installmentAmount ?? 0
-  if (n > 0 && amount > 0) {
-    const k =
-      (range.start.getFullYear() - sale.createdAt.getFullYear()) * 12 +
-      (range.start.getMonth() - sale.createdAt.getMonth())
-    const cancelled = sale.status === 'cancelled' && !(sale.cancelledAt && sale.cancelledAt > range.end)
-    if (k >= 1 && k <= n && !cancelled) return { amount, kind: 'cuota', label: `Cuota ${k}/${n}` }
-  }
+  return null
+}
+
+/** Monto normal del cobro identificado por `key` (mes para la mensualidad, "c<id>" para una cuota). */
+export function chargeByKey(sale: ChargeSale, key: string, range: MonthRange): BaseCharge | null {
+  const inst = installmentSchedule(sale).find(i => i.key === key)
+  if (inst) return { amount: inst.amount, kind: 'cuota', label: `Cuota ${inst.number}/${inst.total}` }
+  if (key === monthKey(range.start)) return recurringChargeFor(sale, range)
   return null
 }
 
@@ -267,10 +303,11 @@ export interface AdjustmentLike {
 
 export interface ClientCharge {
   saleId: number
+  key: string             // identifica el cobro dentro del cliente: mes (mensualidad) o "c<id>" (cuota)
   clientName: string
   product: string
-  amount: number          // monto esperado ese mes (ajustado si hay ajuste)
-  baseAmount: number      // mensualidad (o cuota) normal del cliente
+  amount: number          // monto esperado (ajustado si hay ajuste)
+  baseAmount: number      // monto normal de la mensualidad o cuota
   adjusted: boolean
   kind: 'mensualidad' | 'cuota'
   label: string           // "Mensualidad" | "Cuota 2/4"
@@ -280,8 +317,10 @@ export interface ClientCharge {
 }
 
 /**
- * Mensualidades esperadas de un mes (una por cliente con recurrencia vigente al cierre del mes).
- * El día de cobro es el día del mes en que se cerró la venta (ajustado a fin de mes).
+ * Cobros esperados de un mes:
+ *  - una mensualidad por cliente con recurrencia vigente al cierre del mes (día de cobro = día del cierre de venta);
+ *  - las cuotas cuya fecha cae en el mes;
+ *  - en el mes en curso, también las cuotas anteriores que siguen sin cobrarse (vencidas).
  * `asOf`: un pago hecho después de esa fecha todavía contaba como pendiente.
  */
 export function expectedCharges(
@@ -294,16 +333,15 @@ export function expectedCharges(
   const tracked = isTrackedMonth(range)
   const key = monthKey(range.start)
   const lastDay = range.end.getDate()
+  const isCurrentMonth = asOf >= range.start && asOf < range.end
 
   const out: ClientCharge[] = []
-  for (const s of sales) {
-    const base = baseChargeFor(s, range)
-    if (!base) continue
-    const dueDate = new Date(range.start.getFullYear(), range.start.getMonth(), Math.min(s.createdAt.getDate(), lastDay))
-    const pay = payments.find(p => p.saleId === s.id && p.forMonth === key && p.paidAt <= asOf)
-    const adj = adjustments.find(a => a.saleId === s.id && a.forMonth === key)
+  const push = (s: ChargeSale, chargeKey: string, base: BaseCharge, dueDate: Date) => {
+    const pay = payments.find(p => p.saleId === s.id && p.forMonth === chargeKey && p.paidAt <= asOf)
+    const adj = adjustments.find(a => a.saleId === s.id && a.forMonth === chargeKey)
     out.push({
       saleId: s.id,
+      key: chargeKey,
       clientName: s.clientName,
       product: s.customProduct || s.product,
       amount: adj ? adj.amount : base.amount,
@@ -316,11 +354,26 @@ export function expectedCharges(
       paidAt: pay?.paidAt ?? null
     })
   }
+
+  for (const s of sales) {
+    const rec = recurringChargeFor(s, range)
+    if (rec) push(s, key, rec, new Date(range.start.getFullYear(), range.start.getMonth(), Math.min(s.createdAt.getDate(), lastDay)))
+
+    for (const inst of installmentSchedule(s)) {
+      const inMonth = inst.dueDate >= range.start && inst.dueDate <= range.end
+      const overdueCarry =
+        isCurrentMonth && inst.dueDate < range.start &&
+        !payments.some(p => p.saleId === s.id && p.forMonth === inst.key && p.paidAt <= asOf)
+      if (!inMonth && !overdueCarry) continue
+      if (rec && inst.key === key) continue // legado: la mensualidad ya ocupa esa clave
+      push(s, inst.key, { amount: inst.amount, kind: 'cuota', label: `Cuota ${inst.number}/${inst.total}` }, inst.dueDate)
+    }
+  }
   return out.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
 }
 
 /**
- * Cuotas de asesorías que vencen en meses POSTERIORES al consultado y siguen sin cobrarse.
+ * Cuotas que vencen en meses POSTERIORES al consultado y siguen sin cobrarse.
  * Sirven para ver el saldo pendiente de cada cliente (cuánto falta por cobrar en total).
  */
 export function upcomingInstallments(
@@ -331,27 +384,19 @@ export function upcomingInstallments(
 ): AccountItem[] {
   const items: AccountItem[] = []
   for (const s of sales) {
-    const n = s.installmentCount ?? 0
-    const base = s.installmentAmount ?? 0
-    if (n <= 0 || base <= 0) continue
-    for (let k = 1; k <= n; k++) {
-      const due = new Date(s.createdAt.getFullYear(), s.createdAt.getMonth() + k, 1)
-      if (due <= range.start) continue // meses ya cubiertos por el cobro normal del mes
-      const month = monthRange(due)
-      if (baseChargeFor(s, month)?.kind !== 'cuota') continue // cancelado antes de esa cuota
-      const key = monthKey(due)
-      if (payments.some(p => p.saleId === s.id && p.forMonth === key)) continue
-      const adj = adjustments.find(a => a.saleId === s.id && a.forMonth === key)
-      const day = Math.min(s.createdAt.getDate(), month.end.getDate())
+    for (const inst of installmentSchedule(s)) {
+      if (inst.dueDate <= range.end) continue
+      if (payments.some(p => p.saleId === s.id && p.forMonth === inst.key)) continue
+      const adj = adjustments.find(a => a.saleId === s.id && a.forMonth === inst.key)
       items.push({
-        id: `cuota-${s.id}-${key}`,
+        id: `cuota-${s.id}-${inst.key}`,
         source: 'client',
         saleId: s.id,
-        forMonth: key,
+        forMonth: inst.key,
         concept: s.clientName,
-        counterparty: `Cuota ${k}/${n} · ${s.customProduct || s.product}`,
-        amount: adj ? adj.amount : base,
-        dueDate: new Date(due.getFullYear(), due.getMonth(), day).toISOString(),
+        counterparty: `Cuota ${inst.number}/${inst.total} · ${s.customProduct || s.product}`,
+        amount: adj ? adj.amount : inst.amount,
+        dueDate: inst.dueDate.toISOString(),
         overdue: false
       })
     }

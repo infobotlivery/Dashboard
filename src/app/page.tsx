@@ -132,11 +132,11 @@ export default function DashboardPage() {
   }, [selectedMonth, loading, fetchBilling])
 
   // Marcar / desmarcar el cobro de una mensualidad: recalcula facturación, utilidad y cuentas por cobrar
-  const toggleCharge = useCallback(async (saleId: number, paid: boolean) => {
+  const toggleCharge = useCallback(async (saleId: number, paid: boolean, key: string) => {
     const res = await fetch('/api/collections', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ saleId, month: selectedMonth || currentYYYYMM(), paid })
+      body: JSON.stringify({ saleId, month: selectedMonth || currentYYYYMM(), paid, key })
     })
     const d = await res.json()
     if (!d.success) alert(d.error || 'No se pudo actualizar el cobro')
@@ -145,11 +145,11 @@ export default function DashboardPage() {
   }, [fetchBilling, selectedMonth])
 
   // Cambiar el monto de UN cobro (cliente + mes): no toca el precio del cliente ni los otros meses
-  const adjustCharge = useCallback(async (saleId: number, amount: number | null) => {
+  const adjustCharge = useCallback(async (saleId: number, amount: number | null, key: string) => {
     const res = await fetch('/api/collections', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ saleId, month: selectedMonth || currentYYYYMM(), amount })
+      body: JSON.stringify({ saleId, month: selectedMonth || currentYYYYMM(), amount, key })
     })
     const d = await res.json()
     if (!d.success) alert(d.error || 'No se pudo cambiar el monto')

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 
 export interface ClientChargeRow {
   saleId: number
+  key: string
   clientName: string
   product: string
   amount: number
@@ -27,9 +28,9 @@ interface ClientChargesProps {
   isCurrentMonth: boolean
   monthLabel: string
   /** Marca / desmarca el cobro y recarga los datos de la página. */
-  onToggle: (saleId: number, paid: boolean) => Promise<void>
+  onToggle: (saleId: number, paid: boolean, key: string) => Promise<void>
   /** Cambia el monto de ESTE cobro (solo este cliente y este mes). amount=null quita el ajuste. */
-  onAdjust?: (saleId: number, amount: number | null) => Promise<void>
+  onAdjust?: (saleId: number, amount: number | null, key: string) => Promise<void>
 }
 
 const fmt = (v: number) =>
@@ -47,13 +48,13 @@ function statusLabel(c: ClientChargeRow): { text: string; cls: string } {
 
 export function ClientCharges({ charges, tracked, isCurrentMonth, monthLabel, onToggle, onAdjust }: ClientChargesProps) {
   const [view, setView] = useState<'week' | 'month'>('week')
-  const [busy, setBusy] = useState<number | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
   // Estado optimista: la casilla cambia al instante y se corrige si el servidor falla
-  const [override, setOverride] = useState<Record<number, boolean>>({})
+  const [override, setOverride] = useState<Record<string, boolean>>({})
 
   const mode = isCurrentMonth ? view : 'month'
   const shown = useMemo(
-    () => charges.map(c => (c.saleId in override ? { ...c, paid: override[c.saleId], overdue: override[c.saleId] ? false : c.overdue } : c)),
+    () => charges.map(c => { const id = `${c.saleId}:${c.key}`; return id in override ? { ...c, paid: override[id], overdue: override[id] ? false : c.overdue } : c }),
     [charges, override]
   )
 
@@ -68,13 +69,14 @@ export function ClientCharges({ charges, tracked, isCurrentMonth, monthLabel, on
   const monthPending = shown.filter(c => !c.paid)
 
   async function toggle(c: ClientChargeRow) {
-    setBusy(c.saleId)
-    setOverride(o => ({ ...o, [c.saleId]: !c.paid }))
+    const id = `${c.saleId}:${c.key}`
+    setBusy(id)
+    setOverride(o => ({ ...o, [id]: !c.paid }))
     try {
-      await onToggle(c.saleId, !c.paid)
+      await onToggle(c.saleId, !c.paid, c.key)
     } finally {
       setOverride(o => {
-        const { [c.saleId]: _done, ...rest } = o
+        const { [id]: _done, ...rest } = o
         void _done
         return rest
       })
@@ -96,9 +98,9 @@ export function ClientCharges({ charges, tracked, isCurrentMonth, monthLabel, on
       amount = Number(trimmed.replace(',', '.'))
       if (!Number.isFinite(amount) || amount < 0) { alert('Escribe un monto válido (0 o mayor)'); return }
     }
-    setBusy(c.saleId)
+    setBusy(`${c.saleId}:${c.key}`)
     try {
-      await onAdjust(c.saleId, amount)
+      await onAdjust(c.saleId, amount, c.key)
     } finally {
       setBusy(null)
     }
@@ -161,12 +163,12 @@ export function ClientCharges({ charges, tracked, isCurrentMonth, monthLabel, on
                 {rows.map(c => {
                   const st = statusLabel(c)
                   return (
-                    <tr key={c.saleId} className={`border-b border-white/5 hover:bg-white/5 transition-colors ${c.paid ? 'opacity-60' : ''}`}>
+                    <tr key={`${c.saleId}:${c.key}`} className={`border-b border-white/5 hover:bg-white/5 transition-colors ${c.paid ? 'opacity-60' : ''}`}>
                       <td className="py-3 px-4 text-center">
                         <input
                           type="checkbox"
                           checked={c.paid}
-                          disabled={!tracked || busy === c.saleId}
+                          disabled={!tracked || busy === `${c.saleId}:${c.key}`}
                           onChange={() => toggle(c)}
                           aria-label={`${c.paid ? 'Desmarcar' : 'Marcar'} cobro de ${c.clientName}`}
                           className="h-4 w-4 accent-green-500 cursor-pointer disabled:cursor-not-allowed"
@@ -187,7 +189,7 @@ export function ClientCharges({ charges, tracked, isCurrentMonth, monthLabel, on
                         {!c.paid && tracked && onAdjust && (
                           <button
                             onClick={() => adjust(c)}
-                            disabled={busy === c.saleId}
+                            disabled={busy === `${c.saleId}:${c.key}`}
                             className="ml-2 text-xs text-brand-muted hover:text-white"
                             title="Cambiar el monto de este cobro (solo este mes)"
                             aria-label={`Cambiar monto del cobro de ${c.clientName}`}

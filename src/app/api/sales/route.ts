@@ -82,8 +82,7 @@ export async function POST(request: NextRequest) {
       status,
       createdAt,
       proposalId,
-      installmentCount,
-      installmentAmount
+      installments
     } = body
 
     // Validación básica
@@ -96,6 +95,17 @@ export async function POST(request: NextRequest) {
       return errorResponse('Fecha de cierre inválida', 400)
     }
 
+    // Cuotas con su fecha y monto (asesorías): [{ dueDate: 'AAAA-MM-DD', amount }]
+    const parsedInstallments: { dueDate: Date; amount: number }[] = []
+    if (Array.isArray(installments)) {
+      for (const row of installments) {
+        const due = parseOptionalDate(row?.dueDate)
+        const amount = Number(row?.amount)
+        if (!due || !(amount > 0)) return errorResponse('Cada cuota necesita una fecha válida y un monto mayor que 0', 400)
+        parsedInstallments.push({ dueDate: due, amount })
+      }
+    }
+
     const sale = await prisma.salesClose.create({
       data: {
         clientName,
@@ -106,11 +116,12 @@ export async function POST(request: NextRequest) {
         contractMonths: contractMonths ? Number(contractMonths) : null,
         status: status || 'active',
         proposalId: proposalId ? Number(proposalId) : null,
-        installmentCount: Number(installmentCount) > 0 ? Math.floor(Number(installmentCount)) : null,
-        installmentAmount: Number(installmentCount) > 0 && Number(installmentAmount) > 0 ? Number(installmentAmount) : null,
         ...(parsedCreatedAt && { createdAt: parsedCreatedAt })
       }
     })
+    if (parsedInstallments.length > 0) {
+      await prisma.saleInstallment.createMany({ data: parsedInstallments.map(i => ({ saleId: sale.id, ...i })) })
+    }
 
     return successResponse(sale, 201)
   } catch (error) {
@@ -198,6 +209,8 @@ export async function DELETE(request: NextRequest) {
 
     // Al borrar el cierre también se borran sus cobros registrados
     await prisma.clientPayment.deleteMany({ where: { saleId: Number(id) } })
+    await prisma.chargeAdjustment.deleteMany({ where: { saleId: Number(id) } })
+    await prisma.saleInstallment.deleteMany({ where: { saleId: Number(id) } })
     await prisma.salesClose.delete({
       where: { id: Number(id) }
     })

@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       const r = await prisma.proposal.deleteMany({})
       deleted = { propuestas: r.count }
     } else {
-      const [pay, sales] = await prisma.$transaction([prisma.clientPayment.deleteMany({}), prisma.salesClose.deleteMany({})])
+      const [pay, , , sales] = await prisma.$transaction([prisma.clientPayment.deleteMany({}), prisma.chargeAdjustment.deleteMany({}), prisma.saleInstallment.deleteMany({}), prisma.salesClose.deleteMany({})])
       deleted = { cobros: pay.count, ventas: sales.count }
     }
     return successResponse({ deleted, backup: backup ? path.basename(backup) : null })

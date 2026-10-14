@@ -349,6 +349,12 @@ Ajuste del monto de UNA mensualidad (cliente + mes): descuento, cobro parcial, e
 model ChargeAdjustment { id Int @id; saleId Int; forMonth String /* "YYYY-MM" */; amount Float; @@unique([saleId, forMonth]) }
 ```
 
+### SaleInstallment
+Cuotas pendientes de una venta (asesorías), cada una con su fecha y monto. Reemplaza al esquema anterior de "N cuotas mensuales iguales" (`SalesClose.installmentCount/installmentAmount`, que se sigue respetando en ventas antiguas).
+```prisma
+model SaleInstallment { id Int @id; saleId Int; dueDate DateTime; amount Float }
+```
+
 ### ClientPayment
 Mensualidades (MRR) COBRADAS a clientes: una fila por cliente y mes. La mensualidad esperada no se guarda; se calcula desde `SalesClose`.
 ```prisma
@@ -835,6 +841,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-10-14 | Cuotas de asesorías con fecha y monto propios por cuota (se definen al registrar el cierre); cada una vence en su fecha en Cobros de clientes y Cuentas por cobrar | pendiente |
 | 2026-10-14 | Cuentas por cobrar muestra "Próximas cuotas": saldo de cuotas de asesorías que vencen en meses siguientes (no suman a lo pendiente del mes) | pendiente |
 | 2026-10-13 | La portada se recarga sola al volver a la pestaña (evita números viejos tras editar en Finanzas) | pendiente |
 | 2026-10-13 | Propuestas no aprobadas con cierre aún activo: aviso "⚠ Cierre aún activo: quitar" en la tabla (vínculo por id o por nombre + montos iguales) | pendiente |
@@ -846,6 +853,13 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-08 | Revisión mensual de gastos (tab Revisión + aviso en portada), tipo de gasto Variable, etiquetas Fijo mensual / Variable / Único | pendiente |
 | 2026-10-08 | Portada reordenada (finanzas, cobros, llamadas, propuestas, métricas, cadencia, leyenda), cadencia y leyenda desplegables, detalle "¿De dónde sale este mes?", historial hasta 5 años, Clientes muestra recurrentes vigentes del mes | pendiente |
 | 2026-10-07 | Carga del trimestre jul–sep 2026 (PDF): seguimiento de cobros desde julio 2026, importador de cobros CSV, exportación filtrable por fechas, borrado masivo con respaldo, "mensualidades por cobrar" real | pendiente |
+
+### Detalle del cambio 2026-10-14 (cuotas con fecha y monto propios):
+- Al aprobar una propuesta de producto **Asesoría**, `CloseSaleModal` permite armar el calendario de cuotas: cada fila lleva su **fecha** y su **monto**; hay un generador ("N cuotas de $X, mensuales") y botones para agregar/quitar filas. `POST /api/sales` recibe `installments: [{ dueDate, amount }]` y crea filas `SaleInstallment`.
+- `installmentSchedule(sale)` (`src/lib/finance.ts`) devuelve el calendario con una clave por cuota (`c<id>`); las ventas antiguas con `installmentCount/Amount` siguen funcionando (claves por mes). Si el cliente se cancela no se cobran las cuotas posteriores a la cancelación.
+- `expectedCharges` incluye la mensualidad del mes y las cuotas cuya fecha cae en el mes; en el mes en curso también las cuotas anteriores sin cobrar (vencidas). Cada cobro lleva `key` (mes o `c<id>`): `POST/PUT /api/collections` aceptan `key` para marcar ✓ o ajustar (✎) una cuota concreta (`ClientPayment`/`ChargeAdjustment.forMonth = key`). Pueden existir varias cuotas el mismo mes.
+- "Próximas cuotas" (cuentas por cobrar) lista las cuotas con fecha posterior al mes consultado y sin cobrar.
+- Al eliminar un cierre o reiniciar ventas también se borran sus cuotas, cobros y ajustes. Tabla `SaleInstallment` creada en `docker-entrypoint.sh`.
 
 ### Detalle del cambio 2026-10-14 (próximas cuotas):
 - `upcomingInstallments()` (`src/lib/finance.ts`) lista las cuotas de asesorías que vencen en meses POSTERIORES al consultado y no están cobradas; `summary.accounts.receivable.upcoming`. La caja "Cuentas por cobrar" de la portada las muestra aparte ("Próximas cuotas: $X en meses siguientes"); no suman a "pendientes" ni a "vencido" porque aún no vencen.
