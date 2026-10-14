@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       for (const p of payments) {
         const s = byId.get(p.saleId)
         if (!s || p.amount <= 0) continue
-        cobrado.push({ type: 'mensualidad', client: s.clientName, detail: `${s.installmentCount ? 'Cuota' : 'Mensualidad'} de ${p.forMonth} · ${label(s)}`, date: formatLocalDate(p.paidAt), amount: p.amount, assumed: false })
+        cobrado.push({ type: 'mensualidad', client: s.clientName, detail: /^\d{4}-\d{2}$/.test(p.forMonth) && !s.installmentCount ? `Mensualidad de ${p.forMonth} · ${label(s)}` : `Cuota · ${label(s)}`, date: formatLocalDate(p.paidAt), amount: p.amount, assumed: false })
       }
     } else {
       // Meses sin registro de cobros: se asume cobrada la mensualidad de cada cliente vigente

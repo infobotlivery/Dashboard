@@ -20,8 +20,11 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
   const [form, setForm] = useState({
     clientName: '', product: 'CRM', customProduct: '',
     onboardingValue: '', recurringValue: '', contractMonths: '',
-    installmentCount: '', installmentAmount: '', createdAt: formatLocalDate(new Date())
+    createdAt: formatLocalDate(new Date())
   })
+  // Cuotas pendientes (asesorías): cada una con su fecha y su monto
+  const [installments, setInstallments] = useState<{ dueDate: string; amount: string }[]>([])
+  const [gen, setGen] = useState({ count: '', amount: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -35,10 +38,10 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
       onboardingValue: String(proposal.amount || ''),
       recurringValue: proposal.recurringAmount ? String(proposal.recurringAmount) : '',
       contractMonths: '',
-      installmentCount: '',
-      installmentAmount: '',
       createdAt: formatLocalDate(new Date())
     })
+    setInstallments([])
+    setGen({ count: '', amount: '' })
     setError('')
   }, [proposal])
 
@@ -46,8 +49,8 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
     if (!proposal) return
     if (!form.clientName.trim()) return setError('El nombre del cliente es requerido')
     if (form.product === 'Otro' && !form.customProduct.trim()) return setError('Indica el producto')
-    if (isAdvisory && (Number(form.installmentCount) > 0) !== (Number(form.installmentAmount) > 0)) {
-      return setError('Indica el número de cuotas y el monto por cuota (o deja ambos vacíos si ya pagó todo)')
+    if (isAdvisory && installments.some(i => !i.dueDate || !(Number(i.amount) > 0))) {
+      return setError('Cada cuota necesita fecha y monto mayor que 0 (o quita las filas vacías)')
     }
 
     setSaving(true)
@@ -63,8 +66,7 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
           // Asesoría: se cobra en cuotas (no es MRR)
           recurringValue: isAdvisory ? 0 : Number(form.recurringValue) || 0,
           contractMonths: !isAdvisory && form.contractMonths ? Number(form.contractMonths) : null,
-          installmentCount: isAdvisory ? Number(form.installmentCount) || 0 : 0,
-          installmentAmount: isAdvisory ? Number(form.installmentAmount) || 0 : 0,
+          installments: isAdvisory ? installments.map(i => ({ dueDate: parseLocalDate(i.dueDate).toISOString(), amount: Number(i.amount) })) : [],
           status: 'active',
           proposalId: proposal.id,
           createdAt: parseLocalDate(form.createdAt).toISOString()
@@ -89,8 +91,23 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
   }
 
   const isAdvisory = form.product === 'Asesoría'
-  const cuotas = Number(form.installmentCount) || 0
-  const montoCuota = Number(form.installmentAmount) || 0
+  const totalCuotas = installments.reduce((sum, i) => sum + (Number(i.amount) || 0), 0)
+
+  // Rellena N cuotas mensuales (misma fecha cada mes, desde el mes siguiente al cierre); luego se pueden editar una a una
+  function generate() {
+    const n = Math.floor(Number(gen.count))
+    const amount = Number(gen.amount)
+    if (!(n > 0) || !(amount > 0)) return setError('Indica cuántas cuotas y el monto de cada una para generarlas')
+    setError('')
+    const base = parseLocalDate(form.createdAt)
+    setInstallments(Array.from({ length: n }, (_, k) => {
+      const first = new Date(base.getFullYear(), base.getMonth() + k + 1, 1)
+      const last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate()
+      return { dueDate: formatLocalDate(new Date(first.getFullYear(), first.getMonth(), Math.min(base.getDate(), last))), amount: String(amount) }
+    }))
+  }
+  const setInst = (idx: number, k: 'dueDate' | 'amount', v: string) =>
+    setInstallments(list => list.map((row, i) => (i === idx ? { ...row, [k]: v } : row)))
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm({ ...form, [k]: e.target.value })
@@ -122,19 +139,48 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
           <input type="number" min="0" step="0.01" className={modalInputCls} value={form.onboardingValue} onChange={set('onboardingValue')} />
         </Field>
         {isAdvisory ? (
-          <>
-            <Field label="Cuotas pendientes (número)">
-              <input type="number" min="0" step="1" className={modalInputCls} value={form.installmentCount} onChange={set('installmentCount')} placeholder="Ej. 3" />
-            </Field>
-            <Field label="Monto por cuota">
-              <input type="number" min="0" step="0.01" className={modalInputCls} value={form.installmentAmount} onChange={set('installmentAmount')} placeholder="Ej. 150" />
-            </Field>
-            <p className="sm:col-span-2 text-xs text-brand-muted">
-              {cuotas > 0 && montoCuota > 0
-                ? `Se cobrará ${cuotas} cuota${cuotas === 1 ? '' : 's'} de $${montoCuota}, una por mes a partir del mes siguiente (total en cuotas: $${(cuotas * montoCuota).toLocaleString('en-US')}). Las marcas con ✓ en "Cobros de clientes"; no cuentan como MRR.`
-                : 'Si el cliente ya pagó todo, deja las cuotas vacías.'}
-            </p>
-          </>
+          <div className="sm:col-span-2 space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <div>
+              <p className="text-sm font-medium text-white">Cuotas pendientes</p>
+              <p className="text-xs text-brand-muted">Cada cuota tiene su propia fecha y monto. Aparecen en "Cuentas por cobrar" y en "Cobros de clientes" en esa fecha. No cuentan como MRR.</p>
+            </div>
+
+            <div className="flex flex-wrap items-end gap-2">
+              <Field label="Nº de cuotas">
+                <input type="number" min="1" step="1" className={`${modalInputCls} w-24`} value={gen.count} onChange={e => setGen({ ...gen, count: e.target.value })} placeholder="3" />
+              </Field>
+              <Field label="Monto c/u">
+                <input type="number" min="0" step="0.01" className={`${modalInputCls} w-28`} value={gen.amount} onChange={e => setGen({ ...gen, amount: e.target.value })} placeholder="150" />
+              </Field>
+              <Button variant="secondary" onClick={generate}>Generar cuotas mensuales</Button>
+            </div>
+
+            {installments.length > 0 && (
+              <ul className="space-y-2">
+                {installments.map((row, idx) => (
+                  <li key={idx} className="flex items-center gap-2">
+                    <span className="w-14 shrink-0 text-xs text-brand-muted">Cuota {idx + 1}</span>
+                    <input type="date" className={modalInputCls} value={row.dueDate} onChange={e => setInst(idx, 'dueDate', e.target.value)} aria-label={`Fecha de la cuota ${idx + 1}`} />
+                    <input type="number" min="0" step="0.01" className={`${modalInputCls} w-28`} value={row.amount} onChange={e => setInst(idx, 'amount', e.target.value)} aria-label={`Monto de la cuota ${idx + 1}`} placeholder="Monto" />
+                    <button type="button" onClick={() => setInstallments(list => list.filter((_, i) => i !== idx))} className="text-brand-muted hover:text-red-400 px-1" aria-label={`Quitar cuota ${idx + 1}`}>✕</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                className="text-xs text-brand-primary hover:underline"
+                onClick={() => setInstallments(list => [...list, { dueDate: formatLocalDate(new Date()), amount: '' }])}
+              >
+                + Agregar cuota
+              </button>
+              <p className="text-xs text-brand-muted">
+                {installments.length > 0 ? `${installments.length} cuota${installments.length === 1 ? '' : 's'} · total $${totalCuotas.toLocaleString('en-US')}` : 'Sin cuotas: el cliente ya pagó todo'}
+              </p>
+            </div>
+          </div>
         ) : (
           <>
             <Field label="Mensual (MRR)">

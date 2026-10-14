@@ -1,3 +1,4 @@
+import { attachInstallments } from '@/lib/installments'
 import prisma from '@/lib/db'
 import { monthRange, sumMrr, collectedMrr, expectedCharges, monthKey, isRecurringAtMonthEnd, isTrackedMonth, type MonthRange, type PaymentLike, type AdjustmentLike } from '@/lib/finance'
 
@@ -84,10 +85,10 @@ interface Data {
   weekly: { weekStart: Date; leadsEntrantes: number; personasAgendadas: number }[]
 }
 
-function loadSales() {
-  return prisma.salesClose.findMany({
+async function loadSales() {
+  return attachInstallments(await prisma.salesClose.findMany({
     select: { id: true, clientName: true, status: true, createdAt: true, cancelledAt: true, recurringValue: true, onboardingValue: true, product: true, installmentCount: true, installmentAmount: true }
-  })
+  }))
 }
 
 const normName = (s: string) =>
@@ -265,7 +266,8 @@ export async function computePeriodMetrics(period: Period, date: Date) {
       where: {
         OR: [
           { paidAt: { gte: prev.start, lte: range.end } },
-          { forMonth: { in: monthsIn({ ...range, start: prev.start }).map(m => monthKey(m.start)) } }
+          { forMonth: { in: monthsIn({ ...range, start: prev.start }).map(m => monthKey(m.start)) } },
+          { forMonth: { startsWith: 'c' } }
         ]
       }
     }),
@@ -281,7 +283,7 @@ export async function computePeriodMetrics(period: Period, date: Date) {
       select: { leadName: true, scheduledAt: true }
     }),
     prisma.chargeAdjustment.findMany({
-      where: { forMonth: { in: monthsIn({ ...range, start: prev.start }).map(m => monthKey(m.start)) } }
+      where: { OR: [{ forMonth: { in: monthsIn({ ...range, start: prev.start }).map(m => monthKey(m.start)) } }, { forMonth: { startsWith: 'c' } }] }
     })
   ])
   const data: Data = {

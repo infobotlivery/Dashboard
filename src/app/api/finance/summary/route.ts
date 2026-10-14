@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
+import { attachInstallments } from '@/lib/installments'
 import {
   monthRange,
   sumMrr,
@@ -8,6 +9,7 @@ import {
   buildAccounts,
   expectedCharges,
   upcomingInstallments,
+  installmentSchedule,
   collectedMrr,
   monthKey
 } from '@/lib/finance'
@@ -30,7 +32,7 @@ export async function GET(request: NextRequest) {
     const now = new Date()
 
     // Todas las consultas en paralelo
-    const [sales, expenses, accounts, payments, adjustments] = await Promise.all([
+    const [salesRaw, expenses, accounts, payments, adjustments] = await Promise.all([
       prisma.salesClose.findMany({
         select: {
           id: true,
@@ -53,10 +55,11 @@ export async function GET(request: NextRequest) {
       prisma.accountEntry.findMany(),
       // Pagos de la mensualidad de este mes (cualquier fecha) o cobrados dentro del mes
       prisma.clientPayment.findMany({
-        where: { OR: [{ forMonth: monthKey(range.start) }, { paidAt: { gte: range.start, lte: range.end } }] }
+        where: { OR: [{ forMonth: monthKey(range.start) }, { paidAt: { gte: range.start, lte: range.end } }, { forMonth: { startsWith: 'c' } }] }
       }),
-      prisma.chargeAdjustment.findMany({ where: { forMonth: monthKey(range.start) } })
+      prisma.chargeAdjustment.findMany({ where: { OR: [{ forMonth: monthKey(range.start) }, { forMonth: { startsWith: 'c' } }] } })
     ])
+    const sales = await attachInstallments(salesRaw)
 
     // 1. Ingresos del mes
     // Onboarding: cierres firmados en el mes
@@ -109,7 +112,7 @@ export async function GET(request: NextRequest) {
     const { receivable, payable } = buildAccounts(accounts, expenses, range, now, charges)
 
     // Saldo de cuotas de asesorías que vencen en meses siguientes (se muestra aparte, no suma a lo pendiente del mes)
-    const installmentSales = sales.filter(s => (s.installmentCount ?? 0) > 0)
+    const installmentSales = sales.filter(s => installmentSchedule(s).length > 0)
     if (installmentSales.length > 0 && range.end >= new Date(now.getFullYear(), now.getMonth(), 1)) {
       const [futurePayments, futureAdjustments] = await Promise.all([
         prisma.clientPayment.findMany({ where: { saleId: { in: installmentSales.map(s => s.id) } } }),
