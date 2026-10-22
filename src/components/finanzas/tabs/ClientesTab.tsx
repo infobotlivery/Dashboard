@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { GlassCard } from '@/components/finanzas/GlassCard'
 import { AnimatedNumber } from '@/components/finanzas/AnimatedNumber'
+import { SaleInstallmentsModal } from '@/components/dashboard/SaleInstallmentsModal'
 import { ResetButton } from '@/components/dashboard/ResetButton'
 import { SalesCsvImport, CollectionsCsvImport } from '@/components/finanzas/SalesCsvImport'
 import { apiFetch } from '@/lib/apiFetch'
@@ -124,6 +125,8 @@ export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onCh
     link.click()
   }
 
+  const [cuotasSale, setCuotasSale] = useState<{ id: number; clientName: string } | null>(null)
+
   async function changeStatus(sale: SalesClose, status: 'active' | 'cancelled') {
     const verb = status === 'cancelled' ? 'cancelar (el cliente deja de sumar MRR desde hoy)' : 'reactivar'
     if (!confirm(`¿Quieres ${verb} a ${sale.clientName}?`)) return
@@ -143,6 +146,7 @@ export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onCh
 
   return (
     <div className="space-y-6">
+      <SaleInstallmentsModal sale={cuotasSale} onClose={() => setCuotasSale(null)} onChanged={() => onChanged?.()} />
       <SalesCsvImport onImported={onChanged} />
       <CollectionsCsvImport onImported={onChanged} />
       <div className="flex justify-end">
@@ -318,6 +322,7 @@ export function ClientesTab({ sales, summary, selectedMonth, onMonthChange, onCh
                       {sale.status === 'cancelled' && (
                         <button onClick={() => changeStatus(sale, 'active')} className="text-xs text-green-400 hover:text-green-300 px-2 py-1 rounded hover:bg-green-400/10">Reactivar</button>
                       )}
+                      <button onClick={() => setCuotasSale({ id: sale.id as number, clientName: sale.clientName })} className="text-xs text-brand-primary hover:opacity-80 px-2 py-1 rounded hover:bg-white/5">Cuotas</button>
                       <button onClick={() => deleteSale(sale)} className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-500/10">Eliminar</button>
                     </td>
                   </motion.tr>

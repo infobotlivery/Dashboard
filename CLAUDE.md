@@ -75,6 +75,7 @@ Dashboard/
 │   │       ├── daily/route.ts          # CRUD checks diarios
 │   │       ├── sales/route.ts          # CRUD cierres de ventas
 │   │       ├── sales/import/route.ts   # Importar cierres desde CSV (preview + confirmar) / plantilla
+│   │       ├── sales/installments/route.ts # Cuotas de un cliente ya registrado: listar, agregar, quitar (no si está cobrada)
 │   │       ├── sales/upcoming/route.ts # Cobros próximos 7 días (GET público)
 │   │       ├── settings/route.ts       # Configuración y branding
 │   │       └── webhooks/
@@ -96,6 +97,7 @@ Dashboard/
 │   │   │   ├── ProposalsBoard.tsx      # Propuestas: agregar, editar, estado, filtros, importar CSV
 │   │   │   ├── ProposalFormModal.tsx   # Alta/edición de propuesta
 │   │   │   ├── CloseSaleModal.tsx      # Registro del cierre de venta al aprobar una propuesta
+│   │   │   ├── SaleInstallmentsModal.tsx # Botón "Cuotas" por cliente (Finanzas → Clientes): ver/agregar/quitar cuotas
 │   │   │   ├── Modal.tsx               # Modal base + Field
 │   │   │   ├── CadenceTree.tsx         # Árbol de cadencias
 │   │   │   └── (WeeklyDashboard, WeeklyComparison, MetricCard, MonthlyScorecard, SalesCloseTable: sin uso en la portada)
@@ -841,6 +843,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-10-22 | Cuotas para cualquier producto (casilla en el cierre), "Mentoría/Asesoría…" se tratan como Asesoría, y botón "Cuotas" en Finanzas → Clientes para agregar cuotas a un cliente ya registrado | pendiente |
 | 2026-10-14 | Cuotas de asesorías con fecha y monto propios por cuota (se definen al registrar el cierre); cada una vence en su fecha en Cobros de clientes y Cuentas por cobrar | pendiente |
 | 2026-10-14 | Cuentas por cobrar muestra "Próximas cuotas": saldo de cuotas de asesorías que vencen en meses siguientes (no suman a lo pendiente del mes) | pendiente |
 | 2026-10-13 | La portada se recarga sola al volver a la pestaña (evita números viejos tras editar en Finanzas) | pendiente |
@@ -853,6 +856,11 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-08 | Revisión mensual de gastos (tab Revisión + aviso en portada), tipo de gasto Variable, etiquetas Fijo mensual / Variable / Único | pendiente |
 | 2026-10-08 | Portada reordenada (finanzas, cobros, llamadas, propuestas, métricas, cadencia, leyenda), cadencia y leyenda desplegables, detalle "¿De dónde sale este mes?", historial hasta 5 años, Clientes muestra recurrentes vigentes del mes | pendiente |
 | 2026-10-07 | Carga del trimestre jul–sep 2026 (PDF): seguimiento de cobros desde julio 2026, importador de cobros CSV, exportación filtrable por fechas, borrado masivo con respaldo, "mensualidades por cobrar" real | pendiente |
+
+### Detalle del cambio 2026-10-22 (cuotas en cualquier cliente):
+- Causa del caso Ronnie Romero: el editor de cuotas solo salía si el producto era exactamente "Asesoría" (una "Mentoría" quedaba como "Otro" sin cuotas) o el cierre se registró antes de existir las cuotas.
+- `CloseSaleModal`: casilla "Tiene cuotas pendientes" para cualquier producto; servicios que contienen "mentor"/"asesor" se preseleccionan como Asesoría.
+- Finanzas → Clientes → **Cuotas** (`SaleInstallmentsModal`): muestra las cuotas del cliente y permite generar/agregar más o quitar las no cobradas. API `GET/POST/DELETE /api/sales/installments`.
 
 ### Detalle del cambio 2026-10-14 (cuotas con fecha y monto propios):
 - Al aprobar una propuesta de producto **Asesoría**, `CloseSaleModal` permite armar el calendario de cuotas: cada fila lleva su **fecha** y su **monto**; hay un generador ("N cuotas de $X, mensuales") y botones para agregar/quitar filas. `POST /api/sales` recibe `installments: [{ dueDate, amount }]` y crea filas `SaleInstallment`.
@@ -1181,4 +1189,4 @@ model MonthlyGoal {
 
 ---
 
-*Última actualización: 2026-10-14*
+*Última actualización: 2026-10-22*
