@@ -24,13 +24,16 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
   })
   // Cuotas pendientes (asesorías): cada una con su fecha y su monto
   const [installments, setInstallments] = useState<{ dueDate: string; amount: string }[]>([])
+  const [withCuotas, setWithCuotas] = useState(false)
   const [gen, setGen] = useState({ count: '', amount: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!proposal) return
-    const match = PRODUCTS.find(p => p.toLowerCase() === proposal.service.trim().toLowerCase())
+    const svc = proposal.service.trim().toLowerCase()
+    // "Mentoría", "Asesoría personalizada", etc. se tratan como Asesoría (cobro en cuotas)
+    const match = PRODUCTS.find(p => p.toLowerCase() === svc) ?? (/(mentor|asesor)/.test(svc) ? 'Asesoría' : undefined)
     setForm({
       clientName: proposal.clientName,
       product: match ?? 'Otro',
@@ -41,6 +44,7 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
       createdAt: formatLocalDate(new Date())
     })
     setInstallments([])
+    setWithCuotas(false)
     setGen({ count: '', amount: '' })
     setError('')
   }, [proposal])
@@ -49,7 +53,7 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
     if (!proposal) return
     if (!form.clientName.trim()) return setError('El nombre del cliente es requerido')
     if (form.product === 'Otro' && !form.customProduct.trim()) return setError('Indica el producto')
-    if (isAdvisory && installments.some(i => !i.dueDate || !(Number(i.amount) > 0))) {
+    if (showCuotas && installments.some(i => !i.dueDate || !(Number(i.amount) > 0))) {
       return setError('Cada cuota necesita fecha y monto mayor que 0 (o quita las filas vacías)')
     }
 
@@ -66,7 +70,7 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
           // Asesoría: se cobra en cuotas (no es MRR)
           recurringValue: isAdvisory ? 0 : Number(form.recurringValue) || 0,
           contractMonths: !isAdvisory && form.contractMonths ? Number(form.contractMonths) : null,
-          installments: isAdvisory ? installments.map(i => ({ dueDate: parseLocalDate(i.dueDate).toISOString(), amount: Number(i.amount) })) : [],
+          installments: showCuotas ? installments.map(i => ({ dueDate: parseLocalDate(i.dueDate).toISOString(), amount: Number(i.amount) })) : [],
           status: 'active',
           proposalId: proposal.id,
           createdAt: parseLocalDate(form.createdAt).toISOString()
@@ -91,6 +95,7 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
   }
 
   const isAdvisory = form.product === 'Asesoría'
+  const showCuotas = isAdvisory || withCuotas
   const totalCuotas = installments.reduce((sum, i) => sum + (Number(i.amount) || 0), 0)
 
   // Rellena N cuotas mensuales (misma fecha cada mes, desde el mes siguiente al cierre); luego se pueden editar una a una
@@ -138,7 +143,23 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
         <Field label={isAdvisory ? 'Pago inicial (onboarding)' : 'Onboarding (pago único)'}>
           <input type="number" min="0" step="0.01" className={modalInputCls} value={form.onboardingValue} onChange={set('onboardingValue')} />
         </Field>
-        {isAdvisory ? (
+        {!isAdvisory && (
+          <>
+            <Field label="Mensual (MRR)">
+              <input type="number" min="0" step="0.01" className={modalInputCls} value={form.recurringValue} onChange={set('recurringValue')} placeholder="0 si no es recurrente" />
+            </Field>
+            <Field label="Meses de contrato">
+              <input type="number" min="1" className={modalInputCls} value={form.contractMonths} onChange={set('contractMonths')} placeholder="Opcional" />
+            </Field>
+          </>
+        )}
+        {!isAdvisory && (
+          <label className="sm:col-span-2 flex items-center gap-2 text-sm text-gray-300">
+            <input type="checkbox" checked={withCuotas} onChange={e => setWithCuotas(e.target.checked)} />
+            Tiene cuotas pendientes por cobrar (pago en partes)
+          </label>
+        )}
+        {showCuotas && (
           <div className="sm:col-span-2 space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <div>
               <p className="text-sm font-medium text-white">Cuotas pendientes</p>
@@ -181,15 +202,6 @@ export function CloseSaleModal({ proposal, onClose, onDone }: CloseSaleModalProp
               </p>
             </div>
           </div>
-        ) : (
-          <>
-            <Field label="Mensual (MRR)">
-              <input type="number" min="0" step="0.01" className={modalInputCls} value={form.recurringValue} onChange={set('recurringValue')} placeholder="0 si no es recurrente" />
-            </Field>
-            <Field label="Meses de contrato">
-              <input type="number" min="1" className={modalInputCls} value={form.contractMonths} onChange={set('contractMonths')} placeholder="Opcional" />
-            </Field>
-          </>
         )}
         {form.product === 'Otro' && (
           <Field label="Fecha del cierre">
