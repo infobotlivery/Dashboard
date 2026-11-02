@@ -1,0 +1,14 @@
+services:
+  plan12:
+    build: .
+    restart: unless-stopped
+    environment:
+      APP_TOKEN: ${APP_TOKEN}
+      DATA_DIR: /data
+      PORT: "3000"
+    volumes:
+      - plan12-data:/data
+    ports:
+      - "3000:3000"
+volumes:
+  plan12-data:

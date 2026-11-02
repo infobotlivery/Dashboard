@@ -155,6 +155,7 @@ Dashboard/
 │   ├── start-production.js       # Script de inicio en Docker
 │   └── docker-entrypoint.sh      # Entrypoint de Docker
 │
+├── plan12/                        # App aparte: tablero Kanban "Año de 12 Semanas" (PWA, Node sin deps, su propio Dockerfile; ver plan12/README.md)
 ├── public/                        # Archivos estáticos
 ├── Dockerfile                     # Build multi-stage
 ├── .env.example                   # Variables de entorno ejemplo
@@ -843,6 +844,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-11-02 | Se agrega `plan12/`: app independiente (tablero Kanban PWA) para desplegar en su propio subdominio; no toca el dashboard | pendiente |
 | 2026-10-22 | Cuotas para cualquier producto (casilla en el cierre), "Mentoría/Asesoría…" se tratan como Asesoría, y botón "Cuotas" en Finanzas → Clientes para agregar cuotas a un cliente ya registrado | pendiente |
 | 2026-10-14 | Cuotas de asesorías con fecha y monto propios por cuota (se definen al registrar el cierre); cada una vence en su fecha en Cobros de clientes y Cuentas por cobrar | pendiente |
 | 2026-10-14 | Cuentas por cobrar muestra "Próximas cuotas": saldo de cuotas de asesorías que vencen en meses siguientes (no suman a lo pendiente del mes) | pendiente |
@@ -1189,4 +1191,4 @@ model MonthlyGoal {
 
 ---
 
-*Última actualización: 2026-10-22*
+*Última actualización: 2026-11-02*

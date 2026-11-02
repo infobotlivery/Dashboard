@@ -1,0 +1,655 @@
+{
+ "rev": 1,
+ "tasks": [
+  {
+   "id": "t0",
+   "t": "Mateo: 1 hora, terminar el módulo 1",
+   "c": "semana",
+   "w": 4,
+   "d": 0,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t1",
+   "t": "Intensivo de Yapping: terminar el curso y empezar los ejercicios",
+   "c": "semana",
+   "w": 4,
+   "d": 0,
+   "s": 1,
+   "dd": null
+  },
+  {
+   "id": "t2",
+   "t": "Conferencia virtual en Argentina",
+   "c": "semana",
+   "w": 4,
+   "d": 0,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t3",
+   "t": "Plan de lo que queda del año, con la visión incluida",
+   "c": "semana",
+   "w": 4,
+   "d": 0,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t4",
+   "t": "Proyecto de Johanna",
+   "c": "semana",
+   "w": 4,
+   "d": 0,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t5",
+   "t": "Enviar los regalos por el grupo",
+   "c": "semana",
+   "w": 4,
+   "d": 0,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t6",
+   "t": "Mateo: 1 hora, estudio o acción",
+   "c": "semana",
+   "w": 4,
+   "d": 1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t7",
+   "t": "Plan de contenido de Yapping y pilares nuevos",
+   "c": "semana",
+   "w": 4,
+   "d": 1,
+   "s": 1,
+   "dd": null
+  },
+  {
+   "id": "t8",
+   "t": "Prelaunch y nurturing del grupo, con Mateo",
+   "c": "semana",
+   "w": 4,
+   "d": 1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t9",
+   "t": "Reunión con Dairo Maffer",
+   "c": "semana",
+   "w": 4,
+   "d": 1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t10",
+   "t": "Edición con Claude (Andrés)",
+   "c": "semana",
+   "w": 4,
+   "d": 1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t11",
+   "t": "Subir el contenido a Hays y enviarlo",
+   "c": "semana",
+   "w": 4,
+   "d": 1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t12",
+   "t": "Grabación de Soul y los espacios",
+   "c": "semana",
+   "w": 4,
+   "d": 1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t13",
+   "t": "Terminar la maleta",
+   "c": "semana",
+   "w": 4,
+   "d": 1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t14",
+   "t": "Comprar regalos",
+   "c": "semana",
+   "w": 4,
+   "d": 1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t15",
+   "t": "Ir a la Comuna 13, si queda tiempo",
+   "c": "semana",
+   "w": 4,
+   "d": 1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t16",
+   "t": "Mateo: 1 hora, estudio o acción",
+   "c": "semana",
+   "w": 4,
+   "d": 2,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t17",
+   "t": "Entrenamiento a Nexo",
+   "c": "semana",
+   "w": 4,
+   "d": 2,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t18",
+   "t": "Analizar las 60 respuestas del formulario",
+   "c": "semana",
+   "w": 4,
+   "d": 2,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t19",
+   "t": "Curso de Platzi",
+   "c": "semana",
+   "w": 4,
+   "d": 2,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t20",
+   "t": "Pago a Karen, cobro de las Rafas y de Caraobo",
+   "c": "semana",
+   "w": 4,
+   "d": 2,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t21",
+   "t": "Vuelo de noche a Caracas",
+   "c": "semana",
+   "w": 4,
+   "d": 2,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t22",
+   "t": "Mateo: 1 hora, estudio o acción",
+   "c": "semana",
+   "w": 4,
+   "d": 3,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t23",
+   "t": "Clase de GPTs para el Crew",
+   "c": "semana",
+   "w": 4,
+   "d": 3,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t24",
+   "t": "Reunión con Karen",
+   "c": "semana",
+   "w": 4,
+   "d": 3,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t25",
+   "t": "El tema de Mateo Jiménez",
+   "c": "semana",
+   "w": 4,
+   "d": 3,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t26",
+   "t": "Mateo: 1 hora, estudio o acción",
+   "c": "semana",
+   "w": 4,
+   "d": 4,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t27",
+   "t": "Decidir si te quedas o no, y qué pasa con Arcadia",
+   "c": "semana",
+   "w": 4,
+   "d": 4,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t28",
+   "t": "Video de Rafa's",
+   "c": "semana",
+   "w": 4,
+   "d": 4,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t29",
+   "t": "Check semanal de todo lo que iba",
+   "c": "semana",
+   "w": 4,
+   "d": 4,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t30",
+   "t": "Newsjacking en Claude",
+   "c": "semana",
+   "w": 4,
+   "d": 4,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t31",
+   "t": "Minuta Big Hair",
+   "c": "hecho",
+   "w": 4,
+   "d": 0,
+   "s": 0,
+   "dd": "2026-10-26"
+  },
+  {
+   "id": "t32",
+   "t": "Modelo de mensaje",
+   "c": "hecho",
+   "w": 4,
+   "d": 0,
+   "s": 0,
+   "dd": "2026-10-26"
+  },
+  {
+   "id": "t33",
+   "t": "Estudio de mercado del Crew: 60 respuestas del formulario",
+   "c": "hecho",
+   "w": 3,
+   "d": -1,
+   "s": 0,
+   "dd": "2026-10-25"
+  },
+  {
+   "id": "t34",
+   "t": "Dashboard de la agencia",
+   "c": "hecho",
+   "w": 3,
+   "d": -1,
+   "s": 0,
+   "dd": "2026-10-25"
+  },
+  {
+   "id": "t35",
+   "t": "Calendario del trimestre del Crew",
+   "c": "hecho",
+   "w": 3,
+   "d": -1,
+   "s": 0,
+   "dd": "2026-10-25"
+  },
+  {
+   "id": "t36",
+   "t": "Clase de Platzi",
+   "c": "hecho",
+   "w": 3,
+   "d": -1,
+   "s": 0,
+   "dd": "2026-10-25"
+  },
+  {
+   "id": "t37",
+   "t": "Conferencia en Medellín",
+   "c": "hecho",
+   "w": 3,
+   "d": -1,
+   "s": 0,
+   "dd": "2026-10-25"
+  },
+  {
+   "id": "t38",
+   "t": "Media módulo 1 de Mateo",
+   "c": "hecho",
+   "w": 3,
+   "d": -1,
+   "s": 0,
+   "dd": "2026-10-25"
+  },
+  {
+   "id": "t39",
+   "t": "Vuelo Buenos Aires a Valencia, Venezuela (12 de noviembre)",
+   "c": "semana",
+   "w": 6,
+   "d": 3,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t40",
+   "t": "TEDx Barquisimeto (21 de noviembre)",
+   "c": "semana",
+   "w": 7,
+   "d": 5,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t41",
+   "t": "Mateo, módulo 2",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t42",
+   "t": "Grabar el módulo de la web app",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t43",
+   "t": "Notebook del libro de MBA",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t44",
+   "t": "Terminar el avatar (falta el 50%)",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t45",
+   "t": "Delivery de School: classroom, temario y welcome module",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t46",
+   "t": "Módulo en Waivo y leads mínimos viables",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t47",
+   "t": "Armar el High Ticket y presentarte a la chica de la clínica",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t48",
+   "t": "Propuesta de valor y 3 ganchos de lanzamiento",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t49",
+   "t": "Clases de YouTube (intensivo)",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t50",
+   "t": "Sistema diario de Instagram",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t51",
+   "t": "Sprint de 15 días en Instagram",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t52",
+   "t": "Cursos 2 y 3 de Platzi",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t53",
+   "t": "Nurturing de los grupos de WhatsApp",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t54",
+   "t": "Tablero del trimestre para filtrar prioridades",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t55",
+   "t": "Subir todos los módulos del Crew y mostrar la comunidad completa",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t56",
+   "t": "Primera aplicación de la estrategia de lanzamiento y conversión",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t57",
+   "t": "Segunda aplicación de la estrategia de lanzamiento y conversión",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t58",
+   "t": "Reto o contenido diferenciador dentro del Crew",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t59",
+   "t": "Programa de YouTube y roles (editor y miniaturista)",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t60",
+   "t": "Sesión de enfoque Tony Robbins para el canal de YouTube",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t61",
+   "t": "Método de ideas: vaciado y 100 conceptos",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t62",
+   "t": "Grabar y publicar los 10 videos de YouTube",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t63",
+   "t": "Bloquear fecha y lugar del intensivo de 48 h con Frey",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t64",
+   "t": "Recopilar clientes, ofertas, costos y márgenes (Frey)",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t65",
+   "t": "Ritual de lunes y viernes con Frey: ads, ventas, entrega, presupuesto y closer",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t66",
+   "t": "Intensivo de 48 h con Frey: auditar ofertas, subir tickets, estructurar la entrega",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t67",
+   "t": "Nuevo catálogo high-ticket y pauta de prospección",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t68",
+   "t": "Intensiva de Claude y segundo cerebro para Frey",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t69",
+   "t": "Activar Ads con embudo simple, foco Venezuela",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t70",
+   "t": "Dashboard de medición del Crew: miembros, conversión y MRR (Frey)",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  },
+  {
+   "id": "t71",
+   "t": "Arcadia: reportes con Claude, stories y video de storytelling (si firman el acuerdo)",
+   "c": "tareas",
+   "w": 0,
+   "d": -1,
+   "s": 0,
+   "dd": null
+  }
+ ],
+ "closures": {},
+ "updatedAt": "2026-11-02T00:00:00.000Z"
+}
