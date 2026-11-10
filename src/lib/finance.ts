@@ -328,7 +328,8 @@ export function expectedCharges(
   payments: PaymentLike[],
   range: MonthRange,
   asOf: Date,
-  adjustments: AdjustmentLike[] = []
+  adjustments: AdjustmentLike[] = [],
+  paidAsOf: Date = asOf // hasta cuándo se cuentan los cobros marcados (por defecto, la fecha de consulta del mes)
 ): ClientCharge[] {
   const tracked = isTrackedMonth(range)
   const key = monthKey(range.start)
@@ -337,7 +338,7 @@ export function expectedCharges(
 
   const out: ClientCharge[] = []
   const push = (s: ChargeSale, chargeKey: string, base: BaseCharge, dueDate: Date) => {
-    const pay = payments.find(p => p.saleId === s.id && p.forMonth === chargeKey && p.paidAt <= asOf)
+    const pay = payments.find(p => p.saleId === s.id && p.forMonth === chargeKey && p.paidAt <= paidAsOf)
     const adj = adjustments.find(a => a.saleId === s.id && a.forMonth === chargeKey)
     out.push({
       saleId: s.id,
@@ -363,7 +364,7 @@ export function expectedCharges(
       const inMonth = inst.dueDate >= range.start && inst.dueDate <= range.end
       const overdueCarry =
         isCurrentMonth && inst.dueDate < range.start &&
-        !payments.some(p => p.saleId === s.id && p.forMonth === inst.key && p.paidAt <= asOf)
+        !payments.some(p => p.saleId === s.id && p.forMonth === inst.key && p.paidAt <= paidAsOf)
       if (!inMonth && !overdueCarry) continue
       if (rec && inst.key === key) continue // legado: la mensualidad ya ocupa esa clave
       push(s, inst.key, { amount: inst.amount, kind: 'cuota', label: `Cuota ${inst.number}/${inst.total}` }, inst.dueDate)

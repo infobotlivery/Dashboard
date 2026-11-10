@@ -843,6 +843,7 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-06 | Importar llamadas por CSV, respaldo automático de la BD, fixes de reprogramación y detección del presupuesto en Calendly | 50d2591 |
 | 2026-10-07 | Cobros de mensualidades: facturación = cobrado, MRR proyectado, por cobrar con ✓; facturación por cerrar | 07eae37 |
 | 2026-10-07 | Panel en 4 bloques (embudo, ventas, dinero, MRR), churn, leyenda al final; leads = llamadas; filtros de mes hasta 60 meses | 7ae2518 |
+| 2026-11-10 | Fix: al marcar ✓ un cobro vencido de un mes pasado volvía a aparecer como vencido (los cobros marcados hoy se descartaban por ser posteriores al cierre de ese mes) | pendiente |
 | 2026-10-22 | Cuotas para cualquier producto (casilla en el cierre), "Mentoría/Asesoría…" se tratan como Asesoría, y botón "Cuotas" en Finanzas → Clientes para agregar cuotas a un cliente ya registrado | pendiente |
 | 2026-10-14 | Cuotas de asesorías con fecha y monto propios por cuota (se definen al registrar el cierre); cada una vence en su fecha en Cobros de clientes y Cuentas por cobrar | pendiente |
 | 2026-10-14 | Cuentas por cobrar muestra "Próximas cuotas": saldo de cuotas de asesorías que vencen en meses siguientes (no suman a lo pendiente del mes) | pendiente |
@@ -856,6 +857,10 @@ docker logs <container>  # Ver logs del contenedor
 | 2026-10-08 | Revisión mensual de gastos (tab Revisión + aviso en portada), tipo de gasto Variable, etiquetas Fijo mensual / Variable / Único | pendiente |
 | 2026-10-08 | Portada reordenada (finanzas, cobros, llamadas, propuestas, métricas, cadencia, leyenda), cadencia y leyenda desplegables, detalle "¿De dónde sale este mes?", historial hasta 5 años, Clientes muestra recurrentes vigentes del mes | pendiente |
 | 2026-10-07 | Carga del trimestre jul–sep 2026 (PDF): seguimiento de cobros desde julio 2026, importador de cobros CSV, exportación filtrable por fechas, borrado masivo con respaldo, "mensualidades por cobrar" real | pendiente |
+
+### Detalle del cambio 2026-11-10 (cobros vencidos de meses pasados):
+- Causa: `expectedCharges` solo contaba un cobro si `paidAt <= asOf`, y para un mes pasado `asOf` es el cierre de ese mes; un ✓ marcado hoy tiene `paidAt` posterior, así que la fila seguía "Vencido". Ahora `expectedCharges` recibe `paidAsOf` (por defecto = `asOf`) y `GET /api/collections` pasa la fecha actual. El cobro sigue sumando a la facturación del mes en que se marcó (`paidAt`).
+- Cuentas por cobrar/métricas de meses pasados siguen calculándose "al cierre del mes".
 
 ### Detalle del cambio 2026-10-22 (cuotas en cualquier cliente):
 - Causa del caso Ronnie Romero: el editor de cuotas solo salía si el producto era exactamente "Asesoría" (una "Mentoría" quedaba como "Otro" sin cuotas) o el cierre se registró antes de existir las cuotas.
@@ -1189,4 +1194,4 @@ model MonthlyGoal {
 
 ---
 
-*Última actualización: 2026-10-22*
+*Última actualización: 2026-11-10*

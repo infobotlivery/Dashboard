@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     ])
 
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const charges = expectedCharges(sales, payments, range, asOf, adjustments).map(c => ({
+    const charges = expectedCharges(sales, payments, range, asOf, adjustments, now).map(c => ({
       saleId: c.saleId,
       key: c.key,
       clientName: c.clientName,
